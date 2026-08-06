@@ -1,0 +1,89 @@
+{
+  "name": "the-commission-bot",
+  "version": "3.0.1",
+  "description": "The Commission - local Windows control panel and Discord server protection bot",
+  "main": "desktop/main.js",
+  "author": "Rykeen-sargeras",
+  "license": "UNLICENSED",
+  "scripts": {
+    "start": "electron .",
+    "start:bot": "node discord_bot.js",
+    "railway:start": "node discord_bot.js",
+    "check": "node --check discord_bot.js && node --check desktop/main.js && node --check desktop/preload.js && node --check desktop/renderer.js && node --check memberbridge/store.js && node --check memberbridge/youtube.js && node --check memberbridge/engine.js && node --check memberbridge/web.js && node --check memberbridge/integration.js",
+    "test": "node tests/preemptive-ban.test.js && node tests/blueprint.test.js && node tests/economy.test.js && node tests/memberbridge.test.js",
+    "dist": "electron-builder --win nsis portable",
+    "dist:dir": "electron-builder --dir"
+  },
+  "dependencies": {
+    "@discordjs/voice": "^0.18.0",
+    "@distube/ytdl-core": "^4.16.12",
+    "discord.js": "^14.21.0",
+    "ffmpeg-static": "^5.2.0",
+    "libsodium-wrappers": "^0.7.15",
+    "play-dl": "^1.9.7"
+  },
+  "devDependencies": {
+    "electron": "^37.2.3",
+    "electron-builder": "^26.0.12"
+  },
+  "engines": {
+    "node": ">=22.13"
+  },
+  "build": {
+    "appId": "com.rykeen.thecommission",
+    "productName": "The Commission",
+    "copyright": "Copyright © 2026 Rykeen-sargeras",
+    "asar": true,
+    "asarUnpack": [
+      "node_modules/ffmpeg-static/**"
+    ],
+    "files": [
+      "desktop/**/*",
+      "tests/**/*",
+      "blueprint.js",
+      "economy.js",
+      "economy_discord.js",
+      "memberbridge/**/*",
+      "docs/**/*",
+      "assets/commission-mark.png",
+      "assets/app-icon.ico",
+      "discord_bot.js",
+      "package.json",
+      "node_modules/**/*"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "icon": "assets/app-icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "The Commission",
+      "installerIcon": "assets/app-icon.ico",
+      "uninstallerIcon": "assets/app-icon.ico",
+      "artifactName": "${productName}-Setup-${version}-${arch}.${ext}",
+      "runAfterFinish": true
+    },
+    "portable": {
+      "artifactName": "${productName}-Portable-${version}-${arch}.${ext}"
+    }
+  }
+}

@@ -1,0 +1,7 @@
+[build]
+builder = "RAILPACK"
+
+[deploy]
+startCommand = "npm run railway:start"
+healthcheckPath = "/health"
+healthcheckTimeout = 120

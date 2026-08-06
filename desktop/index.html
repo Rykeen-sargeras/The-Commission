@@ -1,0 +1,659 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'">
+    <title>The Commission</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <section id="loginView" class="login-view">
+        <div class="login-glow"></div>
+        <form id="loginForm" class="login-card">
+            <div class="brand-seal">
+                <img src="../assets/commission-mark.png" alt="">
+            </div>
+            <p class="eyebrow">Private server protection</p>
+            <h1>The Commission</h1>
+            <p class="login-copy">Authenticate to enter the control room.</p>
+            <label class="field">
+                <span>Access password</span>
+                <input id="loginPassword" type="password" autocomplete="current-password" autofocus required>
+            </label>
+            <label class="login-remember">
+                <input id="rememberLogin" type="checkbox" checked>
+                <span>Keep me signed in on this Windows account</span>
+            </label>
+            <p id="loginError" class="form-error" role="alert"></p>
+            <button class="button primary wide" type="submit">Enter control room</button>
+            <p class="local-note">Credentials and bot tokens remain on this Windows PC.</p>
+        </form>
+    </section>
+
+    <div id="appView" class="app-view hidden">
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <img src="../assets/commission-mark.png" alt="">
+                <div>
+                    <strong>The Commission</strong>
+                    <span>Server Protection</span>
+                </div>
+            </div>
+
+            <nav class="nav" aria-label="Control panel">
+                <button class="nav-item active" data-page-target="overview"><span>01</span> Overview</button>
+                <button class="nav-item" data-page-target="connection"><span>02</span> Connection</button>
+                <button class="nav-item" data-page-target="channels"><span>03</span> Channels</button>
+                <button class="nav-item" data-page-target="protection"><span>04</span> Protection</button>
+                <button class="nav-item" data-page-target="cases"><span>05</span> Cases</button>
+                <button class="nav-item" data-page-target="economy"><span>06</span> Blood Money</button>
+                <button class="nav-item" data-page-target="memberbridge"><span>07</span> MemberBridge</button>
+                <button class="nav-item" data-page-target="services"><span>08</span> API services</button>
+                <button class="nav-item" data-page-target="system"><span>09</span> Windows</button>
+                <button class="nav-item" data-page-target="blueprints"><span>10</span> Blueprints</button>
+                <button class="nav-item" data-page-target="logs"><span>11</span> Live logs</button>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="status-pill">
+                    <i id="sidebarStatusDot"></i>
+                    <span id="sidebarStatus">Bot stopped</span>
+                </div>
+                <button id="lockButton" class="text-button" type="button">Lock panel</button>
+            </div>
+        </aside>
+
+        <main class="main">
+            <header class="topbar">
+                <div>
+                    <p class="eyebrow" id="pageEyebrow">Operations</p>
+                    <h2 id="pageTitle">Overview</h2>
+                </div>
+                <div class="top-actions">
+                    <span id="saveState" class="save-state">All changes local</span>
+                    <button id="saveButton" class="button secondary" type="button">Save settings</button>
+                </div>
+            </header>
+
+            <div id="toast" class="toast" role="status"></div>
+
+            <form id="settingsForm" autocomplete="off">
+                <section class="page active" data-page="overview" data-title="Overview" data-eyebrow="Operations">
+                    <div class="hero">
+                        <div class="hero-copy">
+                            <p class="eyebrow">Command the room</p>
+                            <h3>Your server, under watch.</h3>
+                            <p>Run the bot locally, control every Discord ID, and open the full moderation dashboard from one locked Windows app.</p>
+                            <div class="hero-actions">
+                                <button id="startButton" class="button primary" type="button">Start protection</button>
+                                <button id="stopButton" class="button danger" type="button">Stop bot</button>
+                                <button id="dashboardButton" class="button ghost" type="button">Open dashboard</button>
+                            </div>
+                        </div>
+                        <div class="hero-mark">
+                            <img src="../assets/commission-mark.png" alt="The Commission shield">
+                        </div>
+                    </div>
+
+                    <div class="metrics">
+                        <article class="metric">
+                            <span>Process</span>
+                            <strong id="metricState">Stopped</strong>
+                            <small id="metricPid">No active PID</small>
+                        </article>
+                        <article class="metric">
+                            <span>Dashboard</span>
+                            <strong id="metricDashboard">Offline</strong>
+                            <small>Local access only</small>
+                        </article>
+                        <article class="metric">
+                            <span>Configuration</span>
+                            <strong id="metricConfig">Not checked</strong>
+                            <small>Saved with Windows encryption</small>
+                        </article>
+                    </div>
+
+                    <div class="grid two">
+                        <article class="panel">
+                            <div class="panel-heading">
+                                <div>
+                                    <p class="eyebrow">First deployment</p>
+                                    <h3>Three things to finish</h3>
+                                </div>
+                            </div>
+                            <ol class="checklist">
+                                <li><b>Connect</b><span>Save the Discord bot token.</span></li>
+                                <li><b>Map the rooms</b><span>Paste channel, category, user, and role IDs.</span></li>
+                                <li><b>Go online</b><span>Start protection and watch the live log.</span></li>
+                            </ol>
+                        </article>
+                        <article class="panel">
+                            <div class="panel-heading">
+                                <div>
+                                    <p class="eyebrow">Host note</p>
+                                    <h3>Your PC is now the host</h3>
+                                </div>
+                            </div>
+                            <p class="muted">The bot protects your Discord server only while this app is running and your PC has internet access. Enable Windows startup after the first successful test.</p>
+                        </article>
+                    </div>
+                </section>
+
+                <section class="page" data-page="connection" data-title="Connection" data-eyebrow="Discord">
+                    <div class="page-intro">
+                        <h3>Discord connection</h3>
+                        <p>The token is encrypted with Windows and is never displayed again after saving.</p>
+                    </div>
+                    <article class="panel form-panel">
+                        <div class="field-grid">
+                            <label class="field span-two">
+                                <span>Discord bot token <em id="tokenState">Not saved</em></span>
+                                <input type="password" data-secret="discordToken" placeholder="Paste a new token to replace the saved token" autocomplete="new-password">
+                                <small>Discord Developer Portal → Bot → Reset Token. Never share this value.</small>
+                            </label>
+                            <label class="field">
+                                <span>Owner user ID</span>
+                                <input data-setting="ownerUserId" inputmode="numeric" placeholder="17-20 digit user ID">
+                                <small>Receives mentions in reports and jail rooms.</small>
+                            </label>
+                            <label class="field">
+                                <span>Staff role IDs</span>
+                                <input data-setting="staffRoleIds" placeholder="roleId,roleId">
+                                <small>Comma-separated. These roles get staff permissions.</small>
+                            </label>
+                        </div>
+                    </article>
+                    <article class="callout">
+                        <strong>Required Discord intents</strong>
+                        <p>Enable Server Members Intent and Message Content Intent in the Discord Developer Portal for moderation and member protection features.</p>
+                    </article>
+                </section>
+
+                <section class="page" data-page="channels" data-title="Channels" data-eyebrow="Discord map">
+                    <div class="page-intro">
+                        <h3>Primary server rooms</h3>
+                        <p>Right-click a Discord channel with Developer Mode enabled, then choose Copy Channel ID.</p>
+                    </div>
+                    <article class="panel form-panel">
+                        <div class="field-grid">
+                            <label class="field"><span>Main chat channel ID</span><input data-setting="mainChatChannelId" inputmode="numeric"></label>
+                            <label class="field"><span>Announcement channel ID</span><input data-setting="announcementChannelId" inputmode="numeric"></label>
+                            <label class="field"><span>Moderator channel ID</span><input data-setting="modChannelId" inputmode="numeric"></label>
+                            <label class="field"><span>Audit log channel ID</span><input data-setting="logChannelId" inputmode="numeric"></label>
+                            <label class="field"><span>Ticket category ID</span><input data-setting="ticketCategoryId" inputmode="numeric"></label>
+                            <label class="field"><span>Patrol / self-promo channel ID</span><input data-setting="patrolChannelId" inputmode="numeric"></label>
+                        </div>
+                    </article>
+                </section>
+
+                <section class="page" data-page="protection" data-title="Protection" data-eyebrow="Moderation">
+                    <div class="page-intro">
+                        <h3>Protection rules</h3>
+                        <p>Configure new-account detection and the jail system used by automatic and staff actions.</p>
+                    </div>
+                    <div class="grid two">
+                        <article class="panel form-panel">
+                            <div class="panel-heading"><div><p class="eyebrow">Alt accounts</p><h3>New member detection</h3></div></div>
+                            <label class="switch-row">
+                                <span><b>Enable alt detection</b><small>Flag newly-created Discord accounts.</small></span>
+                                <input type="checkbox" data-setting="altDetectionEnabled">
+                                <i></i>
+                            </label>
+                            <label class="field">
+                                <span>Account age threshold (days)</span>
+                                <input type="number" min="1" max="365" data-setting="altAccountAgeDays">
+                            </label>
+                        </article>
+                        <article class="panel form-panel">
+                            <div class="panel-heading"><div><p class="eyebrow">Jail controls</p><h3>Restricted access</h3></div></div>
+                            <label class="field"><span>Jail role ID</span><input data-setting="jailRoleId" inputmode="numeric"></label>
+                            <label class="field"><span>Jail room category ID</span><input data-setting="jailCategoryId" inputmode="numeric"></label>
+                            <label class="field"><span>Jail log channel ID</span><input data-setting="jailLogChannelId" inputmode="numeric"></label>
+                            <label class="field"><span>Categories hidden while jailed</span><input data-setting="jailCategoryIds" placeholder="categoryId,categoryId"><small>Comma-separated category IDs.</small></label>
+                        </article>
+                        <article class="panel form-panel full-width danger-panel">
+                            <div class="panel-heading">
+                                <div>
+                                    <p class="eyebrow">Immediate enforcement</p>
+                                    <h3>Preemptive ban list</h3>
+                                </div>
+                                <span class="danger-badge">Join-triggered</span>
+                            </div>
+                            <div class="field-grid">
+                                <label class="field">
+                                    <span>Banned user IDs</span>
+                                    <textarea data-setting="preemptiveBanUserIds" rows="6" placeholder="Paste one Discord user ID per line"></textarea>
+                                    <small>Accepts one ID per line or comma-separated IDs. Duplicate IDs are removed when saved.</small>
+                                </label>
+                                <label class="field">
+                                    <span>Automatic ban reason</span>
+                                    <input data-setting="preemptiveBanReason" maxlength="512">
+                                    <small>The bot records this reason in Discord’s audit log and The Commission log embed.</small>
+                                </label>
+                            </div>
+                            <div class="callout warning compact-callout">
+                                <strong>What gets captured</strong>
+                                <p>When a listed user joins, the bot immediately bans them and posts their username, display name, user ID, account creation date, current avatar, reason, and timestamp to the configured audit-log channel. The moderator channel is used as a fallback.</p>
+                            </div>
+                        </article>
+                    </div>
+                </section>
+
+                <section class="page" data-page="cases" data-title="Cases" data-eyebrow="Workflows">
+                    <div class="page-intro">
+                        <h3>Reports and archives</h3>
+                        <p>Map the categories and channels used for private moderation cases.</p>
+                    </div>
+                    <article class="panel form-panel">
+                        <div class="panel-heading"><div><p class="eyebrow">Case desk</p><h3>Report workflow</h3></div></div>
+                        <div class="field-grid">
+                            <label class="field"><span>Report category ID</span><input data-setting="reportCategoryId" inputmode="numeric"></label>
+                            <label class="field"><span>Closed reports channel ID</span><input data-setting="oldReportsChannelId" inputmode="numeric"></label>
+                        </div>
+                    </article>
+                </section>
+
+                <section class="page" data-page="economy" data-title="Blood Money" data-eyebrow="Economy">
+                    <div class="page-intro split">
+                        <div>
+                            <h3>Blood Money economy</h3>
+                            <p>Control activity rewards, daily collections, transfers, gambling, and audit logging.</p>
+                        </div>
+                        <div class="top-actions">
+                            <button id="pushHeistPanelButton" class="button danger" type="button">Push / repair heist panel</button>
+                            <button id="refreshEconomyButton" class="button ghost" type="button">Refresh statistics</button>
+                        </div>
+                    </div>
+                    <div id="economyMetrics" class="metrics economy-metrics">
+                        <article class="metric"><span>Members</span><strong id="economyMembers">—</strong><small>Economy accounts</small></article>
+                        <article class="metric"><span>In circulation</span><strong id="economyCirculation">—</strong><small>Current Blood Money</small></article>
+                        <article class="metric"><span>Transactions</span><strong id="economyTransactions">—</strong><small>Permanent ledger entries</small></article>
+                    </div>
+                    <div class="grid two">
+                        <article class="panel form-panel">
+                            <div class="panel-heading"><div><p class="eyebrow">Master controls</p><h3>Economy status</h3></div></div>
+                            <label class="switch-row"><span><b>Enable Blood Money</b><small>Disables earning and member commands when off.</small></span><input type="checkbox" data-setting="economyEnabled"><i></i></label>
+                            <label class="switch-row"><span><b>Enable gambling</b><small>Controls dice, poker, blackjack, and player duels together.</small></span><input type="checkbox" data-setting="economyGamblingEnabled"><i></i></label>
+                            <label class="field"><span>Currency name</span><input data-setting="economyCurrencyName" maxlength="32"></label>
+                            <label class="field"><span>Economy audit channel ID</span><input data-setting="economyAuditChannelId" inputmode="numeric"></label>
+                            <label class="field"><span>Monthly archive channel ID</span><input data-setting="economyArchiveChannelId" inputmode="numeric"><small>Completed monthly leaderboards are posted here before balances reset.</small></label>
+                            <label class="field"><span>Blood Money + REP leaderboard channel ID</span><input data-setting="economyLeaderboardChannelId" inputmode="numeric"><small>The bot maintains both persistent leaderboard panels and posts monthly REP winners in this one channel.</small></label>
+                            <label class="field"><span>Persistent heist channel ID</span><input data-setting="economyHeistChannelId" inputmode="numeric"><small>The bot creates and maintains the timed heist panel here.</small></label>
+                            <label class="field"><span>Public gambling channel ID</span><input data-setting="economyGamblingChannelId" inputmode="numeric"><small>Dice, poker, blackjack, and player duels are restricted to this channel.</small></label>
+                            <label class="field"><span>Daily reset hour (0–23)</span><input type="number" min="0" max="23" data-setting="economyResetHour"></label>
+                            <label class="field"><span>Time zone</span><input data-setting="economyTimeZone" placeholder="America/New_York"></label>
+                        </article>
+                        <article class="panel form-panel">
+                            <div class="panel-heading"><div><p class="eyebrow">Text activity</p><h3>Meaningful messages</h3></div></div>
+                            <div class="field-grid">
+                                <label class="field"><span>Reward minimum</span><input type="number" min="0" data-setting="economyMessageRewardMin"></label>
+                                <label class="field"><span>Reward maximum</span><input type="number" min="0" data-setting="economyMessageRewardMax"></label>
+                                <label class="field"><span>Reward chance %</span><input type="number" min="0" max="100" data-setting="economyMessageChance"></label>
+                                <label class="field"><span>Cooldown seconds</span><input type="number" min="1" data-setting="economyMessageCooldownSeconds"></label>
+                                <label class="field"><span>Daily earning cap</span><input type="number" min="0" data-setting="economyMessageDailyCap"></label>
+                                <label class="field"><span>Rewarded messages/hour</span><input type="number" min="0" data-setting="economyMessageHourlyLimit"></label>
+                            </div>
+                            <label class="field"><span>Excluded text channel IDs</span><textarea rows="3" data-setting="economyExcludedChannelIds" placeholder="channelId,channelId"></textarea></label>
+                        </article>
+                        <article class="panel form-panel">
+                            <div class="panel-heading"><div><p class="eyebrow">Media activity</p><h3>Images, video, and GIFs</h3></div></div>
+                            <div class="field-grid">
+                                <label class="field"><span>Reward minimum</span><input type="number" min="0" data-setting="economyMediaRewardMin"></label>
+                                <label class="field"><span>Reward maximum</span><input type="number" min="0" data-setting="economyMediaRewardMax"></label>
+                                <label class="field"><span>Cooldown minutes</span><input type="number" min="1" data-setting="economyMediaCooldownMinutes"></label>
+                                <label class="field"><span>Daily earning cap</span><input type="number" min="0" data-setting="economyMediaDailyCap"></label>
+                                <label class="field"><span>Rewarded posts/day</span><input type="number" min="0" data-setting="economyMediaDailyPosts"></label>
+                            </div>
+                            <label class="field"><span>Approved media channel IDs</span><textarea rows="3" data-setting="economyMediaChannelIds" placeholder="channelId,channelId"></textarea><small>Media rewards are only issued in these channels and only after the post remains for five minutes.</small></label>
+                        </article>
+                        <article class="panel form-panel">
+                            <div class="panel-heading"><div><p class="eyebrow">Voice activity</p><h3>Active voice rewards</h3></div></div>
+                            <div class="field-grid">
+                                <label class="field"><span>Reward minimum</span><input type="number" min="0" data-setting="economyVoiceRewardMin"></label>
+                                <label class="field"><span>Reward maximum</span><input type="number" min="0" data-setting="economyVoiceRewardMax"></label>
+                                <label class="field"><span>Interval minutes</span><input type="number" min="1" data-setting="economyVoiceIntervalMinutes"></label>
+                                <label class="field"><span>Daily earning cap</span><input type="number" min="0" data-setting="economyVoiceDailyCap"></label>
+                                <label class="field"><span>Minimum account age days</span><input type="number" min="0" data-setting="economyMinimumAccountAgeDays"></label>
+                            </div>
+                            <label class="field"><span>Excluded voice channel IDs</span><textarea rows="3" data-setting="economyExcludedVoiceChannelIds" placeholder="channelId,channelId"></textarea></label>
+                        </article>
+                        <article class="panel form-panel">
+                            <div class="panel-heading"><div><p class="eyebrow">Daily & transfers</p><h3>Collections and payments</h3></div></div>
+                            <div class="field-grid">
+                                <label class="field"><span>Daily base</span><input type="number" min="0" data-setting="economyDailyBase"></label>
+                                <label class="field"><span>Streak step</span><input type="number" min="0" data-setting="economyDailyStreakStep"></label>
+                                <label class="field"><span>Streak maximum</span><input type="number" min="0" data-setting="economyDailyStreakMaximum"></label>
+                                <label class="field"><span>Minimum transfer</span><input type="number" min="1" data-setting="economyMinimumTransfer"></label>
+                                <label class="field"><span>Transfer limit %</span><input type="number" min="0" max="100" data-setting="economyTransferLimitPercent"></label>
+                                <label class="field"><span>Membership age days</span><input type="number" min="0" data-setting="economyMinimumMembershipDays"></label>
+                            </div>
+                        </article>
+                        <article class="panel form-panel">
+                            <div class="panel-heading"><div><p class="eyebrow">House games</p><h3>Dice, poker, blackjack and duels</h3></div></div>
+                            <div class="field-grid">
+                                <label class="field"><span>Blackjack minimum wager</span><input type="number" min="1" data-setting="economyBlackjackMinimumWager"></label>
+                                <label class="field"><span>Blackjack maximum opening wager</span><input type="number" min="1" data-setting="economyBlackjackMaximumWager"></label>
+                                <label class="field"><span>Blackjack daily wager cap</span><input type="number" min="1" data-setting="economyBlackjackDailyCap"></label>
+                                <label class="field"><span>Video poker minimum wager</span><input type="number" min="1" data-setting="economyPokerMinimumWager"></label>
+                                <label class="field"><span>Video poker maximum wager</span><input type="number" min="1" data-setting="economyPokerMaximumWager"></label>
+                                <label class="field"><span>Video poker daily wager cap</span><input type="number" min="1" data-setting="economyPokerDailyCap"></label>
+                                <label class="field"><span>Jackpot multiplier (100× default)</span><input type="number" min="0" max="10000" step="0.01" data-setting="economyDiceJackpotMultiplier"><small>Example: 100 or 75.5.</small></label>
+                                <label class="field"><span>Jackpot outcome chance %</span><input class="dice-percent-input" type="number" min="0" max="100" step="0.01" data-setting="economyDiceJackpotPercent"></label>
+                                <label class="field"><span>Mid-tier multiplier (3× default)</span><input type="number" min="0" max="10000" step="0.01" data-setting="economyDiceMidMultiplier"><small>Example: 3 or 2.75.</small></label>
+                                <label class="field"><span>Mid-tier outcome chance %</span><input class="dice-percent-input" type="number" min="0" max="100" step="0.01" data-setting="economyDiceMidPercent"></label>
+                                <label class="field"><span>1× refund outcome chance %</span><input class="dice-percent-input" type="number" min="0" max="100" step="0.01" data-setting="economyDiceRefundPercent"></label>
+                                <label class="field"><span>0× loss outcome chance %</span><input class="dice-percent-input" type="number" min="0" max="100" step="0.01" data-setting="economyDiceLossPercent"></label>
+                                <label class="field"><span>Global gambling wager cap per day</span><input type="number" min="0" step="1" data-setting="economyGamblingDailyWagerCap"><small>Combined wager amount across dice, poker, blackjack, and duels. Use 0 for unlimited.</small></label>
+                                <label class="field"><span>Gambling actions per minute</span><input type="number" min="0" step="1" data-setting="economyGamblingMaxActionsPerMinute"><small>Counts opening bets, doubles, splits, dice rolls, and duel stakes. Use 0 for unlimited.</small></label>
+                                <label class="field"><span>Gambling actions per hour</span><input type="number" min="0" step="1" data-setting="economyGamblingMaxActionsPerHour"><small>Combined action count across all gambling games. Use 0 for unlimited.</small></label>
+                            </div>
+                            <div class="callout compact-callout"><strong>Separate enforceable caps</strong><p>Opening bets must meet the game minimum, per-game maximum, available balance, and remaining daily allowance. Blackjack doubles and splits may exceed the opening-game cap but still consume the blackjack daily allowance.</p></div>
+                            <div class="callout compact-callout"><strong>Configurable decimal dice table</strong><p>The maximum `/dice` wager remains 10% of the richest balance. Jackpot and mid-tier multipliers accept decimals, and every outcome percentage accepts decimals. Odds must total exactly 100%. Current total: <b id="dicePercentTotal">100%</b>. Decimal payouts round down to whole Blood Money.</p></div>
+                            <label class="field"><span>Prize-eligible months</span><input data-setting="economyPrizeMonths" placeholder="3,6,9,12 or 2026-12"><small>Optional comma-separated month numbers or YYYY-MM periods. Staff and administrators are always excluded.</small></label>
+                            <label class="field"><span>Excluded leaderboard user IDs</span><textarea rows="3" data-setting="economyExcludedLeaderboardUserIds" placeholder="userId,userId"></textarea></label>
+                        </article>
+                        <article class="panel form-panel full-width">
+                            <div class="panel-heading"><div><p class="eyebrow">Crew job</p><h3>Persistent heist rounds</h3></div></div>
+                            <div class="field-grid">
+                                <label class="field"><span>Entry fee (0 = free)</span><input type="number" min="0" data-setting="economyHeistEntryFee"></label>
+                                <label class="field"><span>Free-heist reward per member</span><input type="number" min="0" data-setting="economyHeistFreeSuccessReward"><small>Paid to every crew member when a free heist succeeds.</small></label>
+                                <label class="field"><span>Entry window minutes</span><input type="number" value="58" readonly data-setting="economyHeistEntryMinutes"><small>Opens on the hour and closes at :58.</small></label>
+                                <label class="field"><span>Closed period minutes</span><input type="number" value="2" readonly data-setting="economyHeistCooldownMinutes"><small>No entries from :58 until the next hour.</small></label>
+                                <label class="field"><span>Minimum crew size</span><input type="number" min="1" data-setting="economyHeistMinimumPlayers"></label>
+                                <label class="field"><span>Base success chance %</span><input type="number" min="0" max="100" data-setting="economyHeistBaseSuccessChance"></label>
+                                <label class="field"><span>Chance per extra player %</span><input type="number" min="0" max="100" data-setting="economyHeistChancePerExtraPlayer"></label>
+                                <label class="field"><span>Maximum success chance %</span><input type="number" min="0" max="100" data-setting="economyHeistMaximumSuccessChance"></label>
+                                <label class="field"><span>Pot payout multiplier</span><input type="number" min="1" max="100" data-setting="economyHeistPayoutMultiplier"></label>
+                            </div>
+                            <div class="callout compact-callout"><strong>Every hour on the hour</strong><p>Each free heist opens exactly at :00, accepts entries for 58 minutes, resolves at :58, and remains closed for two minutes. The shared panel displays the countdown, crew count, success chance, and reward.</p></div>
+                        </article>
+                    </div>
+                    <article class="panel">
+                        <div class="panel-heading">
+                            <div><p class="eyebrow">Top accounts</p><h3>Leaderboard</h3></div>
+                            <label class="field compact-field"><span>Period</span><select id="economyLeaderboardType"><option value="rep">REP</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="balance">Current balance</option></select></label>
+                        </div>
+                        <div id="economyLeaderboard" class="economy-leaderboard"><p class="muted">Start the bot and refresh statistics.</p></div>
+                    </article>
+                    <article class="panel form-panel">
+                        <div class="panel-heading"><div><p class="eyebrow">Server-wide credit</p><h3>Give every member Blood Money</h3></div><span class="danger-badge">Preview required</span></div>
+                        <div class="field-grid">
+                            <label class="field"><span>Amount added to each member</span><input id="bulkGrantAmount" type="number" min="1" max="1000000000" step="1" placeholder="2500"><small>Every human member receives this amount. Bots are excluded.</small></label>
+                        </div>
+                        <div id="bulkGrantPreview" class="economy-leaderboard"><p class="muted">Enter an amount such as 2,500 or 5,000, then preview the member count and total before confirming.</p></div>
+                        <div class="top-actions">
+                            <button id="previewBulkGrantButton" class="button ghost" type="button">Preview bulk grant</button>
+                            <button id="confirmBulkGrantButton" class="button danger" type="button" disabled>Confirm bulk grant</button>
+                        </div>
+                        <div class="callout warning compact-callout"><strong>Permanent ledger entries</strong><p>This adds to current balances without counting as earned leaderboard income. Every member credit receives the same batch ID and the complete operation is posted in the audit channel.</p></div>
+                    </article>
+                    <article class="panel form-panel danger-panel">
+                        <div class="panel-heading"><div><p class="eyebrow">Two-step administration</p><h3>Preview and confirm a reset</h3></div><span class="danger-badge">Audit logged</span></div>
+                        <div class="field-grid">
+                            <label class="field"><span>Reset operation</span><select id="economyResetAction">
+                                <option value="weekly-rankings">Weekly rankings only</option>
+                                <option value="monthly-rankings">Monthly rankings only</option>
+                                <option value="weekly-activity">Weekly activity statistics</option>
+                                <option value="monthly-activity">Monthly activity statistics</option>
+                                <option value="weekly-gambling">Weekly gambling statistics</option>
+                                <option value="monthly-gambling">Monthly gambling statistics</option>
+                                <option value="all-balances">Every current Blood Money balance</option>
+                                <option value="member-balance">One member's current balance</option>
+                                <option value="gambling-limits">All daily blackjack and poker allowances</option>
+                            </select></label>
+                            <label class="field"><span>Member user ID (one-member reset only)</span><input id="economyResetUserId" inputmode="numeric" placeholder="Discord user ID"></label>
+                        </div>
+                        <div class="callout warning compact-callout"><strong>Lifetime history is protected</strong><p>Period resets establish a new cutoff. Balance resets preserve lifetime earnings, wins, losses, activity totals, and the transaction ledger. Weekly and monthly ranking snapshots are saved to the archive channel before confirmation is applied.</p></div>
+                        <div id="economyResetPreview" class="economy-leaderboard"><p class="muted">Choose an operation and create a preview. The confirmation expires after five minutes.</p></div>
+                        <div class="top-actions">
+                            <button id="previewEconomyResetButton" class="button ghost" type="button">Preview reset</button>
+                            <button id="confirmEconomyResetButton" class="button danger" type="button" disabled>Confirm previewed reset</button>
+                        </div>
+                    </article>
+                </section>
+
+                <section class="page" data-page="memberbridge" data-title="MemberBridge" data-eyebrow="YouTube memberships">
+                    <div class="page-intro">
+                        <h3>YouTube memberships → Discord roles</h3>
+                        <p>Link permanent YouTube channel and membership-level IDs to permanent Discord role IDs without changing your existing bot.</p>
+                    </div>
+                    <div id="memberBridgeSimulationWarning" class="callout warning"><strong>Development simulation mode</strong><p>Fake YouTube responses may be used for testing. Turn simulation off before production.</p></div>
+                    <div class="metrics economy-metrics">
+                        <article class="metric"><span>Creators</span><strong id="mbCreatorMetric">—</strong><small>Operational sources</small></article>
+                        <article class="metric"><span>Linked</span><strong id="mbLinkedMetric">—</strong><small>Discord ↔ YouTube</small></article>
+                        <article class="metric"><span>Active</span><strong id="mbActiveMetric">—</strong><small>Verified memberships</small></article>
+                        <article class="metric"><span>Grace</span><strong id="mbGraceMetric">—</strong><small>Roles preserved</small></article>
+                    </div>
+
+                    <div class="grid two">
+                        <article class="panel form-panel">
+                            <div class="panel-heading"><div><p class="eyebrow">Master controls</p><h3>Connection and safety</h3></div></div>
+                            <label class="switch-row"><span><b>Enable MemberBridge</b><small>Registers commands, callback routes, and scheduled checks.</small></span><input type="checkbox" data-setting="memberBridgeEnabled"><i></i></label>
+                            <label class="switch-row"><span><b>Development simulator</b><small>Uses fake memberships stored locally; never enable in production.</small></span><input type="checkbox" data-setting="memberBridgeSimulationMode"><i></i></label>
+                            <label class="switch-row"><span><b>Production mode</b><small>Requires HTTPS and disables simulated responses.</small></span><input type="checkbox" data-setting="memberBridgeProductionMode"><i></i></label>
+                            <label class="field"><span>Public callback base URL</span><input data-setting="memberBridgePublicBaseUrl" placeholder="https://members.example.com"><small>Add the callback paths shown below to Google and Discord.</small></label>
+                            <div class="field-grid">
+                                <label class="field"><span>Callback bind address</span><input data-setting="memberBridgeCallbackHost" placeholder="127.0.0.1"></label>
+                                <label class="field"><span>Callback port</span><input type="number" min="1024" max="65535" data-setting="memberBridgeCallbackPort"></label>
+                            </div>
+                            <div class="callout compact-callout"><strong>Required redirect URIs</strong><p><code id="mbDiscordRedirect">…/oauth/discord/callback</code><br><code id="mbGoogleRedirect">…/oauth/google/callback</code><br><code id="mbCreatorRedirect">…/oauth/google/creator-callback</code></p></div>
+                        </article>
+                        <article class="panel form-panel">
+                            <div class="panel-heading"><div><p class="eyebrow">OAuth credentials</p><h3>Discord and Google</h3></div></div>
+                            <label class="field"><span>Discord application ID</span><input data-setting="memberBridgeDiscordApplicationId" inputmode="numeric"><small>Use the same application ID as this bot.</small></label>
+                            <label class="field"><span>Discord OAuth client secret <em id="mbDiscordSecretState">Not saved</em></span><input type="password" data-secret="memberBridgeDiscordClientSecret" autocomplete="new-password" placeholder="Paste only to add or replace"></label>
+                            <label class="field"><span>Google OAuth client ID</span><input data-setting="memberBridgeGoogleClientId" placeholder="…apps.googleusercontent.com"></label>
+                            <label class="field"><span>Google OAuth client secret <em id="mbGoogleSecretState">Not saved</em></span><input type="password" data-secret="memberBridgeGoogleClientSecret" autocomplete="new-password" placeholder="Paste only to add or replace"></label>
+                            <label class="field"><span>MemberBridge administrator role IDs</span><textarea rows="2" data-setting="memberBridgeAdministratorRoleIds" placeholder="roleId,roleId"></textarea></label>
+                            <label class="field"><span>MemberBridge audit channel ID</span><input data-setting="memberBridgeAuditChannelId" inputmode="numeric"></label>
+                        </article>
+                        <article class="panel form-panel">
+                            <div class="panel-heading"><div><p class="eyebrow">Verification defaults</p><h3>Grace and schedules</h3></div></div>
+                            <div class="field-grid">
+                                <label class="field"><span>Verification minutes</span><input type="number" min="15" data-setting="memberBridgeVerificationIntervalMinutes"></label>
+                                <label class="field"><span>Level sync hours</span><input type="number" min="1" data-setting="memberBridgeLevelSyncHours"></label>
+                                <label class="field"><span>Missing checks before grace</span><input type="number" min="1" max="10" data-setting="memberBridgeMissingChecksBeforeGrace"></label>
+                                <label class="field"><span>Grace period hours</span><input type="number" min="0" max="2160" data-setting="memberBridgeGracePeriodHours"></label>
+                                <label class="field"><span>Mass-absence safe mode %</span><input type="number" min="1" max="100" step="0.1" data-setting="memberBridgeMassAbsencePercent"></label>
+                            </div>
+                            <label class="switch-row"><span><b>Member direct messages</b><small>Notification delivery failures never block membership actions.</small></span><input type="checkbox" data-setting="memberBridgeMemberDmsEnabled"><i></i></label>
+                            <button id="mbRefreshButton" class="button secondary" type="button">Refresh MemberBridge</button>
+                        </article>
+                        <article class="panel form-panel">
+                            <div class="panel-heading"><div><p class="eyebrow">Creator source</p><h3>Add and connect</h3></div><span id="mbCreatorStatus" class="danger-badge">None selected</span></div>
+                            <label class="field"><span>Creator source</span><select id="mbCreatorSelect"><option value="">No creators yet</option></select></label>
+                            <div class="inline-actions">
+                                <input id="mbNewCreatorName" placeholder="Creator display name">
+                                <button id="mbAddCreatorButton" class="button secondary" type="button">Add creator</button>
+                            </div>
+                            <div class="field-grid">
+                                <label class="field"><span>Role mode</span><select id="mbRoleMode"><option value="highest">Highest level only</option><option value="cumulative">Cumulative levels</option><option value="general_plus_highest">General + highest</option></select></label>
+                                <label class="field"><span>General role ID</span><input id="mbGeneralRoleId" inputmode="numeric"></label>
+                                <label class="field"><span>Missing checks</span><input id="mbCreatorMissingChecks" type="number" min="1" max="10"></label>
+                                <label class="field"><span>Grace hours</span><input id="mbCreatorGraceHours" type="number" min="0" max="2160"></label>
+                                <label class="field"><span>Mass absence %</span><input id="mbCreatorMassAbsence" type="number" min="1" max="100" step="0.1"></label>
+                            </div>
+                            <div class="button-row wrap-row">
+                                <button id="mbSaveCreatorButton" class="button secondary" type="button">Save creator</button>
+                                <button id="mbConnectCreatorButton" class="button primary" type="button">Connect creator OAuth</button>
+                                <button id="mbActivateSimulatorButton" class="button ghost" type="button">Activate simulator creator</button>
+                                <button id="mbSyncLevelsButton" class="button ghost" type="button">Import levels</button>
+                                <button id="mbVerifyButton" class="button ghost" type="button">Force full check</button>
+                                <button id="mbSafeModeButton" class="button danger" type="button">Enable safe mode</button>
+                            </div>
+                        </article>
+                    </div>
+
+                    <article class="panel form-panel">
+                        <div class="panel-heading"><div><p class="eyebrow">Discord entry point</p><h3>Membership verification channel</h3></div><span id="mbVerifyPanelState" class="danger-badge">Not published</span></div>
+                        <p class="muted">The bot maintains one read-only verification panel under Announcements. Members receive private account links and status responses, then get the role mapped to their verified membership level.</p>
+                        <div class="field-grid">
+                            <label class="field"><span>Announcements category ID</span><input data-setting="memberBridgeVerifyCategoryId" inputmode="numeric"><small>Current Announcements: 1532513761573863577</small></label>
+                            <label class="field"><span>Verify membership channel ID</span><input data-setting="memberBridgeVerifyChannelId" inputmode="numeric"><small>Current channel: 1534990967923282080</small></label>
+                            <label class="field"><span>Channel name</span><input data-setting="memberBridgeVerifyChannelName" placeholder="verify-membership"></label>
+                        </div>
+                        <div class="button-row wrap-row"><button id="mbPublishVerifyPanelButton" class="button primary" type="button">Create / repair verification panel</button></div>
+                    </article>
+
+                    <article class="panel form-panel">
+                        <div class="panel-heading"><div><p class="eyebrow">Permanent ID mapping</p><h3>YouTube levels → Discord roles</h3></div></div>
+                        <div id="mbMappings" class="economy-leaderboard"><p class="muted">Select a creator and refresh.</p></div>
+                        <div id="mbSeedLevelControls" class="inline-actions">
+                            <input id="mbSeedLevelId" placeholder="SIM_LEVEL_ID">
+                            <input id="mbSeedLevelName" placeholder="Level display name">
+                            <button id="mbSeedLevelButton" class="button secondary" type="button">Add simulated level</button>
+                        </div>
+                    </article>
+
+                    <div class="grid two">
+                        <article class="panel form-panel">
+                            <div class="panel-heading"><div><p class="eyebrow">Linked identities</p><h3>Members and status</h3></div></div>
+                            <div id="mbMembers" class="economy-leaderboard"><p class="muted">No linked members loaded.</p></div>
+                        </article>
+                        <article class="panel form-panel">
+                            <div class="panel-heading"><div><p class="eyebrow">Development only</p><h3>Membership simulator</h3></div></div>
+                            <label class="field"><span>Discord user ID</span><input id="mbSimDiscordUserId" inputmode="numeric"></label>
+                            <label class="field"><span>YouTube member channel ID</span><input id="mbSimYoutubeChannelId" placeholder="SIM_MEMBER_001"></label>
+                            <label class="field"><span>Highest membership level</span><select id="mbSimLevel"><option value="">Not active</option></select></label>
+                            <label class="field"><span>API response mode</span><select id="mbSimFailure"><option value="">Healthy</option><option value="timeout">Timeout</option><option value="rate_limit">Rate limit</option><option value="revoked">Authorization revoked</option><option value="malformed">Malformed response</option></select></label>
+                            <div class="button-row wrap-row"><button id="mbSimSaveButton" class="button secondary" type="button">Save linked test member</button><button id="mbSimFailureButton" class="button ghost" type="button">Apply response mode</button></div>
+                        </article>
+                    </div>
+
+                    <article class="panel">
+                        <div class="panel-heading"><div><p class="eyebrow">Immutable history</p><h3>MemberBridge audit</h3></div></div>
+                        <div id="mbAudit" class="log-console compact-log"><div class="log-empty">Refresh MemberBridge to load audit events.</div></div>
+                    </article>
+                    <article class="panel form-panel">
+                        <div class="panel-heading"><div><p class="eyebrow">Recovery</p><h3>Verified local backups</h3></div><button id="mbCreateBackupButton" class="button secondary" type="button">Create backup</button></div>
+                        <p class="muted">Backups contain the MemberBridge identity, creator, mapping, membership, grace, and audit database. OAuth refresh tokens remain encrypted. Keep backup files private.</p>
+                        <div id="mbBackups" class="economy-leaderboard"><p class="muted">Refresh MemberBridge to list backups.</p></div>
+                    </article>
+                </section>
+
+                <section class="page" data-page="services" data-title="API services" data-eyebrow="Optional">
+                    <div class="page-intro">
+                        <h3>Address-protection services</h3>
+                        <p>Optional geocoding keys support the bot’s address and doxxing detection. Saved values remain encrypted.</p>
+                    </div>
+                    <article class="panel form-panel">
+                        <div class="field-grid">
+                            <label class="field">
+                                <span>Positionstack API key <em id="positionstackState">Not saved</em></span>
+                                <input type="password" data-secret="positionstackApiKey" placeholder="Paste a new key to replace the saved key">
+                                <small>Used by the current address verification flow.</small>
+                            </label>
+                            <label class="field">
+                                <span>LocationIQ API key <em id="locationIqState">Not saved</em></span>
+                                <input type="password" data-secret="locationIqApiKey" placeholder="Paste a new key to replace the saved key">
+                                <small>Available for LocationIQ-backed features.</small>
+                            </label>
+                        </div>
+                    </article>
+                    <article class="callout warning">
+                        <strong>Rotate the old Positionstack key</strong>
+                        <p>The original repository contained a Positionstack key in source. Create a replacement key before relying on address protection.</p>
+                    </article>
+                </section>
+
+                <section class="page" data-page="system" data-title="Windows" data-eyebrow="Local host">
+                    <div class="page-intro">
+                        <h3>Startup and local storage</h3>
+                        <p>Choose how The Commission behaves when Windows starts.</p>
+                    </div>
+                    <article class="panel form-panel">
+                        <div class="stack">
+                            <label class="switch-row">
+                                <span><b>Start the bot after the app opens</b><small>Available after the first successful password login and token save.</small></span>
+                                <input type="checkbox" data-setting="autoStartBot">
+                                <i></i>
+                            </label>
+                            <label class="switch-row">
+                                <span><b>Launch The Commission with Windows</b><small>Starts the control panel when you sign into Windows.</small></span>
+                                <input type="checkbox" data-setting="launchAtLogin">
+                                <i></i>
+                            </label>
+                            <label class="switch-row">
+                                <span><b>Close to system tray</b><small>Keeps the bot running in the background when the window closes.</small></span>
+                                <input type="checkbox" data-setting="closeToTray">
+                                <i></i>
+                            </label>
+                            <label class="switch-row">
+                                <span><b>Remember control-panel login</b><small>Automatically unlocks The Commission for this Windows account.</small></span>
+                                <input type="checkbox" data-setting="rememberLogin">
+                                <i></i>
+                            </label>
+                            <label class="field compact-field">
+                                <span>Preferred local dashboard port</span>
+                                <input type="number" min="1024" max="65535" data-setting="dashboardPort">
+                                <small>If busy, the app selects another free local port automatically.</small>
+                            </label>
+                        </div>
+                    </article>
+                    <button id="openDataButton" class="button ghost" type="button">Open protected data folder</button>
+                </section>
+
+                <section class="page" data-page="blueprints" data-title="Blueprints" data-eyebrow="Server structure">
+                    <div class="page-intro split">
+                        <div>
+                            <h3>Copy structure and permissions</h3>
+                            <p>Capture a local blueprint, review its counts, then apply it to a different server.</p>
+                        </div>
+                        <button id="refreshGuildsButton" class="button ghost" type="button">Refresh servers</button>
+                    </div>
+                    <div class="grid two">
+                        <article class="panel form-panel">
+                            <div class="panel-heading"><div><p class="eyebrow">Step one</p><h3>Capture source</h3></div></div>
+                            <label class="field">
+                                <span>Source server</span>
+                                <select id="sourceGuildSelect"><option value="">Start the bot, then refresh servers</option></select>
+                                <small>The bot must already be installed in this server.</small>
+                            </label>
+                            <button id="captureBlueprintButton" class="button primary blueprint-button" type="button">Capture blueprint</button>
+                        </article>
+                        <article class="panel form-panel">
+                            <div class="panel-heading"><div><p class="eyebrow">Step two</p><h3>Apply destination</h3></div></div>
+                            <label class="field">
+                                <span>Saved blueprint</span>
+                                <select id="blueprintSelect"><option value="">No saved blueprints</option></select>
+                            </label>
+                            <label class="field">
+                                <span>Destination server</span>
+                                <select id="destinationGuildSelect"><option value="">Start the bot, then refresh servers</option></select>
+                            </label>
+                            <label class="switch-row blueprint-switch">
+                                <span><b>Apply @everyone base permissions</b><small>Off by default because this changes an existing server-wide role.</small></span>
+                                <input id="applyEveryonePermissions" type="checkbox">
+                                <i></i>
+                            </label>
+                            <button id="applyBlueprintButton" class="button danger blueprint-button" type="button">Apply blueprint</button>
+                        </article>
+                    </div>
+                    <article id="blueprintSummary" class="panel blueprint-summary">
+                        <p class="muted">No blueprint selected.</p>
+                    </article>
+                    <article class="callout warning">
+                        <strong>Non-destructive setup</strong>
+                        <p>This creates roles, categories, channels, and role-based permission overwrites. It never deletes destination content and never copies messages, members, bans, webhook tokens, or member-specific overrides. Use an empty destination server to avoid duplicates.</p>
+                    </article>
+                </section>
+
+                <section class="page" data-page="logs" data-title="Live logs" data-eyebrow="Diagnostics">
+                    <div class="page-intro split">
+                        <div>
+                            <h3>Bot process output</h3>
+                            <p>Connection, command registration, moderation, economy, and error messages appear here.</p>
+                        </div>
+                        <button id="clearLogsButton" class="button ghost" type="button">Clear view</button>
+                    </div>
+                    <div id="logConsole" class="log-console" aria-live="polite">
+                        <div class="log-empty">Start the bot to see live output.</div>
+                    </div>
+                </section>
+            </form>
+        </main>
+    </div>
+    <script src="renderer.js"></script>
+</body>
+</html>

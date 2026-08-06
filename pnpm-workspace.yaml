@@ -1,0 +1,8 @@
+allowBuilds:
+  electron: true
+  electron-winstaller: true
+  ffmpeg-static: true
+onlyBuiltDependencies:
+  - electron
+  - electron-winstaller
+  - ffmpeg-static
