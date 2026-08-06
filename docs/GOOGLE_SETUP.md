@@ -20,7 +20,7 @@ The creator flow requests `https://www.googleapis.com/auth/youtube.channel-membe
 
 After the first connection, **Generate creator portal link** returns a permanent sign-in URL for that creator source. Google authorization proves the channel identity on every new portal login. A 24-hour server-side session then grants access only to that creator's cached member list.
 
-Important: Google's official documentation says `members.list` and `membershipsLevels.list` can be used by an individual creator for their own channel-memberships-enabled channel, and directs developers to contact a Google or YouTube representative for endpoint access. Ordinary OAuth approval alone does not guarantee access. If the endpoint denies access, MemberBridge leaves the creator disabled and never scrapes YouTube or requests cookies.
+Important: Google's official documentation says `members.list` and `membershipsLevels.list` can be used by an individual creator for their own channel-memberships-enabled channel, and directs developers to contact a Google or YouTube representative for endpoint access. Ordinary OAuth approval alone does not guarantee access. If either endpoint denies access, MemberBridge retains the verified creator authorization, opens the creator's private setup page, explains how to enable memberships or request endpoint access, and provides a retry button. The source becomes operational only after a successful live API refresh. MemberBridge never scrapes YouTube, accepts uploaded rosters, or requests browser cookies.
 
 Official references:
 

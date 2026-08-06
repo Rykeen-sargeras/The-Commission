@@ -111,6 +111,19 @@ function formatDate(value) {
     return Number.isNaN(date.getTime()) ? 'Not available' : date.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/New_York' });
 }
 
+function creatorApiSetupHelp(errorMessage = '') {
+    return `<section class="warning"><h2>Finish YouTube member access</h2>
+    ${errorMessage ? `<p class="error"><b>Latest YouTube response:</b> ${escapeHtml(errorMessage)}</p>` : ''}
+    <ol>
+    <li>Open <a href="https://studio.youtube.com/" target="_blank" rel="noopener noreferrer">YouTube Studio</a>, select the exact creator channel, then open <b>Earn &gt; Memberships</b> and confirm channel memberships are enabled.</li>
+    <li>Make sure the Google account used here is the owner or primary owner of that exact channel. Brand Account managers may need the primary owner to authorize.</li>
+    <li>The Commission owner has already enabled YouTube Data API v3 and the required <code>youtube.channel-memberships.creator</code> OAuth permission. Do not create or paste a separate client ID.</li>
+    <li>If YouTube still returns <b>forbidden</b> or <b>access denied</b>, open <a href="https://support.google.com/youtube/gethelp" target="_blank" rel="noopener noreferrer">YouTube Creator Support</a> while signed into the creator channel and request Members API access for project <b>the-commission-memberbridge</b> (project number <b>342752676372</b>) for <code>members.list</code> and <code>membershipsLevels.list</code>.</li>
+    <li>After YouTube confirms access, return here and select <b>Retry member access</b>.</li>
+    </ol>
+    <p><b>Message to send Creator Support:</b> Please enable YouTube Members API access for my memberships-enabled channel and Google Cloud project The Commission MemberBridge, project ID <code>the-commission-memberbridge</code>, project number <code>342752676372</code>. The application needs <code>members.list</code> and <code>membershipsLevels.list</code> using the <code>youtube.channel-memberships.creator</code> scope.</p></section>`;
+}
+
 async function formBody(req, maxBytes = 16384) {
     let text = '';
     for await (const chunk of req) {
@@ -202,6 +215,7 @@ class MemberBridgeWeb {
         if (wrongCreator) throw new Error('YouTube returned a member list for a different creator channel. Nothing was saved.');
         this.store.saveLevels(creator.id, levels);
         const result = this.store.replaceCreatorMemberCache(creator.id, members.filter(member => member.channelId));
+        this.store.markCreatorOperational(creator.id);
         this.store.audit('Creator portal member list refreshed', `Saved ${result.count} current members for ${creator.display_name}.`, { severity: 'success', guildId: creator.guild_id, creatorSourceId: creator.id });
         return result;
     }
@@ -215,9 +229,12 @@ class MemberBridgeWeb {
         const queryParam = query ? `&q=${encodeURIComponent(query)}` : '';
         const previous = data.page > 1 ? `<a class="button secondary" href="/creator/dashboard?page=${data.page - 1}${queryParam}">Previous</a>` : '<span></span>';
         const next = data.page < data.pages ? `<a class="button secondary" href="/creator/dashboard?page=${data.page + 1}${queryParam}">Next</a>` : '<span></span>';
+        const setupRequired = session.connection_status === 'Error' || url.searchParams.get('setup') === 'members-api';
+        const setupHelp = setupRequired ? creatorApiSetupHelp(session.last_error_message) : '';
         return `<p>Signed in to the private portal for <b>${escapeHtml(session.display_name)}</b>. This page can only read the member list belonging to YouTube channel <b>${escapeHtml(session.youtube_channel_id)}</b>.</p>
+        ${setupHelp}
         <div class="metrics"><div class="metric"><span>Current members</span><b>${Number(data.cachedTotal).toLocaleString()}</b></div><div class="metric"><span>Matching search</span><b>${Number(data.total).toLocaleString()}</b></div><div class="metric"><span>Last refreshed</span><b style="font-size:16px">${escapeHtml(formatDate(data.fetchedUtc))}</b></div></div>
-        <div class="actions"><form method="post" action="/creator/refresh"><input type="hidden" name="csrf" value="${escapeHtml(csrf)}"><button type="submit">Refresh from YouTube</button></form><form method="post" action="/creator/logout"><input type="hidden" name="csrf" value="${escapeHtml(csrf)}"><button class="secondary" type="submit">Sign out</button></form></div>
+        <div class="actions"><form method="post" action="/creator/refresh"><input type="hidden" name="csrf" value="${escapeHtml(csrf)}"><button type="submit">${setupRequired ? 'Retry member access' : 'Refresh from YouTube'}</button></form><form method="post" action="/creator/logout"><input type="hidden" name="csrf" value="${escapeHtml(csrf)}"><button class="secondary" type="submit">Sign out</button></form></div>
         <form class="inline" method="get" action="/creator/dashboard"><input name="q" value="${escapeHtml(query)}" placeholder="Search member, channel ID, or tier"><button type="submit">Search</button>${query ? '<a class="button secondary" href="/creator/dashboard">Clear</a>' : ''}</form>
         <h2>Member list</h2>${data.fetchedUtc ? `<div class="table-wrap"><table><thead><tr><th>Member</th><th>Current tier</th><th>Current membership started</th><th>Total duration</th></tr></thead><tbody>${rows || `<tr><td colspan="4">${query ? 'No members match this search.' : 'YouTube reports no current members.'}</td></tr>`}</tbody></table></div><div class="pager">${previous}<span>Page ${data.page} of ${data.pages}</span>${next}</div>` : '<p class="warning">No cached members yet. Select “Refresh from YouTube” to load the creator’s current list.</p>'}`;
     }
@@ -239,7 +256,10 @@ class MemberBridgeWeb {
         if (this.config.productionMode && this.config.simulationMode) throw new Error('Simulation mode cannot run in production mode.');
         this.server = http.createServer((req, res) => this.handle(req, res).catch(error => {
             console.error('[MemberBridge web]', error);
-            if (!res.headersSent) send(res, 500, page('Connection failed', `<p class="error">${escapeHtml(error.message)}</p>`));
+            if (!res.headersSent) {
+                const apiFailure = ['accessNotConfigured','forbidden','insufficientPermissions','channelMembershipsNotEnabled'].includes(error.code) || /access|forbidden|membership|YouTube Data API/i.test(error.message || '');
+                send(res, 500, page('Connection failed', `<p class="error">${escapeHtml(error.message)}</p>${apiFailure ? creatorApiSetupHelp() : '<p>Return to the private creator link and try again. If the problem continues, ask The Commission owner for a fresh invitation.</p>'}`));
+            }
             else res.end();
         }));
         await new Promise((resolve, reject) => { this.server.once('error', reject); this.server.listen(this.config.callbackPort, this.config.callbackHost, resolve); });
@@ -344,8 +364,14 @@ class MemberBridgeWeb {
             const { token, session } = this.creatorSession(req);
             const form = await formBody(req);
             if (!session || !formTokenMatches(session, form.get('csrf'))) return send(res, 403, page('Refresh denied', '<p class="error">Your creator session or confirmation token is invalid.</p>'));
-            await this.refreshCreatorCache(session.creator_source_id);
-            return redirect(res, '/creator/dashboard');
+            try {
+                await this.refreshCreatorCache(session.creator_source_id);
+                return redirect(res, '/creator/dashboard');
+            } catch (error) {
+                this.store.markCreatorError(session.creator_source_id, error.code || 'member_api_unavailable', error.message);
+                this.store.audit('Creator member access retry failed', error.message, { severity: 'error', guildId: session.guild_id, creatorSourceId: session.creator_source_id });
+                return redirect(res, '/creator/dashboard?setup=members-api');
+            }
         }
 
         if (req.method === 'POST' && url.pathname === '/creator/logout') {
@@ -427,17 +453,19 @@ class MemberBridgeWeb {
             if (creator.youtube_channel_id && creator.youtube_channel_id !== channels[0].id) return send(res, 403, page('Wrong creator channel', `<p class="error">This portal belongs to <b>${escapeHtml(creator.display_name)}</b>. Google authorized a different YouTube channel, so access was denied.</p>`));
             const storedRefreshToken = this.store.getCreatorRefreshToken(creator.id);
             if (!tokens.refresh_token && !storedRefreshToken) throw new Error('Google did not return a creator refresh token. Reconnect and approve consent.');
-            const [levels, members] = await Promise.all([this.youtube.membershipLevels(tokens.access_token), this.youtube.allCurrentMembers(tokens.access_token)]);
-            const wrongCreator = members.find(member => member.creatorChannelId && member.creatorChannelId !== channels[0].id);
-            if (wrongCreator) throw new Error('YouTube returned a member list for a different creator channel. Nothing was saved.');
             if (tokens.refresh_token) this.store.saveCreatorAuthorization(creator.id, channels[0], tokens.refresh_token, tokens.scope || '');
-            this.store.saveLevels(oauth.creator_source_id, levels);
-            this.store.replaceCreatorMemberCache(oauth.creator_source_id, members.filter(member => member.channelId));
-            this.store.audit('Creator authorization connected', `Connected creator ${channels[0].snippet?.title || channels[0].id}; loaded ${levels.length} levels and ${members.length} current members.`, { severity: 'success', guildId: creator.guild_id, creatorSourceId: oauth.creator_source_id });
             const portalToken = randomToken();
             const csrf = this.creatorCsrf(portalToken);
             this.store.createCreatorPortalSession(creator.id, portalToken, csrf, new Date(Date.now() + 24 * 3600000).toISOString());
-            return redirectCreator(res, '/creator/dashboard', this.secure, portalToken);
+            try {
+                const result = await this.refreshCreatorCache(creator.id, tokens.access_token);
+                this.store.audit('Creator authorization connected', `Connected creator ${channels[0].snippet?.title || channels[0].id}; loaded ${result.count} current members.`, { severity: 'success', guildId: creator.guild_id, creatorSourceId: oauth.creator_source_id });
+                return redirectCreator(res, '/creator/dashboard', this.secure, portalToken);
+            } catch (error) {
+                this.store.markCreatorError(creator.id, error.code || 'member_api_unavailable', error.message);
+                this.store.audit('Creator authorized but member access is unavailable', error.message, { severity: 'error', guildId: creator.guild_id, creatorSourceId: oauth.creator_source_id });
+                return redirectCreator(res, '/creator/dashboard?setup=members-api', this.secure, portalToken);
+            }
         }
 
         return send(res, 404, page('Not found', '<p>The requested MemberBridge page does not exist.</p>'));

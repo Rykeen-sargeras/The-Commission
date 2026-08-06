@@ -346,6 +346,13 @@ class MemberBridgeStore {
             .run(String(code || 'error'), String(message || '').substring(0, 1000), now(), now(), Number(id));
     }
 
+    markCreatorOperational(id) {
+        const stamp = now();
+        this.db.prepare(`UPDATE mb_creator_sources SET connection_status='Operational',enabled=1,last_successful_check_utc=?,last_attempt_utc=?,last_error_code=NULL,last_error_message=NULL,updated_utc=? WHERE id=?`)
+            .run(stamp, stamp, stamp, Number(id));
+        return this.getCreator(id);
+    }
+
     saveLevels(creatorId, levels) {
         const stamp = now();
         const seen = new Set();
@@ -574,7 +581,7 @@ class MemberBridgeStore {
 
     findCreatorPortalSession(token) {
         if (!token) return null;
-        const row = this.db.prepare(`SELECT session.*,creator.guild_id,creator.youtube_channel_id,creator.display_name,creator.connection_status,creator.last_successful_check_utc
+        const row = this.db.prepare(`SELECT session.*,creator.guild_id,creator.youtube_channel_id,creator.display_name,creator.connection_status,creator.last_successful_check_utc,creator.last_error_code,creator.last_error_message
             FROM mb_creator_portal_sessions session JOIN mb_creator_sources creator ON creator.id=session.creator_source_id
             WHERE session.token_hash=?`).get(sha256(token));
         if (!row || row.expires_utc <= now()) return null;

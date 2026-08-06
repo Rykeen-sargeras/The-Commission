@@ -13,11 +13,14 @@ function fixture() {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'commission-memberbridge-web-'));
     const store = new MemberBridgeStore({ dataDir: dir, secretBox: new SecretBox(crypto.randomBytes(32).toString('base64')) });
     const youtube = {
+        channelId: 'UCaaaaaaaaaaaaaaaaaaaaaa',
+        channelTitle: 'Creator Alpha',
+        memberAccessError: null,
         authorizationUrl({ state }) { return `https://accounts.google.test/oauth?state=${encodeURIComponent(state)}`; },
         async exchangeCode() { return { access_token: 'google-access', refresh_token: 'google-refresh', scope: 'creator-scope' }; },
-        async channelsMine() { return [{ id: 'UCaaaaaaaaaaaaaaaaaaaaaa', snippet: { title: 'Creator Alpha' } }]; },
-        async membershipLevels() { return [{ id: 'LEVEL_ONE', snippet: { levelDetails: { displayName: 'Associate' } } }]; },
-        async allCurrentMembers() { return [{ creatorChannelId: 'UCaaaaaaaaaaaaaaaaaaaaaa', channelId: 'UCbbbbbbbbbbbbbbbbbbbbbb', displayName: 'Member One', profileImageUrl: '', highestLevelId: 'LEVEL_ONE', highestLevelName: 'Associate', accessibleLevelIds: ['LEVEL_ONE'], memberSinceUtc: '2026-01-02T12:00:00.000Z', totalDurationMonths: 7 }]; },
+        async channelsMine() { return [{ id: this.channelId, snippet: { title: this.channelTitle } }]; },
+        async membershipLevels() { if (this.memberAccessError) throw this.memberAccessError; return [{ id: 'LEVEL_ONE', snippet: { levelDetails: { displayName: 'Associate' } } }]; },
+        async allCurrentMembers() { if (this.memberAccessError) throw this.memberAccessError; return [{ creatorChannelId: this.channelId, channelId: 'UCbbbbbbbbbbbbbbbbbbbbbb', displayName: 'Member One', profileImageUrl: '', highestLevelId: 'LEVEL_ONE', highestLevelName: 'Associate', accessibleLevelIds: ['LEVEL_ONE'], memberSinceUtc: '2026-01-02T12:00:00.000Z', totalDurationMonths: 7 }]; },
         async refresh() { return { access_token: 'refreshed-access' }; },
     };
     const web = new MemberBridgeWeb({
@@ -119,6 +122,34 @@ async function run() {
         assert.match(dashboardBody, /7 month\(s\)/);
         assert.equal(f.store.creatorMemberCache(creator.id).cachedTotal, 1);
         assert.equal(f.web.creatorPortalAccessUrl(creator.id).kind, 'login');
+
+        f.youtube.channelId = 'UCeeeeeeeeeeeeeeeeeeeeee';
+        f.youtube.channelTitle = 'Creator Needs Access';
+        const blockedError = new Error('Access forbidden. The request may not be properly authorized.');
+        blockedError.code = 'forbidden';
+        f.youtube.memberAccessError = blockedError;
+        const blockedCreator = f.store.createCreator({ guildId: '22345678901234567', displayName: 'Creator Needs Access' });
+        const blockedInvite = f.web.creatorPortalAccessUrl(blockedCreator.id);
+        const blockedStart = await originalFetch(`${baseUrl}${new URL(blockedInvite.url).pathname}/start`, { redirect: 'manual' });
+        const blockedAuthorize = new URL(blockedStart.headers.get('location'));
+        const blockedCallback = await originalFetch(`${baseUrl}/oauth/google/creator-callback?state=${encodeURIComponent(blockedAuthorize.searchParams.get('state'))}&code=blocked-code`, { redirect: 'manual' });
+        assert.equal(blockedCallback.status, 302);
+        assert.equal(blockedCallback.headers.get('location'), '/creator/dashboard?setup=members-api');
+        const blockedCookie = blockedCallback.headers.get('set-cookie').split(';')[0];
+        const blockedDashboard = await originalFetch(`${baseUrl}/creator/dashboard`, { headers: { cookie: blockedCookie } });
+        const blockedBody = await blockedDashboard.text();
+        assert.match(blockedBody, /Finish YouTube member access/);
+        assert.match(blockedBody, /the-commission-memberbridge/);
+        assert.match(blockedBody, /Retry member access/);
+        assert.equal(f.store.getCreator(blockedCreator.id).connection_status, 'Error');
+        assert(f.store.getCreatorRefreshToken(blockedCreator.id), 'creator authorization is retained when the Members API is unavailable');
+
+        f.youtube.memberAccessError = null;
+        const blockedCsrf = blockedBody.match(/name="csrf" value="([^"]+)"/)?.[1];
+        const retryMemberAccess = await originalFetch(`${baseUrl}/creator/refresh`, { method: 'POST', headers: { cookie: blockedCookie, 'content-type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ csrf: blockedCsrf }), redirect: 'manual' });
+        assert.equal(retryMemberAccess.status, 302);
+        assert.equal(retryMemberAccess.headers.get('location'), '/creator/dashboard');
+        assert.equal(f.store.getCreator(blockedCreator.id).connection_status, 'Operational');
 
         const wrongCreator = f.store.createCreator({ guildId: '22345678901234567', displayName: 'Different Creator' });
         f.store.db.prepare("UPDATE mb_creator_sources SET youtube_channel_id='UCdddddddddddddddddddddd',connection_status='Operational' WHERE id=?").run(wrongCreator.id);
