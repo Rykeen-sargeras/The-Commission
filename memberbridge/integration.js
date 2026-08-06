@@ -34,7 +34,7 @@ class MemberBridgeIntegration {
         this.simulatedYoutube = new SimulatedYouTubeClient(this.store);
         this.roleAdapter = new DiscordRoleAdapter(client, this.store);
         this.engine = new MembershipEngine({ store: this.store, youtube: this.youtube, simulatedYoutube: this.simulatedYoutube, roleAdapter: this.roleAdapter, simulationMode: Boolean(this.config.simulationMode) });
-        this.web = new MemberBridgeWeb({ store: this.store, youtube: this.youtube, engine: this.engine, config: { ...this.config, discordClientSecret: options.discordClientSecret }, onLinked: link => this.verifyUser(link.guild_id, link.discord_user_id) });
+        this.web = new MemberBridgeWeb({ store: this.store, youtube: this.youtube, engine: this.engine, config: { ...this.config, discordClientSecret: options.discordClientSecret, ownerPassword: options.ownerPassword || '' }, onLinked: link => this.verifyUser(link.guild_id, link.discord_user_id), guildIdProvider: () => this.client.guilds.cache.first()?.id || '' });
         this.recheckCooldowns = new Map();
         this.scheduler = null;
         this.schedulerRunning = false;
@@ -145,9 +145,9 @@ class MemberBridgeIntegration {
             .setDescription('Connect your Discord account to your YouTube channel membership. Once verified, The Commission applies the Discord role mapped to your current membership level.')
             .addFields(
                 { name: '1. Verify membership', value: 'Click **Verify Membership** and use the private, single-use link. The link expires after 10 minutes.' },
-                { name: '2. Choose your YouTube channel', value: 'Discord confirms who you are, then Google lets you select the YouTube identity that holds the membership.' },
+                { name: '2. Confirm your Discord Connection', value: 'Discord confirms who you are and shares the verified YouTube channel in User Settings → Connections. Members do not sign into Google.' },
                 { name: '3. Receive your role', value: 'The bot checks the configured creator membership and applies the matching role automatically.' },
-                { name: 'Privacy', value: 'Your Google password is never shared with or stored by the bot. Button responses and account links are private.' },
+                { name: 'Privacy', value: 'Your Discord and Google passwords are never shared with or stored by the bot. Button responses and account links are private.' },
             )
             .setFooter({ text: 'The Commission • MemberBridge verification' });
         const row = new Discord.ActionRowBuilder().addComponents(
@@ -225,7 +225,7 @@ class MemberBridgeIntegration {
         this.store.createLinkSession({ token, guildId: interaction.guildId, discordUserId: interaction.user.id, discordUsername: interaction.user.tag, expiresUtc: new Date(Date.now() + 10 * 60000).toISOString() });
         this.store.audit('Account link started', `${interaction.user.id} started a private account link.`, { guildId: interaction.guildId, discordUserId: interaction.user.id });
         const row = new Discord.ActionRowBuilder().addComponents(new Discord.ButtonBuilder().setStyle(Discord.ButtonStyle.Link).setLabel('Continue Private Verification').setURL(this.web.memberUrl(token)));
-        return interaction.reply({ content: 'Your single-use verification link expires in 10 minutes. Discord confirms your identity, then Google lets you choose your YouTube channel. Your Google password is never shared with the bot.', components: [row], ephemeral: true });
+        return interaction.reply({ content: 'Your single-use verification link expires in 10 minutes. Discord confirms your identity and verified YouTube connection; members do not sign into Google. If YouTube is not connected yet, add it under Discord User Settings → Connections first.', components: [row], ephemeral: true });
     }
 
     async replyWithMembershipStatus(interaction) {
@@ -307,7 +307,7 @@ class MemberBridgeIntegration {
             return true;
         }
         if (name === 'membership-help') {
-            await interaction.reply({ content: '**How MemberBridge works**\nMemberBridge links your Discord account to the permanent channel ID of the YouTube identity you choose. Each accepted creator separately authorizes the official YouTube membership API. During a check, your channel ID is sent to YouTube with that creator’s authorization. YouTube reports whether it is active and the highest accessible membership-level ID. The Commission maps that permanent level ID to a permanent Discord role ID.\n\nA successfully confirmed absence begins the server’s grace process. Network, YouTube, Discord, authorization, quota, malformed-data, and app errors never count as canceled membership and do not remove roles. Use `/membership-unlink` at any time. No Google password or email address is stored.', ephemeral: true });
+            await interaction.reply({ content: '**How MemberBridge works**\nMemberBridge reads the verified YouTube channel in your Discord Connections and links its permanent channel ID to your Discord account. You do not sign into Google. Each accepted creator separately authorizes the official YouTube membership API. During a check, your channel ID is sent to YouTube with that creator’s authorization. YouTube reports whether it is active and the highest accessible membership-level ID. The Commission maps that permanent level ID to a permanent Discord role ID.\n\nA successfully confirmed absence begins the server’s grace process. Network, YouTube, Discord, authorization, quota, malformed-data, and app errors never count as canceled membership and do not remove roles. Use `/membership-unlink` at any time. OAuth access tokens are not retained for members.', ephemeral: true });
             return true;
         }
         if (!this.isAdmin(interaction)) {
@@ -360,6 +360,11 @@ class MemberBridgeIntegration {
                 if (this.config.simulationMode) throw new Error('Creator OAuth is disabled in simulation mode. Use Activate simulator creator.');
                 if (!this.web.server) throw new Error('The callback server is unavailable. Fix the callback settings and restart the bot.');
                 return { url: this.web.creatorAuthorizationUrl(payload.creatorId) };
+            }
+            case 'creator-portal-link': {
+                if (this.config.simulationMode) throw new Error('Creator portal links are disabled in simulation mode.');
+                if (!this.web.server) throw new Error('The callback server is unavailable. Fix the public base URL and restart the bot.');
+                return this.web.creatorPortalAccessUrl(payload.creatorId);
             }
             case 'activate-simulator': {
                 if (!this.config.simulationMode) throw new Error('Simulation mode is not enabled.');

@@ -13,6 +13,6 @@ MemberBridge reuses the existing The Commission Discord application and bot toke
 
 MemberBridge rejects roles that are missing, managed by an integration, or at/above the bot's highest role. It adds a replacement role before removing an obsolete role.
 
-The member link flow uses Discord OAuth `identify` to ensure the browser user is the same permanent Discord user ID that ran `/membership-link`. The OAuth state is single use and expires with the ten-minute link session.
+The member link flow uses Discord OAuth `identify connections` to ensure the browser user is the same permanent Discord user ID that ran `/membership-link` and to read verified YouTube connections. Members must first add YouTube under **Discord User Settings → Connections**. Member Discord OAuth tokens are not stored. The OAuth state is single use and expires with the ten-minute link session.
 
 Administrator slash commands require Discord Administrator or one of the MemberBridge administrator role IDs configured in the desktop app. Member commands always reply ephemerally so linked identity details are not exposed publicly.

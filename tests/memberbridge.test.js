@@ -8,7 +8,7 @@ const path = require('path');
 const { SecretBox } = require('../memberbridge/crypto');
 const { batches, MembershipEngine } = require('../memberbridge/engine');
 const { MemberBridgeStore } = require('../memberbridge/store');
-const { SimulatedYouTubeClient } = require('../memberbridge/youtube');
+const { GoogleYouTubeClient, SimulatedYouTubeClient } = require('../memberbridge/youtube');
 const { STATUS } = require('../memberbridge/constants');
 
 class FakeRoles {
@@ -53,6 +53,26 @@ function linked(f, creatorRow, suffix = '01') {
 async function run() {
     assert.deepStrictEqual(batches(Array.from({ length: 100 }, (_, i) => i)).map(group => group.length), [100]);
     assert.deepStrictEqual(batches(Array.from({ length: 101 }, (_, i) => i)).map(group => group.length), [100, 1]);
+
+    {
+        const originalFetch = global.fetch;
+        const requested = [];
+        let page = 0;
+        global.fetch = async url => {
+            requested.push(new URL(String(url)));
+            page += 1;
+            return new Response(JSON.stringify({ items: [{ snippet: { creatorChannelId: 'UCaaaaaaaaaaaaaaaaaaaaaa', memberDetails: { channelId: `UC${String(page).padStart(22, 'b')}`, displayName: `Member ${page}` }, membershipsDetails: { highestAccessibleLevel: 'LEVEL_ONE', highestAccessibleLevelDisplayName: 'Associate', accessibleLevels: ['LEVEL_ONE'], membershipsDuration: { memberSince: '2026-01-01T00:00:00Z', memberTotalDurationMonths: page } } } }], ...(page === 1 ? { nextPageToken: 'next-page' } : {}) }), { status: 200 });
+        };
+        try {
+            const youtube = new GoogleYouTubeClient({ clientId: '', clientSecret: '', publicBaseUrl: '' });
+            const members = await youtube.allCurrentMembers('access');
+            assert.equal(members.length, 2);
+            assert.equal(members[1].totalDurationMonths, 2);
+            assert.equal(requested[0].searchParams.get('mode'), 'all_current');
+            assert.equal(requested[0].searchParams.get('maxResults'), '1000');
+            assert.equal(requested[1].searchParams.get('pageToken'), 'next-page');
+        } finally { global.fetch = originalFetch; }
+    }
 
     {
         const f = fixture();

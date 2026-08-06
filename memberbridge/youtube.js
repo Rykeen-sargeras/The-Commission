@@ -1,6 +1,6 @@
 'use strict';
 
-const { CREATOR_SCOPE, MEMBER_SCOPE } = require('./constants');
+const { CREATOR_SCOPE, CREATOR_IDENTITY_SCOPE } = require('./constants');
 
 class ExternalApiError extends Error {
     constructor(message, options = {}) {
@@ -20,6 +20,24 @@ function extractGoogleError(body, status) {
     const quotaCodes = new Set(['quotaExceeded','dailyLimitExceeded','rateLimitExceeded','userRateLimitExceeded']);
     const classification = configurationCodes.has(detail) || status === 401 ? 'configuration' : (quotaCodes.has(detail) || status === 429 || status >= 500 ? 'temporary' : 'member');
     return new ExternalApiError(message, { code: detail, httpStatus: status, classification, retryable: classification === 'temporary' });
+}
+
+function normalizeMember(item) {
+    const snippet = item?.snippet;
+    const channelId = snippet?.memberDetails?.channelId;
+    const details = snippet?.membershipsDetails;
+    if (!snippet || !details || !Array.isArray(details.accessibleLevels)) throw new ExternalApiError('YouTube returned a structurally invalid membership resource.', { code: 'malformed_member', classification: 'configuration' });
+    return {
+        creatorChannelId: snippet.creatorChannelId || '',
+        channelId: channelId || '',
+        displayName: snippet.memberDetails?.displayName || '',
+        profileImageUrl: snippet.memberDetails?.profileImageUrl || '',
+        highestLevelId: details.highestAccessibleLevel || '',
+        highestLevelName: details.highestAccessibleLevelDisplayName || '',
+        accessibleLevelIds: details.accessibleLevels.map(level => typeof level === 'string' ? level : level.id).filter(Boolean),
+        memberSinceUtc: details.membershipsDuration?.memberSince || null,
+        totalDurationMonths: Number(details.membershipsDuration?.memberTotalDurationMonths || 0),
+    };
 }
 
 async function requestJson(url, options = {}, attempts = 3) {
@@ -58,17 +76,19 @@ class GoogleYouTubeClient {
     }
 
     redirectUri(kind) {
-        return `${this.publicBaseUrl}${kind === 'creator' ? '/oauth/google/creator-callback' : '/oauth/google/callback'}`;
+        if (kind !== 'creator') throw new ExternalApiError('Google OAuth is available only to approved creators.', { code: 'creator_oauth_only', classification: 'configuration' });
+        return `${this.publicBaseUrl}/oauth/google/creator-callback`;
     }
 
     authorizationUrl({ kind, state, challenge }) {
         this.assertConfigured();
         const creator = kind === 'creator';
+        if (!creator) throw new ExternalApiError('Google OAuth is available only to approved creators.', { code: 'creator_oauth_only', classification: 'configuration' });
         const params = new URLSearchParams({
             client_id: this.clientId,
             redirect_uri: this.redirectUri(kind),
             response_type: 'code',
-            scope: creator ? `${MEMBER_SCOPE} ${CREATOR_SCOPE}` : MEMBER_SCOPE,
+            scope: `${CREATOR_IDENTITY_SCOPE} ${CREATOR_SCOPE}`,
             state,
             code_challenge: challenge,
             code_challenge_method: 'S256',
@@ -123,21 +143,25 @@ class GoogleYouTubeClient {
         url.searchParams.set('maxResults', '100');
         const body = await requestJson(url, { headers: { authorization: `Bearer ${accessToken}` } });
         if (!Array.isArray(body.items)) throw new ExternalApiError('YouTube membership response was malformed.', { code: 'malformed_members', classification: 'configuration' });
-        return body.items.map(item => {
-            const snippet = item?.snippet;
-            const channelId = snippet?.memberDetails?.channelId;
-            const details = snippet?.membershipsDetails;
-            if (!snippet || !details || !Array.isArray(details.accessibleLevels)) throw new ExternalApiError('YouTube returned a structurally invalid membership resource.', { code: 'malformed_member', classification: 'configuration' });
-            return {
-                creatorChannelId: snippet.creatorChannelId || '',
-                channelId: channelId || '',
-                displayName: snippet.memberDetails?.displayName || '',
-                profileImageUrl: snippet.memberDetails?.profileImageUrl || '',
-                highestLevelId: details.highestAccessibleLevel || '',
-                highestLevelName: details.highestAccessibleLevelDisplayName || '',
-                accessibleLevelIds: details.accessibleLevels.map(level => typeof level === 'string' ? level : level.id).filter(Boolean),
-            };
-        });
+        return body.items.map(normalizeMember);
+    }
+
+    async allCurrentMembers(accessToken) {
+        const members = [];
+        let pageToken = '';
+        do {
+            const url = new URL('https://www.googleapis.com/youtube/v3/members');
+            url.searchParams.set('part', 'snippet');
+            url.searchParams.set('mode', 'all_current');
+            url.searchParams.set('maxResults', '1000');
+            if (pageToken) url.searchParams.set('pageToken', pageToken);
+            const body = await requestJson(url, { headers: { authorization: `Bearer ${accessToken}` } });
+            if (!Array.isArray(body.items)) throw new ExternalApiError('YouTube membership-list response was malformed.', { code: 'malformed_members', classification: 'configuration' });
+            members.push(...body.items.map(normalizeMember));
+            pageToken = String(body.nextPageToken || '');
+            if (members.length > 100000) throw new ExternalApiError('YouTube returned an unexpectedly large membership list.', { code: 'member_list_too_large', classification: 'configuration' });
+        } while (pageToken);
+        return members;
     }
 }
 
@@ -154,6 +178,19 @@ class SimulatedYouTubeClient {
         if (mode === 'malformed') throw new ExternalApiError('Simulated malformed YouTube response.', { code: 'malformed_response', classification: 'configuration', retryable: false });
         return this.store.simulatorMembers(creatorId, channelIds);
     }
+    async allCurrentMembers(_accessToken, creatorId) {
+        return this.store.db.prepare('SELECT youtube_channel_id,display_name,highest_level_id,accessible_levels_json FROM mb_simulator_members WHERE creator_source_id=? AND is_active=1 ORDER BY display_name').all(Number(creatorId)).map(row => ({
+            creatorChannelId: `SIM_CREATOR_${creatorId}`,
+            channelId: row.youtube_channel_id,
+            displayName: row.display_name,
+            profileImageUrl: '',
+            highestLevelId: row.highest_level_id || '',
+            highestLevelName: row.highest_level_id || '',
+            accessibleLevelIds: JSON.parse(row.accessible_levels_json || '[]'),
+            memberSinceUtc: null,
+            totalDurationMonths: 0,
+        }));
+    }
 }
 
-module.exports = { ExternalApiError, GoogleYouTubeClient, SimulatedYouTubeClient, requestJson };
+module.exports = { ExternalApiError, GoogleYouTubeClient, SimulatedYouTubeClient, normalizeMember, requestJson };

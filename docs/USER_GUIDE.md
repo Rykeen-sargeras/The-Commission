@@ -2,7 +2,8 @@
 
 - Open `#verify-membership` and click **Verify Membership**, then open the private link within ten minutes. `/membership-link` provides the same private flow.
 - Sign into the same Discord account that ran the command.
-- Sign into Google and choose the YouTube channel identity used for the paid membership.
+- Connect the YouTube identity used for the paid membership under Discord **User Settings → Connections**.
+- Use the private verification link; Discord confirms your identity and verified YouTube connection. Members do not sign into Google.
 - Return to Discord and click **Check Status**, or use `/membership-status`.
 - Click **Recheck Membership** after joining or changing a level, or use `/membership-recheck`. It has a ten-minute cooldown.
 - Use `/membership-unlink` and confirm to disconnect.

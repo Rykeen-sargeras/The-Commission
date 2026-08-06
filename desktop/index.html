@@ -437,7 +437,7 @@
                                 <label class="field"><span>Callback bind address</span><input data-setting="memberBridgeCallbackHost" placeholder="127.0.0.1"></label>
                                 <label class="field"><span>Callback port</span><input type="number" min="1024" max="65535" data-setting="memberBridgeCallbackPort"></label>
                             </div>
-                            <div class="callout compact-callout"><strong>Required redirect URIs</strong><p><code id="mbDiscordRedirect">…/oauth/discord/callback</code><br><code id="mbGoogleRedirect">…/oauth/google/callback</code><br><code id="mbCreatorRedirect">…/oauth/google/creator-callback</code></p></div>
+                            <div class="callout compact-callout"><strong>Required redirect URIs</strong><p><code id="mbDiscordRedirect">…/oauth/discord/callback</code> in Discord<br><code id="mbCreatorRedirect">…/oauth/google/creator-callback</code> in Google</p><small>Regular members verify through Discord Connections and do not need a Google callback.</small></div>
                         </article>
                         <article class="panel form-panel">
                             <div class="panel-heading"><div><p class="eyebrow">OAuth credentials</p><h3>Discord and Google</h3></div></div>
@@ -476,13 +476,15 @@
                             </div>
                             <div class="button-row wrap-row">
                                 <button id="mbSaveCreatorButton" class="button secondary" type="button">Save creator</button>
-                                <button id="mbConnectCreatorButton" class="button primary" type="button">Connect creator OAuth</button>
+                                 <button id="mbConnectCreatorButton" class="button primary" type="button">Connect creator OAuth</button>
+                                 <button id="mbCreatorPortalButton" class="button primary" type="button">Generate creator portal link</button>
                                 <button id="mbActivateSimulatorButton" class="button ghost" type="button">Activate simulator creator</button>
                                 <button id="mbSyncLevelsButton" class="button ghost" type="button">Import levels</button>
                                 <button id="mbVerifyButton" class="button ghost" type="button">Force full check</button>
                                 <button id="mbSafeModeButton" class="button danger" type="button">Enable safe mode</button>
-                            </div>
-                        </article>
+                             </div>
+                             <label class="field"><span>Creator portal access link</span><input id="mbCreatorPortalUrl" readonly placeholder="Generate a link, then give it to this creator"><small>Unconnected creators receive a one-time 24-hour invitation. Connected creators receive their permanent sign-in link.</small></label>
+                         </article>
                     </div>
 
                     <article class="panel form-panel">

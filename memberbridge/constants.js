@@ -19,7 +19,7 @@ const ROLE_MODE = Object.freeze({
 });
 
 const CREATOR_SCOPE = 'https://www.googleapis.com/auth/youtube.channel-memberships.creator';
-const MEMBER_SCOPE = 'https://www.googleapis.com/auth/youtube.readonly';
+const CREATOR_IDENTITY_SCOPE = 'https://www.googleapis.com/auth/youtube.readonly';
 const MAX_MEMBER_BATCH = 100;
 
-module.exports = { STATUS, ROLE_MODE, CREATOR_SCOPE, MEMBER_SCOPE, MAX_MEMBER_BATCH };
+module.exports = { STATUS, ROLE_MODE, CREATOR_SCOPE, CREATOR_IDENTITY_SCOPE, MAX_MEMBER_BATCH };
