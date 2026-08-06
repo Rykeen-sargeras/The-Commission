@@ -53,7 +53,7 @@ async function run() {
     };
 
     try {
-        for (const [route, heading] of [['/', 'Membership verification'], ['/creator', 'Creator Portal'], ['/terms', 'Terms of Service'], ['/privacy-policy', 'Privacy Policy']]) {
+        for (const [route, heading] of [['/', 'Membership verification'], ['/creator', 'Creator Portal'], ['/creator/help', 'Creator connection help'], ['/terms', 'Terms of Service'], ['/privacy-policy', 'Privacy Policy']]) {
             const response = await originalFetch(`${baseUrl}${route}`);
             const body = await response.text();
             assert.equal(response.status, 200);
@@ -107,6 +107,10 @@ async function run() {
         assert.equal(invite.kind, 'invite');
         const invitePage = await originalFetch(invite.url.replace(f.web.baseUrl, baseUrl));
         assert.equal(invitePage.status, 200);
+        const inviteBody = await invitePage.text();
+        assert.match(inviteBody, /Error 403: access_denied/);
+        assert.match(inviteBody, /Audience &gt; Test users/);
+        assert.match(inviteBody, /I completed the checks/);
         const inviteStartPath = new URL(invite.url).pathname + '/start';
         const inviteStart = await originalFetch(`${baseUrl}${inviteStartPath}`, { redirect: 'manual' });
         const googleAuthorize = new URL(inviteStart.headers.get('location'));
@@ -154,7 +158,11 @@ async function run() {
         const wrongCreator = f.store.createCreator({ guildId: '22345678901234567', displayName: 'Different Creator' });
         f.store.db.prepare("UPDATE mb_creator_sources SET youtube_channel_id='UCdddddddddddddddddddddd',connection_status='Operational' WHERE id=?").run(wrongCreator.id);
         const wrongLogin = await originalFetch(`${baseUrl}/creator/login/${wrongCreator.id}`, { redirect: 'manual' });
-        const wrongState = new URL(wrongLogin.headers.get('location')).searchParams.get('state');
+        assert.equal(wrongLogin.status, 200);
+        assert.match(await wrongLogin.text(), /Error 403: access_denied/);
+        const wrongLoginStart = await originalFetch(`${baseUrl}/creator/login/${wrongCreator.id}/start`, { redirect: 'manual' });
+        assert.equal(wrongLoginStart.status, 302);
+        const wrongState = new URL(wrongLoginStart.headers.get('location')).searchParams.get('state');
         const denied = await originalFetch(`${baseUrl}/oauth/google/creator-callback?state=${encodeURIComponent(wrongState)}&code=creator-code`, { redirect: 'manual' });
         assert.equal(denied.status, 403);
         assert.match(await denied.text(), /Wrong creator channel/);
