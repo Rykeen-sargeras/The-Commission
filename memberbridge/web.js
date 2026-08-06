@@ -10,8 +10,66 @@ function escapeHtml(value) {
 
 function page(title, body, options = {}) {
     return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)} · The Commission</title><style>
-    :root{color-scheme:dark;font-family:Inter,Segoe UI,sans-serif;background:#090b10;color:#f4f1e8}body{margin:0;min-height:100vh;display:grid;place-items:center;background:radial-gradient(circle at top,#2b1520,#090b10 56%)}main{width:min(620px,calc(100% - 40px));background:#11141b;border:1px solid #313640;border-radius:18px;padding:32px;box-shadow:0 28px 80px #0009}h1{font-family:Georgia,serif;font-size:34px;margin:8px 0 12px}.eyebrow{color:#d4ad61;text-transform:uppercase;letter-spacing:.16em;font-size:12px;font-weight:800}p{color:#b7bdc8;line-height:1.6}.button,button{display:inline-block;border:0;border-radius:10px;padding:13px 18px;background:#b8203b;color:white;text-decoration:none;font-weight:750;cursor:pointer}select{width:100%;box-sizing:border-box;background:#090c11;color:#fff;border:1px solid #3a414c;border-radius:10px;padding:12px;margin:10px 0 18px}.warning{padding:12px;border-left:3px solid #d4ad61;background:#1d1920;color:#dfd6c2}.ok{color:#79d6a5}.error{color:#ff7c8f}small{display:block;color:#858d9a;margin-top:18px}</style></head><body><main><div class="eyebrow">The Commission · MemberBridge</div><h1>${escapeHtml(title)}</h1>${body}${options.footer === false ? '' : '<small>You can close this page and return to Discord when finished.</small>'}</main></body></html>`;
+    :root{color-scheme:dark;font-family:Inter,Segoe UI,sans-serif;background:#090b10;color:#f4f1e8}body{margin:0;min-height:100vh;display:grid;place-items:center;background:radial-gradient(circle at top,#2b1520,#090b10 56%);padding:28px 0}main{width:min(760px,calc(100% - 40px));box-sizing:border-box;background:#11141b;border:1px solid #313640;border-radius:18px;padding:32px;box-shadow:0 28px 80px #0009}h1{font-family:Georgia,serif;font-size:34px;margin:8px 0 12px}h2{font-family:Georgia,serif;font-size:22px;margin:30px 0 8px;color:#f4f1e8}.eyebrow{color:#d4ad61;text-transform:uppercase;letter-spacing:.16em;font-size:12px;font-weight:800}p,li{color:#b7bdc8;line-height:1.65}ul{padding-left:22px}a{color:#e4bd72}.button,button{display:inline-block;border:0;border-radius:10px;padding:13px 18px;background:#b8203b;color:white;text-decoration:none;font-weight:750;cursor:pointer}.legal-links{display:flex;flex-wrap:wrap;gap:10px;margin:24px 0}.legal-links a{display:inline-block;border:1px solid #444b57;border-radius:9px;padding:10px 13px;text-decoration:none}.legal-nav{display:flex;flex-wrap:wrap;gap:16px;border-top:1px solid #2b3039;margin-top:30px;padding-top:18px;font-size:13px}.updated{color:#858d9a;font-size:13px}select{width:100%;box-sizing:border-box;background:#090c11;color:#fff;border:1px solid #3a414c;border-radius:10px;padding:12px;margin:10px 0 18px}.warning{padding:12px;border-left:3px solid #d4ad61;background:#1d1920;color:#dfd6c2}.ok{color:#79d6a5}.error{color:#ff7c8f}small{display:block;color:#858d9a;margin-top:18px}</style></head><body><main><div class="eyebrow">The Commission · MemberBridge</div><h1>${escapeHtml(title)}</h1>${body}${options.footer === false ? '' : '<nav class="legal-nav" aria-label="Legal"><a href="/">Home</a><a href="/terms">Terms of Service</a><a href="/privacy-policy">Privacy Policy</a><a href="/revoke">Disconnect</a></nav><small>You can close this page and return to Discord when finished.</small>'}</main></body></html>`;
 }
+
+const LEGAL_UPDATED = 'August 6, 2026';
+
+const HOME_CONTENT = `
+<p>The Commission is a Discord community-management bot with moderation, virtual Blood Money, REP, games, heists, activity leaderboards, and optional YouTube channel-membership verification through MemberBridge.</p>
+<p>MemberBridge uses Discord OAuth to confirm your Discord identity and Google OAuth to let you select a YouTube channel identity. It then uses the official YouTube API to verify eligible channel memberships and manage mapped Discord roles.</p>
+<div class="legal-links"><a href="/terms">Read the Terms of Service</a><a href="/privacy-policy">Read the Privacy Policy</a></div>
+<p class="updated">Legal documents last updated ${LEGAL_UPDATED}.</p>`;
+
+const TERMS_CONTENT = `
+<p class="updated">Effective and last updated: ${LEGAL_UPDATED}</p>
+<p>These Terms govern your use of The Commission Discord bot, its MemberBridge membership-verification feature, and its related web pages (together, the “Service”). By using the Service, running one of its commands, participating in its games or economy, or linking an account, you agree to these Terms and the rules of the Discord server where the Service operates.</p>
+<h2>1. Eligibility and accounts</h2>
+<p>You must meet the minimum age required by Discord, Google, YouTube, and applicable law. You are responsible for your Discord and Google accounts and for making sure the account used during verification belongs to you. Do not share private OAuth links, credentials, or bot tokens.</p>
+<h2>2. Acceptable use</h2>
+<p>You may use the Service only for lawful community participation. You may not exploit bugs; automate gameplay or rewards; evade moderation; impersonate another person; submit another person’s account; manipulate REP, Blood Money, leaderboards, membership checks, duels, heists, or gambling results; probe or disrupt the Service; or use it in violation of Discord, Google, or YouTube rules.</p>
+<h2>3. Virtual currency and games</h2>
+<p>Blood Money, REP, ranks, wagers, prizes shown in the bot, and all other in-server points are virtual features controlled by the server owner. They are not legal tender, cryptocurrency, stored value, or property; have no cash value; may not be purchased, sold, or exchanged for money; and may be corrected, frozen, reset, or removed to address abuse, mistakes, seasonal resets, or server administration. Any separately announced physical prize is governed by the announcement’s eligibility rules and is not guaranteed by participation.</p>
+<h2>4. Moderation and availability</h2>
+<p>Server staff may restrict commands, adjust settings, correct logged balances, remove roles, jail, mute, kick, ban, or otherwise moderate users under server rules. The Service may be changed, interrupted, suspended, or discontinued at any time. We do not guarantee uninterrupted operation, permanent data retention, specific rewards, membership recognition, leaderboard placement, or preservation of virtual balances.</p>
+<h2>5. Account linking and third-party services</h2>
+<p>MemberBridge depends on Discord, Google, YouTube, Railway, and their APIs. Their own terms and privacy policies also apply. Authorizing MemberBridge permits only the scopes shown on the provider’s consent screen. You may disconnect MemberBridge with <b>/membership-unlink</b> and may separately revoke access in your Discord or Google account settings.</p>
+<h2>6. Intellectual property</h2>
+<p>The Service, its branding, interface, and original code or content are owned by their respective operator or licensors. Discord, Google, YouTube, Railway, and other third-party names and marks belong to their owners. These Terms do not grant ownership of any Service component.</p>
+<h2>7. Disclaimers and liability</h2>
+<p>The Service is provided “as is” and “as available.” To the fullest extent allowed by law, the operator disclaims implied warranties and is not responsible for indirect, incidental, special, consequential, or punitive losses arising from use, loss of access, moderation decisions, third-party outages, or loss of virtual data. Nothing here limits rights or liabilities that cannot lawfully be limited.</p>
+<h2>8. Changes and termination</h2>
+<p>These Terms may be updated when the Service or its legal obligations change. The updated date will appear above. Continuing to use the Service after an update means you accept the revised Terms. You may stop using the Service at any time; the operator may suspend or terminate access when reasonably necessary to protect the community or Service.</p>
+<h2>9. Contact</h2>
+<p>For questions about these Terms, contact the server owner or administrators through The Commission Discord server.</p>`;
+
+const PRIVACY_CONTENT = `
+<p class="updated">Effective and last updated: ${LEGAL_UPDATED}</p>
+<p>This Privacy Policy explains how the operator of The Commission collects, uses, stores, and discloses information when you use the Discord bot, MemberBridge, and related web pages.</p>
+<h2>1. Information collected</h2>
+<ul>
+<li><b>Discord information:</b> guild, channel, role, message, and user IDs; usernames, display names, and public avatars; account and server-join dates; command interactions; role and moderation events; and audit records.</li>
+<li><b>Economy and activity information:</b> Blood Money balances and transactions, REP, leaderboard and reset history, gambling and game records, duel and heist participation, message and voice activity timestamps, voice participation duration, media fingerprints, and normalized recent message text used for duplicate/spam detection and reward calculation.</li>
+<li><b>MemberBridge information:</b> the YouTube channel identity you select, including its permanent channel ID, display-name snapshot, and optional public thumbnail; membership status and level IDs; mapped Discord roles; verification attempts; grace dates; role operations; and security audit history.</li>
+<li><b>OAuth and technical information:</b> short-lived linking sessions, OAuth state and PKCE values, requested scopes, timestamps, error and diagnostic information, and limited request metadata such as an IP-derived rate-limit counter held in memory.</li>
+</ul>
+<p>The Service does not request or store your Google password. It does not request or store a member’s Google email address. Member Google OAuth tokens are discarded after the selected YouTube channel is identified. A participating creator’s Google refresh token is retained in encrypted form so scheduled membership checks can run.</p>
+<h2>2. How information is used</h2>
+<p>Information is used to operate Discord commands; award and audit Blood Money and REP; run games, heists, leaderboards, and resets; prevent abuse and duplicate reward farming; enforce server rules and preemptive bans; create moderation records; verify YouTube channel membership; assign or remove mapped Discord roles; provide grace periods; diagnose failures; secure the Service; and maintain backups.</p>
+<h2>3. Google API data</h2>
+<p>MemberBridge requests only the Google/YouTube access shown on the OAuth consent screen. Member authorization is used to identify the YouTube channel selected by that member. Creator authorization is used to access the creator’s official YouTube membership and membership-level endpoints for verification. Information received through Google APIs is handled in accordance with the Google API Services User Data Policy, including its Limited Use requirements. It is not used for advertising or sold.</p>
+<h2>4. Disclosure and service providers</h2>
+<p>Information is not sold. It may be processed by Discord, Google/YouTube, Railway, and other infrastructure providers as needed to operate the Service; displayed within the Discord server where a feature is designed to be public, such as leaderboards, game panels, or moderation notices; accessed by authorized server staff for administration and safety; or disclosed when required by law or necessary to protect users, the Service, or legal rights.</p>
+<h2>5. Retention</h2>
+<p>Records are retained for as long as reasonably needed to provide the Service, preserve leaderboards and lifetime statistics, prevent abuse, resolve disputes, maintain security audits, and meet legal obligations. Expired OAuth link sessions are cleaned up automatically. Backups and audit records may remain after an active account link is removed. Retention may also be limited by Railway, Discord, Google, or server-owner backup practices.</p>
+<h2>6. Your choices and requests</h2>
+<p>Use <b>/membership-unlink</b> in Discord to disconnect MemberBridge. You may also revoke The Commission’s access from your Discord or Google account settings. To request access, correction, export, or deletion of other stored information, contact the server owner or administrators through The Commission Discord server. Some security, transaction, moderation, backup, or audit records may be retained when reasonably necessary or legally required.</p>
+<h2>7. Security</h2>
+<p>The Service uses HTTPS for production OAuth pages, short-lived single-use sessions, OAuth state validation, PKCE for Google OAuth, restricted scopes, encrypted creator refresh tokens, access-controlled administration, and persistent storage managed by the operator. No system is perfectly secure, so absolute security cannot be guaranteed.</p>
+<h2>8. Children</h2>
+<p>The Service is not intended for anyone below the minimum age required by Discord, Google, YouTube, or applicable law. If you believe a child provided information improperly, contact the server owner or administrators.</p>
+<h2>9. Changes and contact</h2>
+<p>This policy may be updated as the Service changes. The current version and updated date will remain posted here. For privacy questions or requests, contact the server owner or administrators through The Commission Discord server.</p>`;
 
 function cookie(req, name) {
     const entry = String(req.headers.cookie || '').split(';').map(item => item.trim()).find(item => item.startsWith(`${name}=`));
@@ -107,8 +165,10 @@ class MemberBridgeWeb {
     async handle(req, res) {
         if (!this.limit(req)) return send(res, 429, page('Too many requests', '<p>Please wait a minute and try again.</p>'));
         const url = new URL(req.url, this.baseUrl);
+        if (req.method === 'GET' && url.pathname === '/') return send(res, 200, page('Membership verification', HOME_CONTENT));
         if (req.method === 'GET' && url.pathname === '/health') return send(res, 200, JSON.stringify({ status: this.server ? 'Healthy' : 'Unhealthy', database: this.store.integrityCheck(), startedUtc: this.startedUtc }), 'application/json; charset=utf-8');
-        if (req.method === 'GET' && url.pathname === '/privacy') return send(res, 200, page('Privacy', '<p>MemberBridge stores your Discord user ID, the permanent YouTube channel ID you select, display-name snapshots, membership status, mapped roles, verification history, and grace-period dates. It does not store your Google password or email address. Member identity OAuth tokens are discarded after your channel is identified.</p><p>Use <b>/membership-unlink</b> in Discord to disconnect your account.</p>'));
+        if (req.method === 'GET' && ['/terms', '/terms-of-service'].includes(url.pathname)) return send(res, 200, page('Terms of Service', TERMS_CONTENT));
+        if (req.method === 'GET' && ['/privacy', '/privacy-policy'].includes(url.pathname)) return send(res, 200, page('Privacy Policy', PRIVACY_CONTENT));
         if (req.method === 'GET' && url.pathname === '/revoke') return send(res, 200, page('Disconnect MemberBridge', '<p>Return to the Discord server and use <b>/membership-unlink</b>. You will be asked to confirm before the link is removed.</p>'));
 
         const connect = url.pathname.match(/^\/connect\/([^/]+)$/);

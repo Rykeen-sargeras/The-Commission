@@ -10,7 +10,7 @@
     "start:bot": "node discord_bot.js",
     "railway:start": "node discord_bot.js",
     "check": "node --check discord_bot.js && node --check desktop/main.js && node --check desktop/preload.js && node --check desktop/renderer.js && node --check memberbridge/store.js && node --check memberbridge/youtube.js && node --check memberbridge/engine.js && node --check memberbridge/web.js && node --check memberbridge/integration.js",
-    "test": "node tests/preemptive-ban.test.js && node tests/blueprint.test.js && node tests/economy.test.js && node tests/memberbridge.test.js",
+    "test": "node tests/preemptive-ban.test.js && node tests/blueprint.test.js && node tests/economy.test.js && node tests/memberbridge.test.js && node tests/memberbridge-web.test.js",
     "dist": "electron-builder --win nsis portable",
     "dist:dir": "electron-builder --dir"
   },
