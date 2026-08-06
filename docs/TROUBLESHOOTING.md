@@ -6,7 +6,7 @@ Confirm the callback port is unused, the bind address is valid, and the public b
 
 ## OAuth redirect mismatch
 
-Copy the three redirect URIs exactly as shown in the app. The Discord callback belongs in the Discord Developer Portal; both Google callbacks belong on the Google OAuth web client. Scheme, hostname, port, path, and trailing slash must match exactly.
+Copy the two redirect URIs exactly as shown in the app. The Discord callback belongs in the Discord Developer Portal; the creator Google callback belongs on the Google OAuth web client. Scheme, hostname, port, path, and trailing slash must match exactly.
 
 ## Creator OAuth connects but endpoint access fails
 
@@ -14,7 +14,11 @@ The channel must have paid channel memberships enabled, the authorizing account 
 
 ## Member not found
 
-Have the member unlink and run `/membership-link` again, then choose the YouTube identity actually used for the paid membership. Permanent channel ID, not display name, is matched.
+Have the member open Discord **User Settings → Connections**, connect and verify the YouTube identity used for the paid membership, then unlink and run `/membership-link` again. Permanent channel ID, not display name, is matched.
+
+## Creator cannot sign into the portal
+
+For a creator that has never connected, generate a fresh one-time invitation in the owner app; invitations expire after 24 hours and are consumed when OAuth begins. For an already connected creator, generate the permanent creator sign-in link. Google must authorize the same permanent YouTube creator channel already bound to that source.
 
 ## Unmapped level
 

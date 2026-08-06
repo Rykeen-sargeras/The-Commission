@@ -73,7 +73,6 @@ function applyConfig(config) {
 function updateMemberBridgeRedirects() {
     const base = String(document.querySelector('[data-setting="memberBridgePublicBaseUrl"]')?.value || '').replace(/\/$/, '') || 'https://members.example.com';
     document.getElementById('mbDiscordRedirect').textContent = `${base}/oauth/discord/callback`;
-    document.getElementById('mbGoogleRedirect').textContent = `${base}/oauth/google/callback`;
     document.getElementById('mbCreatorRedirect').textContent = `${base}/oauth/google/creator-callback`;
 }
 
@@ -319,7 +318,8 @@ function applyMemberBridgeCreator() {
     document.getElementById('mbCreatorGraceHours').value = creator?.grace_period_hours ?? 168;
     document.getElementById('mbCreatorMassAbsence').value = creator?.mass_absence_percent ?? 20;
     document.getElementById('mbSafeModeButton').textContent = creator?.safe_mode ? 'Disable safe mode' : 'Enable safe mode';
-    document.querySelectorAll('#mbSaveCreatorButton,#mbConnectCreatorButton,#mbActivateSimulatorButton,#mbSyncLevelsButton,#mbVerifyButton,#mbSafeModeButton').forEach(button => { button.disabled = !creator; });
+    document.querySelectorAll('#mbSaveCreatorButton,#mbConnectCreatorButton,#mbCreatorPortalButton,#mbActivateSimulatorButton,#mbSyncLevelsButton,#mbVerifyButton,#mbSafeModeButton').forEach(button => { button.disabled = !creator; });
+    document.getElementById('mbCreatorPortalUrl').value = '';
 }
 
 function renderMemberBridgeMappings() {
@@ -531,6 +531,17 @@ document.getElementById('mbConnectCreatorButton').addEventListener('click', asyn
     const creator = selectedMemberBridgeCreator(); if (!creator) return;
     try { await window.commission.memberBridge('connect-creator', { creatorId: creator.id }); showToast('Creator authorization opened in your browser.'); }
     catch (error) { showToast(friendlyError(error), true); }
+});
+document.getElementById('mbCreatorPortalButton').addEventListener('click', async () => {
+    const creator = selectedMemberBridgeCreator(); if (!creator) return;
+    try {
+        const result = await window.commission.memberBridge('creator-portal-link', { creatorId: creator.id });
+        const input = document.getElementById('mbCreatorPortalUrl');
+        input.value = result.url;
+        input.focus(); input.select();
+        try { await navigator.clipboard.writeText(result.url); showToast(result.kind === 'invite' ? 'One-time creator invitation copied. It expires in 24 hours.' : 'Creator sign-in link copied.'); }
+        catch { showToast('Creator portal link generated. Copy it from the field.'); }
+    } catch (error) { showToast(friendlyError(error), true); }
 });
 document.getElementById('mbActivateSimulatorButton').addEventListener('click', async () => {
     const creator = selectedMemberBridgeCreator(); if (!creator) return;

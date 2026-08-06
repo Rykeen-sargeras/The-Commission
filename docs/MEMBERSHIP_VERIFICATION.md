@@ -1,6 +1,6 @@
 # Membership verification
 
-MemberBridge first links a Discord account to the permanent channel ID of the YouTube identity the member chooses. Each accepted creator separately authorizes MemberBridge to check that creator's own channel memberships.
+MemberBridge first links a Discord account to the permanent channel ID of its verified YouTube connection in Discord. Regular members do not sign into Google. Each accepted creator separately authorizes MemberBridge to check that creator's own channel memberships.
 
 During verification, MemberBridge sends up to 100 linked YouTube channel IDs to YouTube using that creator's authorization. YouTube reports which IDs are active and returns the highest accessible membership-level ID and accessible level IDs. MemberBridge compares those permanent IDs to the Discord role-ID mappings configured in The Commission.
 
@@ -17,3 +17,9 @@ After the configured successful-missing threshold, the member enters grace and k
 Downgrades require the creator's configured confirmation count. Upgrades are applied immediately. Both add the replacement role before removing an obsolete role. Unmapped levels preserve the current valid role during the mapping problem.
 
 If more than the configured percentage of at least five active members suddenly appears absent, the creator enters safe mode and all role removals pause for administrator review. Only role IDs recorded in MemberBridge mappings are ever managed.
+
+## Creator portal
+
+The owner creates a creator source and generates a one-time 24-hour invitation in **The Commission → MemberBridge**. The creator authorizes the Google account that owns the intended memberships-enabled YouTube channel. MemberBridge binds that permanent channel ID to the approved source and creates a private 24-hour portal session.
+
+The portal shows only that creator's current YouTube members, current tier, membership start date, and total duration. It supports search, pagination, manual refresh, and sign-out. Every new sign-in reauthorizes the already-bound creator channel; a different channel is denied. Member lists are cached per creator source, and portal sessions never accept a creator ID from the browser when selecting data.

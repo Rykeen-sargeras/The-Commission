@@ -2,21 +2,23 @@
 
 1. Create or select a Google Cloud project.
 2. Enable **YouTube Data API v3**.
-3. Configure the OAuth consent screen. While testing, add the owner and test members as test users. Public production use may require Google verification.
+3. Configure the OAuth consent screen. While testing, add each approved creator as a test user. Regular Discord members do not use Google OAuth. Public creator use may require Google verification.
 4. Create an OAuth 2.0 client of type **Web application** because the bot hosts stable callback routes and securely stores the client secret on the Windows host.
 5. Copy the client ID and client secret into **The Commission → MemberBridge**. The secret is encrypted with Windows and is not displayed again.
-6. Add all three exact authorized redirect URIs displayed in the app:
+6. Add the exact Google authorized redirect URI displayed in the app:
 
-   - `https://YOUR_DOMAIN/oauth/google/callback`
    - `https://YOUR_DOMAIN/oauth/google/creator-callback`
    - Discord's callback is configured in Discord, not Google.
 
-7. Save, restart the bot, create a creator source, and select **Connect creator OAuth**.
-8. Sign into the Google account that owns the exact memberships-enabled creator channel and approve the requested scopes.
-9. MemberBridge tests `channels.list`, `membershipsLevels.list`, and `members.list` before marking the creator operational.
-10. Import the permanent membership-level IDs and map them to editable Discord roles.
+7. Save, restart the bot, and create a creator source.
+8. Select **Generate creator portal link**, copy the one-time invitation, and send it privately to that creator. The invitation expires after 24 hours and can be used once.
+9. The creator signs into the Google account that owns the exact memberships-enabled channel and approves the requested scopes.
+10. MemberBridge tests `channels.list`, `membershipsLevels.list`, and `members.list`, imports the current member list, and opens that creator's private dashboard.
+11. In the owner app, map the imported permanent membership-level IDs to editable Discord roles.
 
-The creator flow requests `https://www.googleapis.com/auth/youtube.channel-memberships.creator`. The member identity flow requests read-only YouTube access only long enough to retrieve the selected permanent channel ID. Member access/refresh tokens are not retained.
+The creator flow requests `https://www.googleapis.com/auth/youtube.channel-memberships.creator` plus read-only YouTube identity access. Creator refresh tokens are encrypted. Regular members authorize Discord's `identify` and `connections` scopes instead of Google; their Discord access token is discarded immediately after the verified YouTube connection is read.
+
+After the first connection, **Generate creator portal link** returns a permanent sign-in URL for that creator source. Google authorization proves the channel identity on every new portal login. A 24-hour server-side session then grants access only to that creator's cached member list.
 
 Important: Google's official documentation says `members.list` and `membershipsLevels.list` can be used by an individual creator for their own channel-memberships-enabled channel, and directs developers to contact a Google or YouTube representative for endpoint access. Ordinary OAuth approval alone does not guarantee access. If the endpoint denies access, MemberBridge leaves the creator disabled and never scrapes YouTube or requests cookies.
 

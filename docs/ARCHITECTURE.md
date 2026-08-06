@@ -42,7 +42,8 @@ Secret values are never stored in plaintext configuration. Electron encrypts the
 - Permanent YouTube creator channel, member channel, and membership-level IDs are authoritative.
 - Member linking begins with an ephemeral Discord command and a single-use ten-minute token.
 - Discord OAuth `identify` confirms the browser user matches the command user.
-- Google OAuth with PKCE retrieves the user's YouTube channel identity; member OAuth tokens are discarded after linking.
+- Discord OAuth `identify connections` retrieves a member's verified YouTube connection; member OAuth tokens are discarded after linking.
+- Google OAuth with PKCE is limited to approved creators. A creator-bound portal session can read only that creator source's cached member list.
 - Creator OAuth is a separate administrator-initiated flow using the creator-memberships scope. Its refresh token is encrypted and retained.
 - Production callback URLs must be HTTPS. Loopback HTTP is permitted only in development mode.
 

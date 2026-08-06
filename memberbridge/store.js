@@ -45,6 +45,7 @@ class MemberBridgeStore {
                 last_successful_check_utc TEXT,
                 last_attempt_utc TEXT,
                 last_level_sync_utc TEXT,
+                member_cache_refreshed_utc TEXT,
                 last_error_code TEXT,
                 last_error_message TEXT,
                 created_utc TEXT NOT NULL,
@@ -180,9 +181,49 @@ class MemberBridgeStore {
                 creator_source_id INTEGER NOT NULL REFERENCES mb_creator_sources(id) ON DELETE CASCADE,
                 state_hash TEXT NOT NULL,
                 pkce_verifier TEXT NOT NULL,
+                purpose TEXT NOT NULL DEFAULT 'connect',
                 expires_utc TEXT NOT NULL,
                 used_utc TEXT,
                 created_utc TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS mb_creator_invites(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                creator_source_id INTEGER NOT NULL REFERENCES mb_creator_sources(id) ON DELETE CASCADE,
+                token_hash TEXT NOT NULL UNIQUE,
+                expires_utc TEXT NOT NULL,
+                used_utc TEXT,
+                created_utc TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS mb_creator_portal_sessions(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                creator_source_id INTEGER NOT NULL REFERENCES mb_creator_sources(id) ON DELETE CASCADE,
+                token_hash TEXT NOT NULL UNIQUE,
+                csrf_hash TEXT NOT NULL,
+                expires_utc TEXT NOT NULL,
+                last_seen_utc TEXT NOT NULL,
+                created_utc TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS ix_mb_creator_portal_session_expiry ON mb_creator_portal_sessions(expires_utc);
+            CREATE TABLE IF NOT EXISTS mb_owner_portal_sessions(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                token_hash TEXT NOT NULL UNIQUE,
+                csrf_hash TEXT NOT NULL,
+                expires_utc TEXT NOT NULL,
+                last_seen_utc TEXT NOT NULL,
+                created_utc TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS ix_mb_owner_portal_session_expiry ON mb_owner_portal_sessions(expires_utc);
+            CREATE TABLE IF NOT EXISTS mb_creator_member_cache(
+                creator_source_id INTEGER NOT NULL REFERENCES mb_creator_sources(id) ON DELETE CASCADE,
+                youtube_channel_id TEXT NOT NULL,
+                display_name TEXT NOT NULL DEFAULT '',
+                profile_image_url TEXT NOT NULL DEFAULT '',
+                highest_level_id TEXT NOT NULL DEFAULT '',
+                highest_level_name TEXT NOT NULL DEFAULT '',
+                member_since_utc TEXT,
+                total_duration_months INTEGER NOT NULL DEFAULT 0,
+                fetched_utc TEXT NOT NULL,
+                PRIMARY KEY(creator_source_id, youtube_channel_id)
             );
             CREATE TABLE IF NOT EXISTS mb_audit_events(
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -220,7 +261,12 @@ class MemberBridgeStore {
             );
             INSERT OR IGNORE INTO mb_schema_migrations(version, applied_utc) VALUES(1, datetime('now'));
             INSERT OR IGNORE INTO mb_schema_migrations(version, applied_utc) VALUES(2, datetime('now'));
+            INSERT OR IGNORE INTO mb_schema_migrations(version, applied_utc) VALUES(3, datetime('now'));
         `);
+        const creatorOauthColumns = new Set(this.db.prepare('PRAGMA table_info(mb_creator_oauth_sessions)').all().map(column => column.name));
+        if (!creatorOauthColumns.has('purpose')) this.db.exec("ALTER TABLE mb_creator_oauth_sessions ADD COLUMN purpose TEXT NOT NULL DEFAULT 'connect'");
+        const creatorColumns = new Set(this.db.prepare('PRAGMA table_info(mb_creator_sources)').all().map(column => column.name));
+        if (!creatorColumns.has('member_cache_refreshed_utc')) this.db.exec('ALTER TABLE mb_creator_sources ADD COLUMN member_cache_refreshed_utc TEXT');
     }
 
     integrityCheck() {
@@ -269,6 +315,7 @@ class MemberBridgeStore {
 
     getCreator(id) { return this.db.prepare('SELECT * FROM mb_creator_sources WHERE id=?').get(Number(id)); }
     listCreators(guildId) { return this.db.prepare('SELECT * FROM mb_creator_sources WHERE guild_id=? ORDER BY display_name').all(guildId); }
+    listAllCreators() { return this.db.prepare('SELECT * FROM mb_creator_sources ORDER BY display_name,id').all(); }
     enabledCreators(guildId) { return this.db.prepare('SELECT * FROM mb_creator_sources WHERE guild_id=? AND enabled=1 ORDER BY id').all(guildId); }
 
     updateCreator(id, patch) {
@@ -487,15 +534,103 @@ class MemberBridgeStore {
         return this.db.prepare(`SELECT * FROM mb_link_sessions WHERE ${column}=?`).get(sha256(state));
     }
 
-    createCreatorOAuthSession(creatorId, state, verifier, expiresUtc) {
-        this.db.prepare('INSERT INTO mb_creator_oauth_sessions(creator_source_id,state_hash,pkce_verifier,expires_utc,created_utc) VALUES(?,?,?,?,?)')
-            .run(Number(creatorId), sha256(state), verifier, expiresUtc, now());
+    createCreatorOAuthSession(creatorId, state, verifier, expiresUtc, purpose = 'connect') {
+        this.db.prepare('INSERT INTO mb_creator_oauth_sessions(creator_source_id,state_hash,pkce_verifier,purpose,expires_utc,created_utc) VALUES(?,?,?,?,?,?)')
+            .run(Number(creatorId), sha256(state), verifier, String(purpose || 'connect'), expiresUtc, now());
     }
     consumeCreatorOAuthSession(state) {
         const row = this.db.prepare('SELECT * FROM mb_creator_oauth_sessions WHERE state_hash=?').get(sha256(state));
         if (!row || row.used_utc || row.expires_utc <= now()) return null;
         this.db.prepare('UPDATE mb_creator_oauth_sessions SET used_utc=? WHERE id=?').run(now(), row.id);
         return row;
+    }
+
+    createCreatorInvite(creatorId, token, expiresUtc) {
+        const stamp = now();
+        this.db.prepare('DELETE FROM mb_creator_invites WHERE creator_source_id=? OR expires_utc<=? OR used_utc IS NOT NULL').run(Number(creatorId), stamp);
+        this.db.prepare('INSERT INTO mb_creator_invites(creator_source_id,token_hash,expires_utc,created_utc) VALUES(?,?,?,?)')
+            .run(Number(creatorId), sha256(token), expiresUtc, stamp);
+        return { creatorSourceId: Number(creatorId), expiresUtc };
+    }
+
+    findCreatorInvite(token) {
+        return this.db.prepare('SELECT * FROM mb_creator_invites WHERE token_hash=?').get(sha256(token));
+    }
+
+    consumeCreatorInvite(token) {
+        const row = this.findCreatorInvite(token);
+        if (!row || row.used_utc || row.expires_utc <= now()) return null;
+        this.db.prepare('UPDATE mb_creator_invites SET used_utc=? WHERE id=?').run(now(), row.id);
+        return row;
+    }
+
+    createCreatorPortalSession(creatorId, token, csrfToken, expiresUtc) {
+        const stamp = now();
+        this.db.prepare('DELETE FROM mb_creator_portal_sessions WHERE expires_utc<=?').run(stamp);
+        this.db.prepare('INSERT INTO mb_creator_portal_sessions(creator_source_id,token_hash,csrf_hash,expires_utc,last_seen_utc,created_utc) VALUES(?,?,?,?,?,?)')
+            .run(Number(creatorId), sha256(token), sha256(csrfToken), expiresUtc, stamp, stamp);
+        return this.findCreatorPortalSession(token);
+    }
+
+    findCreatorPortalSession(token) {
+        if (!token) return null;
+        const row = this.db.prepare(`SELECT session.*,creator.guild_id,creator.youtube_channel_id,creator.display_name,creator.connection_status,creator.last_successful_check_utc
+            FROM mb_creator_portal_sessions session JOIN mb_creator_sources creator ON creator.id=session.creator_source_id
+            WHERE session.token_hash=?`).get(sha256(token));
+        if (!row || row.expires_utc <= now()) return null;
+        this.db.prepare('UPDATE mb_creator_portal_sessions SET last_seen_utc=? WHERE id=?').run(now(), row.id);
+        return row;
+    }
+
+    deleteCreatorPortalSession(token) {
+        return this.db.prepare('DELETE FROM mb_creator_portal_sessions WHERE token_hash=?').run(sha256(token || '')).changes > 0;
+    }
+
+    createOwnerPortalSession(token, csrfToken, expiresUtc) {
+        const stamp = now();
+        this.db.prepare('DELETE FROM mb_owner_portal_sessions WHERE expires_utc<=?').run(stamp);
+        this.db.prepare('INSERT INTO mb_owner_portal_sessions(token_hash,csrf_hash,expires_utc,last_seen_utc,created_utc) VALUES(?,?,?,?,?)')
+            .run(sha256(token), sha256(csrfToken), expiresUtc, stamp, stamp);
+        return this.findOwnerPortalSession(token);
+    }
+
+    findOwnerPortalSession(token) {
+        if (!token) return null;
+        const row = this.db.prepare('SELECT * FROM mb_owner_portal_sessions WHERE token_hash=?').get(sha256(token));
+        if (!row || row.expires_utc <= now()) return null;
+        this.db.prepare('UPDATE mb_owner_portal_sessions SET last_seen_utc=? WHERE id=?').run(now(), row.id);
+        return row;
+    }
+
+    deleteOwnerPortalSession(token) {
+        return this.db.prepare('DELETE FROM mb_owner_portal_sessions WHERE token_hash=?').run(sha256(token || '')).changes > 0;
+    }
+
+    replaceCreatorMemberCache(creatorId, members) {
+        const stamp = now();
+        const insert = this.db.prepare(`INSERT INTO mb_creator_member_cache(creator_source_id,youtube_channel_id,display_name,profile_image_url,highest_level_id,highest_level_name,member_since_utc,total_duration_months,fetched_utc)
+            VALUES(?,?,?,?,?,?,?,?,?)`);
+        this.db.exec('BEGIN IMMEDIATE');
+        try {
+            this.db.prepare('DELETE FROM mb_creator_member_cache WHERE creator_source_id=?').run(Number(creatorId));
+            for (const member of members) insert.run(Number(creatorId), member.channelId, member.displayName || member.channelId, member.profileImageUrl || '', member.highestLevelId || '', member.highestLevelName || '', member.memberSinceUtc || null, Number(member.totalDurationMonths || 0), stamp);
+            this.db.prepare('UPDATE mb_creator_sources SET member_cache_refreshed_utc=?,updated_utc=? WHERE id=?').run(stamp, stamp, Number(creatorId));
+            this.db.exec('COMMIT');
+        } catch (error) { this.db.exec('ROLLBACK'); throw error; }
+        return { count: members.length, fetchedUtc: stamp };
+    }
+
+    creatorMemberCache(creatorId, query = '', page = 1, pageSize = 100) {
+        const normalizedQuery = String(query || '').trim().slice(0, 100);
+        const safePageSize = Math.max(1, Math.min(250, Number(pageSize) || 100));
+        const safePage = Math.max(1, Number(page) || 1);
+        const where = normalizedQuery ? ' AND (display_name LIKE ? COLLATE NOCASE OR youtube_channel_id LIKE ? COLLATE NOCASE OR highest_level_name LIKE ? COLLATE NOCASE)' : '';
+        const params = normalizedQuery ? [`%${normalizedQuery}%`, `%${normalizedQuery}%`, `%${normalizedQuery}%`] : [];
+        const total = this.db.prepare(`SELECT COUNT(*) AS count FROM mb_creator_member_cache WHERE creator_source_id=?${where}`).get(Number(creatorId), ...params).count;
+        const items = this.db.prepare(`SELECT * FROM mb_creator_member_cache WHERE creator_source_id=?${where} ORDER BY display_name COLLATE NOCASE LIMIT ? OFFSET ?`)
+            .all(Number(creatorId), ...params, safePageSize, (safePage - 1) * safePageSize);
+        const summary = this.db.prepare(`SELECT COUNT(cache.youtube_channel_id) AS total,creator.member_cache_refreshed_utc AS fetched_utc FROM mb_creator_sources creator LEFT JOIN mb_creator_member_cache cache ON cache.creator_source_id=creator.id WHERE creator.id=? GROUP BY creator.id`).get(Number(creatorId)) || {};
+        return { items, total, page: safePage, pageSize: safePageSize, pages: Math.max(1, Math.ceil(total / safePageSize)), fetchedUtc: summary.fetched_utc || null, cachedTotal: summary.total || 0 };
     }
 
     simulatorSetMember(input) {

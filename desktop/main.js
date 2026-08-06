@@ -1001,7 +1001,7 @@ function registerIpc() {
 
     ipcMain.handle('memberbridge:request', async (_event, action, payload = {}) => {
         if (!authenticated) throw new Error('The control panel is locked.');
-        const allowed = new Set(['dashboard','publish-verify-panel','creators','create-creator','update-creator','connect-creator','activate-simulator','levels','sync-levels','seed-level','map-level','verify','reconcile','set-safe-mode','create-override','remove-override','links','audit','guild-roles','simulator-link','simulator-member','simulator-failure','export-member','delete-member','backup-create','backup-list','backup-verify']);
+        const allowed = new Set(['dashboard','publish-verify-panel','creators','create-creator','update-creator','connect-creator','creator-portal-link','activate-simulator','levels','sync-levels','seed-level','map-level','verify','reconcile','set-safe-mode','create-override','remove-override','links','audit','guild-roles','simulator-link','simulator-member','simulator-failure','export-member','delete-member','backup-create','backup-list','backup-verify']);
         if (!allowed.has(String(action))) throw new Error('That MemberBridge administration action is not allowed.');
         const result = await memberBridgeRequest(String(action), payload || {});
         if (String(action) === 'connect-creator' && result?.url) await shell.openExternal(result.url);

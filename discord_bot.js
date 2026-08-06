@@ -143,6 +143,7 @@ const memberBridgeIntegration = new MemberBridgeIntegration(client, {
     encryptionKey: memberBridgeEncryptionKey,
     googleClientSecret: process.env.MEMBERBRIDGE_GOOGLE_CLIENT_SECRET || '',
     discordClientSecret: process.env.MEMBERBRIDGE_DISCORD_CLIENT_SECRET || '',
+    ownerPassword: CONFIG.WEB_DASHBOARD_PASSWORD,
     config: memberBridgeConfig,
 });
 
