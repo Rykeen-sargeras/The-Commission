@@ -8,8 +8,8 @@
   "scripts": {
     "start": "electron .",
     "start:bot": "node discord_bot.js",
-    "railway:start": "node discord_bot.js",
-    "check": "node --check discord_bot.js && node --check desktop/main.js && node --check desktop/preload.js && node --check desktop/renderer.js && node --check memberbridge/integration.js",
+    "railway:start": "node railway_start.js",
+    "check": "node --check discord_bot.js && node --check railway_start.js && node --check desktop/main.js && node --check desktop/preload.js && node --check desktop/renderer.js && node --check memberbridge/integration.js",
     "test": "node tests/preemptive-ban.test.js && node tests/blueprint.test.js && node tests/economy.test.js",
     "dist": "electron-builder --win nsis portable",
     "dist:dir": "electron-builder --dir"
