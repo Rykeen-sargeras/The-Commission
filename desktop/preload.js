@@ -18,12 +18,18 @@ contextBridge.exposeInMainWorld('commission', {
     executeEconomyReset: token => ipcRenderer.invoke('economy:reset-execute', token),
     previewBulkGrant: amount => ipcRenderer.invoke('economy:bulk-grant-preview', amount),
     executeBulkGrant: token => ipcRenderer.invoke('economy:bulk-grant-execute', token),
-    memberBridge: (action, payload = {}) => ipcRenderer.invoke('memberbridge:request', action, payload),
-    restoreMemberBridgeBackup: fileName => ipcRenderer.invoke('memberbridge:restore-backup', fileName),
     listGuilds: () => ipcRenderer.invoke('blueprint:list-guilds'),
     listBlueprints: () => ipcRenderer.invoke('blueprint:list'),
     captureBlueprint: guildId => ipcRenderer.invoke('blueprint:capture', guildId),
     applyBlueprint: payload => ipcRenderer.invoke('blueprint:apply', payload),
     onStatus: callback => ipcRenderer.on('bot:status', (_event, value) => callback(value)),
     onLog: callback => ipcRenderer.on('bot:log', (_event, value) => callback(value)),
+});
+
+// MemberBridge is retired from The Commission. Keep the legacy markup out of
+// the desktop navigation even on installs that still have an older index.html.
+window.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('[data-page-target="memberbridge"], [data-page="memberbridge"]').forEach(element => {
+        element.remove();
+    });
 });
