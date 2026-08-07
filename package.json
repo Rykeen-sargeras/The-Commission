@@ -1,6 +1,6 @@
 {
   "name": "the-commission-bot",
-  "version": "3.0.1",
+  "version": "3.1.0",
   "description": "The Commission - local Windows control panel and Discord server protection bot",
   "main": "desktop/main.js",
   "author": "Rykeen-sargeras",
@@ -9,8 +9,8 @@
     "start": "electron .",
     "start:bot": "node discord_bot.js",
     "railway:start": "node discord_bot.js",
-    "check": "node --check discord_bot.js && node --check desktop/main.js && node --check desktop/preload.js && node --check desktop/renderer.js && node --check memberbridge/store.js && node --check memberbridge/youtube.js && node --check memberbridge/engine.js && node --check memberbridge/web.js && node --check memberbridge/integration.js",
-    "test": "node tests/preemptive-ban.test.js && node tests/blueprint.test.js && node tests/economy.test.js && node tests/memberbridge.test.js && node tests/memberbridge-web.test.js",
+    "check": "node --check discord_bot.js && node --check desktop/main.js && node --check desktop/preload.js && node --check desktop/renderer.js && node --check memberbridge/integration.js",
+    "test": "node tests/preemptive-ban.test.js && node tests/blueprint.test.js && node tests/economy.test.js",
     "dist": "electron-builder --win nsis portable",
     "dist:dir": "electron-builder --dir"
   },
@@ -43,7 +43,7 @@
       "blueprint.js",
       "economy.js",
       "economy_discord.js",
-      "memberbridge/**/*",
+      "memberbridge/integration.js",
       "docs/**/*",
       "assets/commission-mark.png",
       "assets/app-icon.ico",
