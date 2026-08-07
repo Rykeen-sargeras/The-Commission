@@ -26,10 +26,12 @@ contextBridge.exposeInMainWorld('commission', {
     onLog: callback => ipcRenderer.on('bot:log', (_event, value) => callback(value)),
 });
 
-// MemberBridge is retired from The Commission. Keep the legacy markup out of
-// the desktop navigation even on installs that still have an older index.html.
+// MemberBridge is retired from The Commission. Keep the legacy markup in the
+// DOM so older renderer code can initialize safely, but make it inaccessible
+// from the interface. No MemberBridge IPC methods are exposed above.
 window.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('[data-page-target="memberbridge"], [data-page="memberbridge"]').forEach(element => {
-        element.remove();
+        element.style.display = 'none';
+        element.setAttribute('aria-hidden', 'true');
     });
 });
