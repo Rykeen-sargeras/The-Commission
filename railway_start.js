@@ -1,28 +1,163 @@
 'use strict';
 
 const http = require('http');
+const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
+const { fork } = require('child_process');
 
 const port = Number(process.env.PORT || 8080);
 const host = '0.0.0.0';
+const dataDir = process.env.DATA_DIR || path.join(process.cwd(), 'data');
+fs.mkdirSync(dataDir, { recursive: true });
+const configFile = path.join(dataDir, 'commission-web-config.json');
+const blueprintDir = path.join(dataDir, 'blueprints-web');
+fs.mkdirSync(blueprintDir, { recursive: true });
 
-const server = http.createServer((req, res) => {
-    if (req.url === '/health' || req.url === '/') {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ ok: true, service: 'the-commission', memberBridge: 'retired' }));
-        return;
-    }
+const dashboardPassword = String(process.env.WEB_DASHBOARD_PASSWORD || '');
+const sessionKey = crypto.createHash('sha256').update(`${dashboardPassword}|${process.env.DISCORD_TOKEN || ''}|commission-web-v1`).digest();
+const sessions = new Map();
+let bot = null;
+let botState = 'stopped';
+let logs = [];
+let pending = new Map();
+let shuttingDown = false;
+let desiredRunning = true;
 
-    res.writeHead(404, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'Not found' }));
+const BASE_FIELDS = [
+  ['DISCORD_TOKEN','Discord bot token','password','Connection'],
+  ['OWNER_USER_ID','Owner user ID','text','Connection'],
+  ['STAFF_ROLE_IDS','Staff role IDs','text','Connection'],
+  ['MAIN_CHAT_CHANNEL_ID','Main chat channel ID','text','Channels'],
+  ['ANNOUNCEMENT_CHANNEL_ID','Announcement channel ID','text','Channels'],
+  ['MOD_CHANNEL_ID','Moderator channel ID','text','Channels'],
+  ['LOG_CHANNEL_ID','Audit log channel ID','text','Channels'],
+  ['TICKET_CATEGORY_ID','Ticket category ID','text','Channels'],
+  ['PATROL_CHANNEL_ID','Patrol / self-promo channel ID','text','Channels'],
+  ['MUSIC_CHANNEL_ID','Music request channel ID','text','Channels'],
+  ['MUSIC_VOICE_CHANNEL_ID','Music voice channel ID','text','Channels'],
+  ['REPORT_CATEGORY_ID','Report category ID','text','Cases'],
+  ['OLD_REPORTS_CHANNEL_ID','Closed reports channel ID','text','Cases'],
+  ['JAIL_CATEGORY_IDS','Categories hidden while jailed','text','Protection'],
+  ['JAIL_CATEGORY_ID','Jail room category ID','text','Protection'],
+  ['JAIL_ROLE_ID','Jail role ID','text','Protection'],
+  ['JAIL_LOG_CHANNEL_ID','Jail log channel ID','text','Protection'],
+  ['PREEMPTIVE_BAN_USER_IDS','Preemptive ban user IDs','textarea','Protection'],
+  ['PREEMPTIVE_BAN_REASON','Preemptive ban reason','text','Protection'],
+  ['ALT_DETECTION_ENABLED','Enable alt detection','checkbox','Protection'],
+  ['ALT_ACCOUNT_AGE_DAYS','New-account threshold (days)','number','Protection'],
+  ['LOCATIONIQ_API_KEY','LocationIQ API key','password','API Services'],
+  ['POSITIONSTACK_API_KEY','Positionstack API key','password','API Services'],
+];
+
+const ECON_FIELDS = [
+  ['enabled','Enable Blood Money','checkbox'],['currencyName','Currency name','text'],['auditChannelId','Economy audit channel ID','text'],['archiveChannelId','Monthly archive channel ID','text'],['leaderboardChannelId','Leaderboard channel ID','text'],['heistChannelId','Heist channel ID','text'],['gamblingChannelId','Gambling channel ID','text'],
+  ['excludedChannelIds','Excluded text channel IDs','text'],['mediaChannelIds','Media reward channel IDs','text'],['excludedVoiceChannelIds','Excluded voice channel IDs','text'],['excludedLeaderboardUserIds','Excluded leaderboard user IDs','text'],
+  ['messageChance','Message reward chance %','number'],['messageRewardMin','Message reward min','number'],['messageRewardMax','Message reward max','number'],['messageCooldownSeconds','Message cooldown seconds','number'],['messageDailyCap','Message daily cap','number'],['messageHourlyLimit','Message hourly limit','number'],
+  ['mediaRewardMin','Media reward min','number'],['mediaRewardMax','Media reward max','number'],['mediaCooldownMinutes','Media cooldown minutes','number'],['mediaDailyCap','Media daily cap','number'],['mediaDailyPosts','Media rewarded posts/day','number'],
+  ['voiceRewardMin','Voice reward min','number'],['voiceRewardMax','Voice reward max','number'],['voiceIntervalMinutes','Voice interval minutes','number'],['voiceDailyCap','Voice daily cap','number'],['minimumAccountAgeDays','Minimum account age days','number'],
+  ['dailyBase','Daily base reward','number'],['dailyStreakStep','Daily streak step','number'],['dailyStreakMaximum','Daily streak maximum','number'],['gamblingEnabled','Enable gambling','checkbox'],
+  ['diceJackpotPercent','Dice jackpot %','number'],['diceMidPercent','Dice mid-tier %','number'],['diceRefundPercent','Dice refund %','number'],['diceLossPercent','Dice loss %','number'],['diceJackpotMultiplier','Dice jackpot multiplier','number'],['diceMidMultiplier','Dice mid multiplier','number'],
+  ['gamblingDailyWagerCap','Global daily wager cap','number'],['gamblingMaxActionsPerMinute','Gambling actions/minute','number'],['gamblingMaxActionsPerHour','Gambling actions/hour','number'],
+  ['blackjackMinimumWager','Blackjack minimum','number'],['blackjackMaximumWager','Blackjack maximum','number'],['blackjackDailyCap','Blackjack daily cap','number'],['pokerMinimumWager','Poker minimum','number'],['pokerMaximumWager','Poker maximum','number'],['pokerDailyCap','Poker daily cap','number'],
+  ['prizeMonths','Prize months','text'],['minimumTransfer','Minimum transfer','number'],['transferLimitPercent','Transfer limit %','number'],['minimumMembershipDays','Minimum membership days','number'],['resetHour','Monthly reset hour','number'],['timeZone','Economy timezone','text'],['pokerTimeoutBehavior','Poker timeout behavior','text'],
+  ['heistEntryFee','Heist entry fee','number'],['heistFreeSuccessReward','Heist success reward','number'],['heistEntryMinutes','Heist entry minutes','number'],['heistCooldownMinutes','Heist cooldown minutes','number'],['heistMinimumPlayers','Heist minimum players','number'],['heistBaseSuccessChance','Heist base success %','number'],['heistChancePerExtraPlayer','Heist chance per extra player %','number'],['heistMaximumSuccessChance','Heist max success %','number'],['heistPayoutMultiplier','Heist payout multiplier','number']
+];
+
+function readJson(file, fallback) { try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return fallback; } }
+function parseEconomyEnv() { try { return JSON.parse(process.env.ECONOMY_CONFIG_JSON || '{}'); } catch { return {}; } }
+function loadSaved() { return readJson(configFile, { env: {}, economy: {} }); }
+function saveSaved(value) { const tmp=`${configFile}.tmp`; fs.writeFileSync(tmp, JSON.stringify(value,null,2)); fs.renameSync(tmp,configFile); }
+function mergedConfig() { const saved=loadSaved(); const env={}; for(const [key] of BASE_FIELDS) env[key] = Object.prototype.hasOwnProperty.call(saved.env||{},key) ? saved.env[key] : (process.env[key]||''); return { env, economy:{...parseEconomyEnv(),...(saved.economy||{})} }; }
+function childEnv() { const cfg=mergedConfig(); return {...process.env,...cfg.env,ECONOMY_CONFIG_JSON:JSON.stringify(cfg.economy),COMMISSION_RAILWAY_MODE:'true',DATA_DIR:dataDir,PORT:String(port)}; }
+function maskConfig(cfg) { const out=JSON.parse(JSON.stringify(cfg)); for(const [key,,type] of BASE_FIELDS) if(type==='password') out.env[key]=out.env[key]?'••••••••':''; return out; }
+function addLog(source, line) { for(const part of String(line).split(/\r?\n/)){ if(!part) continue; logs.push({at:new Date().toISOString(),source,line:part}); if(logs.length>1000) logs.shift(); } }
+
+function startBot(){
+  if(bot) return;
+  desiredRunning=true; botState='starting';
+  bot=fork(path.join(__dirname,'discord_bot.js'),[],{cwd:dataDir,env:childEnv(),silent:true});
+  addLog('system',`Started The Commission bot (PID ${bot.pid}).`);
+  bot.stdout?.on('data',d=>addLog('bot',d)); bot.stderr?.on('data',d=>addLog('error',d));
+  bot.on('message',msg=>{ if(!msg?.id) return; const p=pending.get(msg.id); if(!p) return; clearTimeout(p.timer); pending.delete(msg.id); msg.ok?p.resolve(msg.data):p.reject(new Error(msg.error||'Bot operation failed.')); });
+  bot.on('spawn',()=>{botState='running';});
+  bot.on('exit',(code,signal)=>{ addLog('system',`Bot stopped (code ${code??'n/a'}, signal ${signal||'none'}).`); bot=null; botState='stopped'; for(const p of pending.values()){clearTimeout(p.timer);p.reject(new Error('Bot stopped.'));} pending.clear(); if(desiredRunning&&!shuttingDown) setTimeout(startBot,1500).unref?.(); });
+}
+function stopBot(restart=false){ return new Promise(resolve=>{ desiredRunning=restart; if(!bot){botState='stopped'; if(restart) startBot(); return resolve();} const current=bot; botState='stopping'; const timer=setTimeout(()=>{try{current.kill('SIGKILL')}catch{}},8000); current.once('exit',()=>{clearTimeout(timer); if(restart) setTimeout(startBot,350); resolve();}); try{current.kill('SIGTERM')}catch{resolve();} }); }
+function botRequest(channel,action,payload={},timeoutMs=30000){ if(!bot?.connected) return Promise.reject(new Error('Bot is not running.')); const id=crypto.randomUUID(); return new Promise((resolve,reject)=>{const timer=setTimeout(()=>{pending.delete(id);reject(new Error(`${action} timed out.`));},timeoutMs); pending.set(id,{resolve,reject,timer}); bot.send({channel,id,action,payload});}); }
+
+function cookies(req){const out={};for(const p of String(req.headers.cookie||'').split(';')){const [k,...v]=p.trim().split('=');if(k)out[k]=decodeURIComponent(v.join('='));}return out;}
+function newSession(){const token=crypto.randomBytes(24).toString('hex');sessions.set(token,Date.now()+12*3600000);return token;}
+function authed(req){const t=cookies(req).commission_session;const exp=sessions.get(t);if(!exp||exp<Date.now()){if(t)sessions.delete(t);return false;}return true;}
+function safeEqual(a,b){const aa=Buffer.from(String(a)),bb=Buffer.from(String(b));return aa.length===bb.length&&crypto.timingSafeEqual(aa,bb);}
+function send(res,status,type,body,headers={}){res.writeHead(status,{'Content-Type':type,'Cache-Control':'no-store',...headers});res.end(body);}
+function json(res,status,obj){send(res,status,'application/json; charset=utf-8',JSON.stringify(obj));}
+function redirect(res,to,headers={}){res.writeHead(302,{Location:to,...headers});res.end();}
+function body(req){return new Promise((resolve,reject)=>{let raw='';req.on('data',c=>{raw+=c;if(raw.length>2_000_000){reject(new Error('Request too large'));req.destroy();}});req.on('end',()=>resolve(raw));req.on('error',reject);});}
+function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function listBlueprints(){return fs.readdirSync(blueprintDir).filter(x=>x.endsWith('.json')).map(name=>{const b=readJson(path.join(blueprintDir,name),{});return{name,sourceGuild:b.sourceGuild||{},capturedAt:b.capturedAt||''};}).sort((a,b)=>String(b.capturedAt).localeCompare(String(a.capturedAt)));}
+
+const css=`
+:root{color-scheme:dark;--bg:#07080a;--panel:#111318;--panel2:#171a20;--line:#2c3038;--text:#f1eee7;--muted:#969aa3;--red:#b21f38;--red2:#d52e4a;--gold:#c7a86b;--green:#4bb886;--amber:#d29b4b}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 85% -10%,rgba(178,31,56,.20),transparent 34%),var(--bg);color:var(--text);font-family:Segoe UI,Inter,system-ui,sans-serif}body:before{content:"";position:fixed;inset:0;pointer-events:none;background-image:linear-gradient(rgba(255,255,255,.012) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.012) 1px,transparent 1px);background-size:48px 48px}.login{min-height:100vh;display:grid;place-items:center;padding:24px}.login-card{width:min(430px,100%);padding:42px;border:1px solid var(--line);border-radius:22px;background:linear-gradient(145deg,#181b21,#0c0e11);box-shadow:0 24px 70px #0008;text-align:center}.seal{width:88px;height:88px;border:1px solid #50545d;border-radius:50%;margin:0 auto 20px;display:grid;place-items:center;font-family:Georgia,serif;font-size:30px;font-weight:900;background:#0b0c0e;box-shadow:inset 0 0 0 6px #111}.eyebrow{color:var(--gold);font-size:11px;letter-spacing:.18em;text-transform:uppercase;font-weight:800}.login h1,.page h2,.hero h1{font-family:Georgia,serif}.login input,.field input,.field textarea,.field select{width:100%;background:#0b0d10;color:var(--text);border:1px solid var(--line);border-radius:9px;padding:11px 12px}.login button,.btn{border:1px solid transparent;border-radius:9px;padding:10px 15px;background:linear-gradient(135deg,var(--red),#86152a);color:white;font-weight:750;cursor:pointer}.btn.secondary{background:#22262d;border-color:#3a3f48}.btn.ghost{background:transparent;border-color:#3a3f48}.btn.danger{background:#681723;border-color:#923041}.app{display:grid;grid-template-columns:250px 1fr;min-height:100vh}.sidebar{position:fixed;inset:0 auto 0 0;width:250px;padding:22px 18px;background:#0d0f12f7;border-right:1px solid #1f2228;display:flex;flex-direction:column}.brand{display:flex;gap:11px;align-items:center;padding:0 6px 22px;border-bottom:1px solid #20242a}.brand .mini{width:42px;height:42px;border:1px solid #50545d;border-radius:50%;display:grid;place-items:center;font-family:Georgia,serif;font-weight:900}.brand strong{font-family:Georgia,serif}.brand small{display:block;color:#696e76;text-transform:uppercase;font-size:9px;letter-spacing:.15em;margin-top:3px}.nav{display:grid;gap:4px;margin-top:20px}.nav button{border:0;background:transparent;color:#898e97;text-align:left;padding:11px 12px;border-radius:8px;cursor:pointer;font-weight:650}.nav button.active{color:white;background:linear-gradient(90deg,rgba(178,31,56,.2),rgba(178,31,56,.03));box-shadow:inset 2px 0 var(--red)}.side-foot{margin-top:auto;border-top:1px solid #20242a;padding-top:16px}.status{display:flex;gap:9px;align-items:center;color:#aaa;font-size:12px}.dot{width:8px;height:8px;border-radius:50%;background:#626771}.dot.running{background:var(--green);box-shadow:0 0 14px var(--green)}.dot.starting,.dot.stopping{background:var(--amber)}.main{grid-column:2;padding:0 38px 50px}.topbar{position:sticky;top:0;z-index:4;min-height:88px;display:flex;justify-content:space-between;align-items:center;background:#08090bdd;border-bottom:1px solid #1f2228;backdrop-filter:blur(15px)}.topbar h2{margin:3px 0 0}.top-actions{display:flex;gap:8px}.page{display:none;max-width:1180px;margin:0 auto;padding-top:32px}.page.active{display:block}.hero{padding:42px;border:1px solid var(--line);border-radius:18px;background:radial-gradient(circle at 86% 35%,rgba(178,31,56,.22),transparent 28%),linear-gradient(135deg,#171a20,#0d0f12);box-shadow:0 24px 70px #0005}.hero h1{font-size:44px;margin:8px 0 12px}.hero p{max-width:690px;color:var(--muted);line-height:1.65}.buttons{display:flex;gap:8px;flex-wrap:wrap}.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:13px;margin:18px 0}.metric,.panel{border:1px solid #242830;border-radius:13px;background:linear-gradient(145deg,#12151a,#0e1014);padding:22px}.metric small{color:#747983;text-transform:uppercase;letter-spacing:.12em;font-size:9px}.metric strong{display:block;font-size:19px;margin-top:8px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}.panel h3{margin-top:0;font-family:Georgia,serif}.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.field{display:grid;gap:7px}.field span{font-size:12px;color:#d5d2ca;font-weight:650}.field textarea{min-height:120px;resize:vertical}.switch{display:flex;gap:8px;align-items:center}.switch input{width:auto}.savebar{display:flex;justify-content:flex-end;margin-top:18px}.logs{background:#08090b;border:1px solid #252932;border-radius:12px;min-height:480px;max-height:68vh;overflow:auto;padding:12px;font:12px/1.55 Consolas,monospace}.log{display:grid;grid-template-columns:80px 55px 1fr;gap:8px;padding:3px 0}.log time{color:#5f6570}.log b{color:#b4b8c0}.log.error span{color:#ff8494}.blueprint-row,.economy-row{display:flex;justify-content:space-between;gap:14px;align-items:center;padding:12px 0;border-top:1px solid #242830}.notice{padding:13px 15px;border:1px solid #563039;border-radius:10px;background:#2b1116;color:#d8b8bc;margin-bottom:16px}@media(max-width:900px){.app{display:block}.sidebar{position:static;width:auto}.main{padding:0 18px 40px}.grid,.fields,.metrics{grid-template-columns:1fr}.topbar{position:static}.nav{grid-template-columns:repeat(2,1fr)}}`;
+
+function loginPage(error='') { return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>The Commission</title><style>${css}</style></head><body><div class="login"><form class="login-card" method="post" action="/login"><div class="seal">TC</div><div class="eyebrow">Private server protection</div><h1>The Commission</h1><p style="color:var(--muted)">Authenticate to enter the Railway control room.</p>${error?`<p style="color:#ff8494">${esc(error)}</p>`:''}<input type="password" name="password" placeholder="Access password" required autofocus><button style="width:100%;margin-top:12px" type="submit">Enter control room</button><p style="color:#666b74;font-size:12px">Membership verification is handled separately by Safetybot.</p></form></div></body></html>`; }
+
+function inputHtml([key,label,type]){ if(type==='checkbox') return `<label class="switch"><input data-env="${key}" type="checkbox"><span>${esc(label)}</span></label>`; if(type==='textarea') return `<label class="field"><span>${esc(label)}</span><textarea data-env="${key}"></textarea></label>`; return `<label class="field"><span>${esc(label)}</span><input data-env="${key}" type="${type}" ${type==='password'?'placeholder="Leave blank to keep current saved value"':''}></label>`; }
+function econInputHtml([key,label,type]){ if(type==='checkbox') return `<label class="switch"><input data-econ="${key}" type="checkbox"><span>${esc(label)}</span></label>`; return `<label class="field"><span>${esc(label)}</span><input data-econ="${key}" type="${type}"></label>`; }
+function sectionFields(section){return BASE_FIELDS.filter(x=>x[3]===section).map(inputHtml).join('');}
+
+function dashboardPage(){ return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>The Commission Control Room</title><style>${css}</style></head><body><div class="app"><aside class="sidebar"><div class="brand"><div class="mini">TC</div><div><strong>The Commission</strong><small>Railway Control Room</small></div></div><nav class="nav">${['Overview','Connection','Channels','Protection','Cases','Blood Money','API Services','Blueprints','Live Logs'].map((x,i)=>`<button data-page="p${i}" class="${i===0?'active':''}">${String(i+1).padStart(2,'0')} &nbsp; ${x}</button>`).join('')}</nav><div class="side-foot"><div class="status"><i id="dot" class="dot"></i><span id="statusText">Loading…</span></div><form method="post" action="/logout"><button class="btn ghost" style="margin-top:12px;width:100%">Lock panel</button></form></div></aside><main class="main"><header class="topbar"><div><div class="eyebrow">Operations</div><h2 id="pageTitle">Overview</h2></div><div class="top-actions"><button id="saveTop" class="btn secondary">Save & Restart</button></div></header>
+<section id="p0" class="page active"><div class="hero"><div class="eyebrow">Command the room</div><h1>Your server, under watch.</h1><p>This is the hosted Commission control panel. Change Discord IDs, moderation rules, Blood Money settings and service keys, then save them to the Railway volume. The bot restarts with the new configuration automatically.</p><div class="buttons"><button id="startBtn" class="btn">Start protection</button><button id="restartBtn" class="btn secondary">Restart bot</button><button id="stopBtn" class="btn danger">Stop bot</button></div></div><div class="metrics"><div class="metric"><small>Process</small><strong id="mState">—</strong></div><div class="metric"><small>PID</small><strong id="mPid">—</strong></div><div class="metric"><small>Stored config</small><strong id="mConfig">Railway volume</strong></div></div><div class="notice">MemberBridge is retired here. YouTube membership verification belongs to Safetybot and cannot run from The Commission.</div></section>
+<section id="p1" class="page"><h2>Connection</h2><p style="color:var(--muted)">Discord identity and staff access.</p><div class="panel"><div class="fields">${sectionFields('Connection')}</div></div><div class="savebar"><button class="btn save">Save & Restart</button></div></section>
+<section id="p2" class="page"><h2>Channels</h2><p style="color:var(--muted)">Map The Commission to your Discord rooms.</p><div class="panel"><div class="fields">${sectionFields('Channels')}</div></div><div class="savebar"><button class="btn save">Save & Restart</button></div></section>
+<section id="p3" class="page"><h2>Protection</h2><p style="color:var(--muted)">Alt detection, jail controls and preemptive bans.</p><div class="panel"><div class="fields">${sectionFields('Protection')}</div></div><div class="savebar"><button class="btn save">Save & Restart</button></div></section>
+<section id="p4" class="page"><h2>Cases</h2><p style="color:var(--muted)">Report workflow and case archives.</p><div class="panel"><div class="fields">${sectionFields('Cases')}</div></div><div class="savebar"><button class="btn save">Save & Restart</button></div></section>
+<section id="p5" class="page"><h2>Blood Money</h2><p style="color:var(--muted)">Activity rewards, gambling, limits, leaderboards and heists.</p><div class="metrics"><div class="metric"><small>Economy accounts</small><strong id="ecoMembers">—</strong></div><div class="metric"><small>In circulation</small><strong id="ecoCirc">—</strong></div><div class="metric"><small>Transactions</small><strong id="ecoTx">—</strong></div></div><div class="buttons" style="margin-bottom:15px"><button id="refreshEco" class="btn secondary">Refresh statistics</button><button id="pushHeist" class="btn danger">Push / repair heist panel</button></div><div class="panel"><div class="fields">${ECON_FIELDS.map(econInputHtml).join('')}</div></div><div class="savebar"><button class="btn save">Save & Restart</button></div></section>
+<section id="p6" class="page"><h2>API Services</h2><p style="color:var(--muted)">External service keys used by protection features.</p><div class="panel"><div class="fields">${sectionFields('API Services')}</div></div><div class="savebar"><button class="btn save">Save & Restart</button></div></section>
+<section id="p7" class="page"><h2>Blueprints</h2><p style="color:var(--muted)">Capture a server layout and apply it to another server.</p><div class="grid"><div class="panel"><h3>Capture server</h3><label class="field"><span>Source server</span><select id="sourceGuild"></select></label><button id="captureBtn" class="btn" style="margin-top:12px">Capture blueprint</button></div><div class="panel"><h3>Apply blueprint</h3><label class="field"><span>Saved blueprint</span><select id="blueprintSelect"></select></label><label class="field" style="margin-top:10px"><span>Destination server</span><select id="destGuild"></select></label><label class="switch" style="margin-top:12px"><input id="applyEveryone" type="checkbox"><span>Apply @everyone base permissions</span></label><button id="applyBtn" class="btn danger" style="margin-top:12px">Apply blueprint</button></div></div><div class="panel" style="margin-top:15px"><h3>Saved blueprints</h3><div id="blueprints"></div></div></section>
+<section id="p8" class="page"><h2>Live Logs</h2><p style="color:var(--muted)">Current bot stdout, errors and system events.</p><div id="logs" class="logs"></div></section>
+</main></div><script>
+const titles=['Overview','Connection','Channels','Protection','Cases','Blood Money','API Services','Blueprints','Live Logs'];let cfg=null;
+function api(url,opt={}){return fetch(url,{...opt,headers:{'Content-Type':'application/json',...(opt.headers||{})}}).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'Request failed');return d;});}
+function openPage(id){document.querySelectorAll('.page').forEach(x=>x.classList.toggle('active',x.id===id));document.querySelectorAll('.nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===id));document.getElementById('pageTitle').textContent=titles[Number(id.slice(1))];if(id==='p5')refreshEconomy();if(id==='p7')refreshBlueprints();}
+document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>openPage(b.dataset.page));
+function applyConfig(c){cfg=c;document.querySelectorAll('[data-env]').forEach(el=>{const v=c.env[el.dataset.env];if(el.type==='checkbox')el.checked=String(v)!=='false'&&Boolean(v);else if(el.type==='password')el.value='';else el.value=v??'';});document.querySelectorAll('[data-econ]').forEach(el=>{const v=c.economy[el.dataset.econ];if(el.type==='checkbox')el.checked=Boolean(v);else el.value=v??'';});}
+function collect(){const env={};document.querySelectorAll('[data-env]').forEach(el=>{if(el.type==='password'&&!el.value)return;env[el.dataset.env]=el.type==='checkbox'?String(el.checked):el.value;});const economy={};document.querySelectorAll('[data-econ]').forEach(el=>{let v=el.type==='checkbox'?el.checked:el.value;if(el.type==='number'&&v!=='')v=Number(v);economy[el.dataset.econ]=v;});return{env,economy};}
+async function save(){const b=document.querySelectorAll('.save,#saveTop');b.forEach(x=>{x.disabled=true;x.textContent='Saving…'});try{const d=await api('/api/config',{method:'POST',body:JSON.stringify(collect())});applyConfig(d.config);alert('Settings saved. The bot is restarting with the new configuration.');}catch(e){alert(e.message)}finally{b.forEach(x=>{x.disabled=false;x.textContent='Save & Restart'})}}
+document.querySelectorAll('.save').forEach(b=>b.onclick=save);document.getElementById('saveTop').onclick=save;
+async function state(){try{const d=await api('/api/state');document.getElementById('mState').textContent=d.state;document.getElementById('mPid').textContent=d.pid||'—';document.getElementById('statusText').textContent=d.state==='running'?'Bot online':'Bot '+d.state;document.getElementById('dot').className='dot '+d.state;renderLogs(d.logs);if(!cfg)applyConfig(d.config);}catch(e){console.error(e)}}
+function renderLogs(items){const box=document.getElementById('logs');if(!box)return;box.innerHTML=items.slice(-400).map(x=>'<div class="log '+x.source+'"><time>'+new Date(x.at).toLocaleTimeString([], {hour12:false})+'</time><b>'+x.source+'</b><span>'+String(x.line).replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]))+'</span></div>').join('');box.scrollTop=box.scrollHeight;}
+document.getElementById('startBtn').onclick=()=>api('/api/bot/start',{method:'POST'}).then(state).catch(e=>alert(e.message));document.getElementById('stopBtn').onclick=()=>api('/api/bot/stop',{method:'POST'}).then(state).catch(e=>alert(e.message));document.getElementById('restartBtn').onclick=()=>api('/api/bot/restart',{method:'POST'}).then(state).catch(e=>alert(e.message));
+async function refreshEconomy(){try{const d=await api('/api/economy/stats');document.getElementById('ecoMembers').textContent=Number(d.members||0).toLocaleString();document.getElementById('ecoCirc').textContent=Number(d.circulation||0).toLocaleString();document.getElementById('ecoTx').textContent=Number(d.transactions||0).toLocaleString();}catch(e){document.getElementById('ecoMembers').textContent='Offline';}}
+document.getElementById('refreshEco').onclick=refreshEconomy;document.getElementById('pushHeist').onclick=()=>{const id=prompt('Heist channel ID (leave blank to use configured channel):','');api('/api/economy/push-heist',{method:'POST',body:JSON.stringify({channelId:id||''})}).then(()=>alert('Heist panel pushed.')).catch(e=>alert(e.message));};
+async function refreshBlueprints(){try{const d=await api('/api/blueprints');const opts='<option value="">Select server</option>'+d.guilds.map(g=>'<option value="'+g.id+'">'+g.name+' — '+g.id+'</option>').join('');sourceGuild.innerHTML=opts;destGuild.innerHTML=opts;blueprintSelect.innerHTML='<option value="">Select blueprint</option>'+d.blueprints.map(b=>'<option value="'+b.name+'">'+(b.sourceGuild.name||b.name)+' — '+new Date(b.capturedAt).toLocaleString()+'</option>').join('');document.getElementById('blueprints').innerHTML=d.blueprints.length?d.blueprints.map(b=>'<div class="blueprint-row"><span><b>'+(b.sourceGuild.name||'Unknown server')+'</b><br><small style="color:var(--muted)">'+new Date(b.capturedAt).toLocaleString()+'</small></span><code>'+b.name+'</code></div>').join(''):'<p style="color:var(--muted)">No saved blueprints.</p>';}catch(e){alert(e.message)}}
+document.getElementById('captureBtn').onclick=()=>{if(!sourceGuild.value)return alert('Choose a source server.');api('/api/blueprints/capture',{method:'POST',body:JSON.stringify({guildId:sourceGuild.value})}).then(()=>{alert('Blueprint captured.');refreshBlueprints()}).catch(e=>alert(e.message));};document.getElementById('applyBtn').onclick=()=>{if(!blueprintSelect.value||!destGuild.value)return alert('Choose a blueprint and destination server.');if(!confirm('Apply this blueprint to the destination server?'))return;api('/api/blueprints/apply',{method:'POST',body:JSON.stringify({fileName:blueprintSelect.value,guildId:destGuild.value,applyEveryonePermissions:applyEveryone.checked})}).then(d=>alert('Blueprint applied. Roles: '+d.rolesCreated+', categories: '+d.categoriesCreated+', channels: '+d.channelsCreated)).catch(e=>alert(e.message));};
+state();setInterval(state,3000);
+</script></body></html>`; }
+
+const server=http.createServer(async(req,res)=>{
+  try{
+    const url=new URL(req.url,`http://${req.headers.host||'localhost'}`);
+    if(url.pathname==='/health') return json(res,200,{ok:true,service:'the-commission',webapp:true,botState});
+    if(url.pathname==='/login'&&req.method==='POST'){const raw=await body(req);const p=new URLSearchParams(raw).get('password')||'';if(!dashboardPassword)return send(res,500,'text/html; charset=utf-8',loginPage('WEB_DASHBOARD_PASSWORD is not configured.'));if(!safeEqual(p,dashboardPassword))return send(res,401,'text/html; charset=utf-8',loginPage('Wrong password.'));const token=newSession();return redirect(res,'/',{'Set-Cookie':`commission_session=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=43200`});}
+    if(url.pathname==='/logout'&&req.method==='POST'){const t=cookies(req).commission_session;if(t)sessions.delete(t);return redirect(res,'/',{'Set-Cookie':'commission_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0'});}
+    if(!authed(req)){if(url.pathname.startsWith('/api/'))return json(res,401,{error:'Not authenticated'});return send(res,200,'text/html; charset=utf-8',loginPage());}
+    if(url.pathname==='/'&&req.method==='GET') return send(res,200,'text/html; charset=utf-8',dashboardPage());
+    if(url.pathname==='/api/state'&&req.method==='GET') return json(res,200,{state:botState,pid:bot?.pid||null,logs:logs.slice(-500),config:maskConfig(mergedConfig())});
+    if(url.pathname==='/api/config'&&req.method==='POST'){const incoming=JSON.parse(await body(req)||'{}');const saved=loadSaved();saved.env=saved.env||{};saved.economy=saved.economy||{};const allowed=new Set(BASE_FIELDS.map(x=>x[0]));for(const [k,v] of Object.entries(incoming.env||{}))if(allowed.has(k))saved.env[k]=String(v);const econAllowed=new Set(ECON_FIELDS.map(x=>x[0]));for(const [k,v] of Object.entries(incoming.economy||{}))if(econAllowed.has(k))saved.economy[k]=v;saveSaved(saved);await stopBot(true);return json(res,200,{ok:true,config:maskConfig(mergedConfig())});}
+    if(url.pathname==='/api/bot/start'&&req.method==='POST'){startBot();return json(res,200,{ok:true});}
+    if(url.pathname==='/api/bot/stop'&&req.method==='POST'){await stopBot(false);return json(res,200,{ok:true});}
+    if(url.pathname==='/api/bot/restart'&&req.method==='POST'){await stopBot(true);return json(res,200,{ok:true});}
+    if(url.pathname==='/api/economy/stats'&&req.method==='GET'){return json(res,200,await botRequest('commission:economy-request','stats',{}));}
+    if(url.pathname==='/api/economy/push-heist'&&req.method==='POST'){const p=JSON.parse(await body(req)||'{}');return json(res,200,await botRequest('commission:economy-request','push-heist-panel',{channelId:p.channelId||''}));}
+    if(url.pathname==='/api/blueprints'&&req.method==='GET'){const guilds=await botRequest('commission:blueprint-request','list-guilds',{});return json(res,200,{guilds,blueprints:listBlueprints()});}
+    if(url.pathname==='/api/blueprints/capture'&&req.method==='POST'){const p=JSON.parse(await body(req)||'{}');const bp=await botRequest('commission:blueprint-request','capture',{guildId:p.guildId},120000);const name=`${bp.sourceGuild?.id||p.guildId}-${String(bp.capturedAt||new Date().toISOString()).replace(/[:.]/g,'-')}.json`;fs.writeFileSync(path.join(blueprintDir,path.basename(name)),JSON.stringify(bp,null,2));return json(res,200,{ok:true,name});}
+    if(url.pathname==='/api/blueprints/apply'&&req.method==='POST'){const p=JSON.parse(await body(req)||'{}');const file=path.basename(String(p.fileName||''));if(file!==p.fileName||!file.endsWith('.json'))return json(res,400,{error:'Invalid blueprint file'});const bp=readJson(path.join(blueprintDir,file),null);if(!bp)return json(res,404,{error:'Blueprint not found'});const result=await botRequest('commission:blueprint-request','apply',{guildId:p.guildId,blueprint:bp,applyEveryonePermissions:Boolean(p.applyEveryonePermissions)},300000);return json(res,200,result);}
+    return json(res,404,{error:'Not found'});
+  }catch(error){console.error('[Web dashboard]',error);return json(res,500,{error:error.message});}
 });
 
-server.listen(port, host, () => {
-    console.log(`[Railway] Health server listening on ${host}:${port}`);
-});
-
-server.on('error', error => {
-    console.error('[Railway] Health server failed:', error);
-    process.exitCode = 1;
-});
-
-require('./discord_bot.js');
+server.listen(port,host,()=>{console.log(`[Railway] The Commission web control room listening on ${host}:${port}`);startBot();});
+server.on('error',e=>{console.error('[Railway] Web server failed:',e);process.exit(1);});
+async function shutdown(signal){if(shuttingDown)return;shuttingDown=true;desiredRunning=false;console.log(`[Railway] ${signal} received.`);await stopBot(false).catch(()=>{});server.close(()=>process.exit(0));setTimeout(()=>process.exit(0),10000).unref?.();}
+process.once('SIGTERM',()=>shutdown('SIGTERM'));process.once('SIGINT',()=>shutdown('SIGINT'));
