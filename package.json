@@ -1,6 +1,6 @@
 {
   "name": "the-commission-bot",
-  "version": "3.2.0",
+  "version": "3.3.0",
   "description": "The Commission - Railway web control room, Windows control panel and Discord server protection bot",
   "main": "desktop/main.js",
   "author": "Rykeen-sargeras",
@@ -10,7 +10,7 @@
     "start:bot": "node discord_bot.js",
     "railway:start": "node railway_start.js",
     "check": "node --check discord_bot.js && node --check railway_start.js && node --check desktop/main.js && node --check desktop/preload.js && node --check desktop/renderer.js && node --check memberbridge/integration.js",
-    "test": "node tests/preemptive-ban.test.js && node tests/blueprint.test.js && node tests/economy.test.js",
+    "test": "node tests/preemptive-ban.test.js && node tests/blueprint.test.js && node tests/economy.test.js && node tests/memberbridge-retirement.test.js",
     "dist": "electron-builder --win nsis portable",
     "dist:dir": "electron-builder --dir"
   },

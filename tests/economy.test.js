@@ -51,6 +51,14 @@ try {
     assert.strictEqual(repMonthKey(Date.UTC(2026, 7, 1, 12, 0), 'America/New_York'), '2026-08');
     assert.strictEqual(service.config.heistEntryMinutes, 58);
     assert.strictEqual(service.config.heistCooldownMinutes, 2);
+    assert.deepStrictEqual(service.evaluatePoker(['10♠','10♥','3♦','6♣','9♠']), { name: 'Tens or Better', multiplier: 1.5 });
+    assert.deepStrictEqual(service.evaluatePoker(['9♠','9♥','3♦','6♣','A♠']), { name: 'No winning hand', multiplier: 0 });
+    assert.deepStrictEqual(service.evaluatePoker(['10♠','J♠','Q♠','K♠','A♠']), { name: 'Royal Flush', multiplier: 150 });
+    assert.deepStrictEqual(service.evaluatePoker(['5♠','6♠','7♠','8♠','9♠']), { name: 'Straight Flush', multiplier: 75 });
+    assert.deepStrictEqual(service.evaluatePoker(['K♠','K♥','K♦','K♣','2♠']), { name: 'Four of a Kind', multiplier: 25 });
+    assert.deepStrictEqual(service.evaluatePoker(['Q♠','Q♥','Q♦','2♣','2♠']), { name: 'Full House', multiplier: 10 });
+    assert.deepStrictEqual(service.evaluatePoker(['2♠','5♠','8♠','J♠','K♠']), { name: 'Flush', multiplier: 7 });
+    assert.deepStrictEqual(service.evaluatePoker(['5♠','6♥','7♦','8♣','9♠']), { name: 'Straight', multiplier: 5 });
 
     const heistHour = Date.UTC(2026, 7, 1, 10, 0);
     const scheduledSignup = service.heistState('scheduled-heist-guild', heistHour + (23 * 60000));
@@ -89,10 +97,16 @@ try {
     assert.strictEqual(service.pendingRepArchive('rep-guild'), null);
 
     const daily = service.claimDaily('guild', 'alice', 'daily-1', 1_700_000_000_000);
-    assert.strictEqual(daily.reward, 25);
-    assert.strictEqual(daily.balance, 25);
+    assert.strictEqual(daily.reward, 100);
+    assert.strictEqual(daily.balance, 100);
     const cooldown = service.claimDaily('guild', 'alice', 'daily-2', 1_700_000_001_000);
     assert(cooldown.cooldown > 0);
+    const streakRewards = [];
+    const streakStart = 1_710_000_000_000;
+    for (let day = 0; day < 8; day += 1) {
+        streakRewards.push(service.claimDaily('streak-guild', 'streak-user', `streak-${day}`, streakStart + (day * 86400000)).reward);
+    }
+    assert.deepStrictEqual(streakRewards, [100, 200, 300, 400, 500, 600, 700, 700]);
 
     const text = service.rewardMessage({
         guildId: 'guild', userId: 'alice', messageId: 'message-1',
@@ -110,11 +124,11 @@ try {
     assert.strictEqual(dice.multiplier, 100);
     assert.strictEqual(dice.payout, 5000);
     const diceMaximum = service.diceMaximumWager('guild');
-    assert.strictEqual(diceMaximum, 697);
+    assert.strictEqual(diceMaximum, 705);
     assert.throws(() => service.dice('guild', 'alice', diceMaximum + 1, 'dice-too-large'), /10% of the server's highest balance/i);
     const maximumDice = service.dice('guild', 'alice', diceMaximum, 'dice-maximum');
     assert.strictEqual(maximumDice.wager, diceMaximum);
-    assert.strictEqual(service.publicMember('guild', 'alice').daily_wagered, 747);
+    assert.strictEqual(service.publicMember('guild', 'alice').daily_wagered, 755);
 
     const savedDiceConfig = {
         diceJackpotPercent: service.config.diceJackpotPercent,
@@ -174,6 +188,13 @@ try {
     assert.strictEqual(result.channelId, 'poker-channel');
     assert.strictEqual(result.messageId, 'poker-message');
     assert.strictEqual(service.pokerGame(poker.gameId).status, 'complete');
+    service.admin('pair-payout-guild', 'add', 'pair-player', 100, 'pair-bankroll');
+    const pairGame = service.startPoker('pair-payout-guild', 'pair-player', 5, 'pair-game');
+    const evaluatePoker = service.evaluatePoker;
+    service.evaluatePoker = () => ({ name: 'Tens or Better', multiplier: 1.5 });
+    const pairResult = service.drawPoker(pairGame.gameId, 'pair-player');
+    service.evaluatePoker = evaluatePoker;
+    assert.strictEqual(pairResult.payout, 7, 'fractional poker payouts should round down to whole Blood Money');
 
     service.admin('blackjack-guild', 'add', 'card-player', 5000, 'blackjack-bankroll');
     assert.throws(() => service.startBlackjack('blackjack-guild', 'card-player', 1001, 'blackjack-too-large'), /maximum wager/i);
@@ -291,7 +312,7 @@ try {
     const actualPreview = service.previewEconomyReset('reset-guild', 'member-balance', '123456789012345679', resetNow + 2);
     assert.strictEqual(actualPreview.currentBalance, 0);
     const allPreview = service.previewEconomyReset('reset-guild', 'all-balances', '', resetNow + 2);
-    assert.strictEqual(allPreview.currentBalance, 500);
+    assert.strictEqual(allPreview.currentBalance, 575);
     service.executeEconomyReset('reset-guild', 'all-balances', '', resetNow + 3);
     const afterBalanceReset = service.publicMember('reset-guild', 'member-one');
     assert.strictEqual(afterBalanceReset.balance, 0);
@@ -329,7 +350,7 @@ try {
     assert.strictEqual(bulkPreview.totalGrant, 5000);
     const bulkResult = service.executeBulkGrant('bulk-guild', bulkPreview.userIds, 2500, 'bulk-test-batch', resetNow + 1);
     assert.strictEqual(bulkResult.affectedMembers, 2);
-    assert.strictEqual(service.publicMember('bulk-guild', bulkOne).balance, 2525);
+    assert.strictEqual(service.publicMember('bulk-guild', bulkOne).balance, 2600);
     assert.strictEqual(service.publicMember('bulk-guild', bulkTwo).balance, 2500);
     assert.strictEqual(service.publicMember('bulk-guild', bulkOne).lifetime_earned, bulkLifetimeBefore);
     assert.strictEqual(service.publicMember('bulk-guild', bulkTwo).lifetime_earned, 0);

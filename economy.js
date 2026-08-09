@@ -31,9 +31,9 @@ const DEFAULTS = Object.freeze({
     voiceIntervalMinutes: 10,
     voiceDailyCap: 100,
     minimumAccountAgeDays: 7,
-    dailyBase: 25,
-    dailyStreakStep: 5,
-    dailyStreakMaximum: 75,
+    dailyBase: 100,
+    dailyStreakStep: 100,
+    dailyStreakMaximum: 700,
     gamblingEnabled: true,
     diceJackpotPercent: 1,
     diceMidPercent: 22,
@@ -225,6 +225,9 @@ function blackjackPayout(wager, natural = false) {
 class EconomyService {
     constructor(options = {}) {
         const raw = { ...DEFAULTS, ...(options.config || {}) };
+        const legacyDailySchedule = Number(raw.dailyBase) === 25
+            && Number(raw.dailyStreakStep) === 5
+            && Number(raw.dailyStreakMaximum) === 75;
         this.config = {
             ...raw,
             enabled: raw.enabled !== false,
@@ -260,9 +263,9 @@ class EconomyService {
             voiceIntervalMinutes: boundedInt(raw.voiceIntervalMinutes, 10, 1),
             voiceDailyCap: boundedInt(raw.voiceDailyCap, 100, 0),
             minimumAccountAgeDays: boundedInt(raw.minimumAccountAgeDays, 7, 0),
-            dailyBase: boundedInt(raw.dailyBase, 25, 0),
-            dailyStreakStep: boundedInt(raw.dailyStreakStep, 5, 0),
-            dailyStreakMaximum: boundedInt(raw.dailyStreakMaximum, 75, 0),
+            dailyBase: legacyDailySchedule ? 100 : boundedInt(raw.dailyBase, 100, 0),
+            dailyStreakStep: legacyDailySchedule ? 100 : boundedInt(raw.dailyStreakStep, 100, 0),
+            dailyStreakMaximum: legacyDailySchedule ? 700 : boundedInt(raw.dailyStreakMaximum, 700, 0),
             minimumTransfer: boundedInt(raw.minimumTransfer, 10, 1),
             transferLimitPercent: boundedInt(raw.transferLimitPercent, 10, 0, 100),
             minimumMembershipDays: boundedInt(raw.minimumMembershipDays, 7, 0),
@@ -815,16 +818,16 @@ class EconomyService {
         const unique = [...new Set(numeric)];
         const straight = unique.length === 5 && (unique[4] - unique[0] === 4 || unique.join(',') === '2,3,4,5,14');
         const royal = flush && numeric.join(',') === '10,11,12,13,14';
-        if (royal) return { name: 'Royal Flush', multiplier: 250 };
-        if (flush && straight) return { name: 'Straight Flush', multiplier: 50 };
+        if (royal) return { name: 'Royal Flush', multiplier: 150 };
+        if (flush && straight) return { name: 'Straight Flush', multiplier: 75 };
         if (counts[0] === 4) return { name: 'Four of a Kind', multiplier: 25 };
-        if (counts[0] === 3 && counts[1] === 2) return { name: 'Full House', multiplier: 9 };
-        if (flush) return { name: 'Flush', multiplier: 6 };
-        if (straight) return { name: 'Straight', multiplier: 4 };
+        if (counts[0] === 3 && counts[1] === 2) return { name: 'Full House', multiplier: 10 };
+        if (flush) return { name: 'Flush', multiplier: 7 };
+        if (straight) return { name: 'Straight', multiplier: 5 };
         if (counts[0] === 3) return { name: 'Three of a Kind', multiplier: 3 };
         if (counts[0] === 2 && counts[1] === 2) return { name: 'Two Pair', multiplier: 2 };
         const pairValue = values.find(value => values.filter(item => item === value).length === 2);
-        if (['J','Q','K','A'].includes(pairValue)) return { name: 'Jacks or Better', multiplier: 1 };
+        if (['10','J','Q','K','A'].includes(pairValue)) return { name: 'Tens or Better', multiplier: 1.5 };
         return { name: 'No winning hand', multiplier: 0 };
     }
 
@@ -836,7 +839,7 @@ class EconomyService {
             const held = new Set(game.held);
             const finalCards = game.initialCards.map((card, index) => held.has(index) ? card : game.deckCards.shift());
             const result = this.evaluatePoker(finalCards);
-            const payout = game.wager * result.multiplier;
+            const payout = Math.floor(game.wager * result.multiplier);
             let balance = this.member(game.guild_id, game.user_id).balance;
             if (payout) balance = this.applyDelta(game.guild_id, game.user_id, payout, 'poker-payout', gameId, null, now);
             const won = payout > game.wager;
