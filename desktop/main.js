@@ -9,6 +9,7 @@ const LOGIN_SALT = 'the-commission-v1';
 const DISCORD_ID = /^\d{17,20}$/;
 const SERVER_PROFILE_VERSION = 7;
 const HEIST_SCHEDULE_VERSION = 1;
+const ECONOMY_REWARD_VERSION = 1;
 const DESTINATION_SERVER_PROFILE = {
     modChannelId: '1532504080067596381',
     ticketCategoryId: '1532513762618118308',
@@ -92,9 +93,9 @@ const DEFAULT_SETTINGS = {
     economyVoiceIntervalMinutes: 10,
     economyVoiceDailyCap: 100,
     economyMinimumAccountAgeDays: 7,
-    economyDailyBase: 25,
-    economyDailyStreakStep: 5,
-    economyDailyStreakMaximum: 75,
+    economyDailyBase: 100,
+    economyDailyStreakStep: 100,
+    economyDailyStreakMaximum: 700,
     economyGamblingEnabled: true,
     economyDiceJackpotPercent: 1,
     economyDiceMidPercent: 22,
@@ -239,9 +240,18 @@ function loadConfig() {
             settings.economyHeistEntryMinutes = 58;
             settings.economyHeistCooldownMinutes = 2;
         }
+        if ((parsed.economyRewardVersion || 0) < ECONOMY_REWARD_VERSION
+            && Number(settings.economyDailyBase) === 25
+            && Number(settings.economyDailyStreakStep) === 5
+            && Number(settings.economyDailyStreakMaximum) === 75) {
+            settings.economyDailyBase = 100;
+            settings.economyDailyStreakStep = 100;
+            settings.economyDailyStreakMaximum = 700;
+        }
         return {
             serverProfileVersion: SERVER_PROFILE_VERSION,
             heistScheduleVersion: HEIST_SCHEDULE_VERSION,
+            economyRewardVersion: ECONOMY_REWARD_VERSION,
             settings,
             secrets: parsed.secrets || {},
         };
@@ -249,6 +259,7 @@ function loadConfig() {
         return {
             serverProfileVersion: SERVER_PROFILE_VERSION,
             heistScheduleVersion: HEIST_SCHEDULE_VERSION,
+            economyRewardVersion: ECONOMY_REWARD_VERSION,
             settings: { ...DEFAULT_SETTINGS, ...DESTINATION_SERVER_PROFILE },
             secrets: {},
         };

@@ -83,7 +83,11 @@ function pokerTableText(game, userMention, currencyName, extra = {}) {
         `Hand: ${cards}`,
     ];
     if (extra.balance !== undefined) lines.push(`Balance after wager: **${money(extra.balance)}**`);
-    lines.push('', 'Only the player may use Hold and Draw. The complete game remains visible to everyone in this channel.');
+    lines.push(
+        '',
+        '**Paytable:** Tens+ 1.5× · Two Pair 2× · Trips 3× · Straight 5× · Flush 7× · Full House 10× · Quads 25× · Straight Flush 75× · Royal Flush 150×',
+        'Only the player may use Hold and Draw. The complete game remains visible to everyone in this channel.',
+    );
     return lines.join('\n');
 }
 
