@@ -97,12 +97,6 @@ const DEFAULT_SETTINGS = {
     economyDailyStreakStep: 100,
     economyDailyStreakMaximum: 700,
     economyGamblingEnabled: true,
-    economyDiceJackpotPercent: 1,
-    economyDiceMidPercent: 22,
-    economyDiceRefundPercent: 15,
-    economyDiceLossPercent: 62,
-    economyDiceJackpotMultiplier: 100,
-    economyDiceMidMultiplier: 3,
     economyGamblingDailyWagerCap: 0,
     economyGamblingMaxActionsPerMinute: 0,
     economyGamblingMaxActionsPerHour: 0,
@@ -331,15 +325,11 @@ function cleanCsvIds(value) {
 
 function sanitizeSettings(input = {}) {
     const next = { ...DEFAULT_SETTINGS };
-    const decimalSettings = new Set([
-        'economyDiceJackpotPercent', 'economyDiceMidPercent', 'economyDiceRefundPercent', 'economyDiceLossPercent',
-        'economyDiceJackpotMultiplier', 'economyDiceMidMultiplier',
-    ]);
     for (const key of Object.keys(DEFAULT_SETTINGS)) {
         if (typeof DEFAULT_SETTINGS[key] === 'boolean') {
             next[key] = Boolean(input[key]);
         } else if (typeof DEFAULT_SETTINGS[key] === 'number') {
-            const parsed = decimalSettings.has(key) ? Number.parseFloat(input[key]) : Number.parseInt(input[key], 10);
+            const parsed = Number.parseInt(input[key], 10);
             next[key] = Number.isFinite(parsed) ? parsed : DEFAULT_SETTINGS[key];
         } else {
             next[key] = String(input[key] || '').trim();
@@ -367,11 +357,6 @@ function sanitizeSettings(input = {}) {
     next.economyPokerMinimumWager = Math.max(1, next.economyPokerMinimumWager);
     next.economyPokerMaximumWager = Math.max(next.economyPokerMinimumWager, next.economyPokerMaximumWager);
     next.economyPokerDailyCap = Math.max(next.economyPokerMinimumWager, next.economyPokerDailyCap);
-    for (const key of ['economyDiceJackpotPercent', 'economyDiceMidPercent', 'economyDiceRefundPercent', 'economyDiceLossPercent']) {
-        next[key] = Math.min(100, Math.max(0, next[key]));
-    }
-    next.economyDiceJackpotMultiplier = Math.min(10000, Math.max(0, next.economyDiceJackpotMultiplier));
-    next.economyDiceMidMultiplier = Math.min(10000, Math.max(0, next.economyDiceMidMultiplier));
     next.economyGamblingDailyWagerCap = Math.max(0, next.economyGamblingDailyWagerCap);
     next.economyGamblingMaxActionsPerMinute = Math.max(0, next.economyGamblingMaxActionsPerMinute);
     next.economyGamblingMaxActionsPerHour = Math.max(0, next.economyGamblingMaxActionsPerHour);
@@ -391,8 +376,6 @@ function sanitizeSettings(input = {}) {
         next.memberBridgePublicBaseUrl = next.memberBridgePublicBaseUrl.replace(/\/$/, '');
     }
     if (next.memberBridgeProductionMode && next.memberBridgeSimulationMode) throw new Error('Turn off MemberBridge simulation mode before enabling production mode.');
-    const dicePercentTotal = next.economyDiceJackpotPercent + next.economyDiceMidPercent + next.economyDiceRefundPercent + next.economyDiceLossPercent;
-    if (Math.abs(dicePercentTotal - 100) > 0.0001) throw new Error(`Dice outcome percentages must total exactly 100%. Current total: ${dicePercentTotal.toFixed(4).replace(/\.?0+$/, '')}%.`);
     next.economyHeistEntryMinutes = 58;
     next.economyHeistCooldownMinutes = 2;
     return next;
@@ -591,12 +574,6 @@ async function startBot() {
             dailyStreakStep: config.settings.economyDailyStreakStep,
             dailyStreakMaximum: config.settings.economyDailyStreakMaximum,
             gamblingEnabled: config.settings.economyGamblingEnabled,
-            diceJackpotPercent: config.settings.economyDiceJackpotPercent,
-            diceMidPercent: config.settings.economyDiceMidPercent,
-            diceRefundPercent: config.settings.economyDiceRefundPercent,
-            diceLossPercent: config.settings.economyDiceLossPercent,
-            diceJackpotMultiplier: config.settings.economyDiceJackpotMultiplier,
-            diceMidMultiplier: config.settings.economyDiceMidMultiplier,
             gamblingDailyWagerCap: config.settings.economyGamblingDailyWagerCap,
             gamblingMaxActionsPerMinute: config.settings.economyGamblingMaxActionsPerMinute,
             gamblingMaxActionsPerHour: config.settings.economyGamblingMaxActionsPerHour,

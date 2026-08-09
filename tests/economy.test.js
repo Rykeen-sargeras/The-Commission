@@ -2,7 +2,24 @@ const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { EconomyService, similarity, rankFor, repMonthKey, blackjackHand, blackjackPayout } = require('../economy');
+const {
+    EconomyService,
+    DICE_WEIGHT_TOTAL,
+    DICE_PAYOUT_TABLE,
+    HOUSE_GAME_RTP,
+    HIGHER_LOWER_MULTIPLIERS,
+    DRAGON_TOWER_COLUMNS,
+    DRAGON_TOWER_EGGS_PER_ROW,
+    DRAGON_TOWER_MULTIPLIERS,
+    diceExpectedReturn,
+    diceHouseEdge,
+    higherLowerSuccessProbability,
+    similarity,
+    rankFor,
+    repMonthKey,
+    blackjackHand,
+    blackjackPayout,
+} = require('../economy');
 const { canAdministerEconomy } = require('../economy_discord');
 
 const staffMember = {
@@ -119,8 +136,16 @@ try {
     });
     assert.strictEqual(duplicate, null);
 
+    assert.strictEqual(DICE_PAYOUT_TABLE.reduce((total, outcome) => total + outcome.weight, 0), DICE_WEIGHT_TOTAL);
+    assert.strictEqual(diceExpectedReturn(), 0.845);
+    assert(Math.abs(diceHouseEdge() - 0.155) < Number.EPSILON);
+
+    const savedDiceRandom = service.random;
+    service.random = () => 0.9999;
     service.admin('guild', 'add', 'alice', 2000, 'admin-1');
     const dice = service.dice('guild', 'alice', 50, 'dice-1');
+    assert.strictEqual(dice.outcome, 'Jackpot');
+    assert.strictEqual(dice.odds, 0.02);
     assert.strictEqual(dice.multiplier, 100);
     assert.strictEqual(dice.payout, 5000);
     const diceMaximum = service.diceMaximumWager('guild');
@@ -130,33 +155,74 @@ try {
     assert.strictEqual(maximumDice.wager, diceMaximum);
     assert.strictEqual(service.publicMember('guild', 'alice').daily_wagered, 755);
 
-    const savedDiceConfig = {
-        diceJackpotPercent: service.config.diceJackpotPercent,
-        diceMidPercent: service.config.diceMidPercent,
-        diceRefundPercent: service.config.diceRefundPercent,
-        diceLossPercent: service.config.diceLossPercent,
-        diceJackpotMultiplier: service.config.diceJackpotMultiplier,
-        diceMidMultiplier: service.config.diceMidMultiplier,
-    };
-    const savedDiceRandom = service.random;
-    Object.assign(service.config, {
-        diceJackpotPercent: 25.25, diceMidPercent: 24.75, diceRefundPercent: 25, diceLossPercent: 25,
-        diceJackpotMultiplier: 87.5, diceMidMultiplier: 2.75,
+    const diceBoundaryCases = [
+        [0, 'House wins', 0],
+        [0.5738, 'Push', 1],
+        [0.7738, 'Double', 2],
+        [0.9238, 'Triple', 3],
+        [0.9738, 'Hot roll', 5],
+        [0.9938, 'Big win', 10],
+        [0.9988, 'High roller', 25],
+        [0.9998, 'Jackpot', 100],
+    ];
+    service.admin('weighted-dice-guild', 'add', 'dice-player', 1000, 'weighted-dice-bankroll');
+    diceBoundaryCases.forEach(([random, outcome, multiplier], index) => {
+        service.random = () => random;
+        const result = service.dice('weighted-dice-guild', 'dice-player', 1, `weighted-dice-${index}`);
+        assert.strictEqual(result.outcome, outcome);
+        assert.strictEqual(result.multiplier, multiplier);
     });
-    service.admin('decimal-dice-guild', 'add', 'dice-player', 1000, 'decimal-dice-bankroll');
-    service.random = () => 0.999;
-    const decimalJackpot = service.dice('decimal-dice-guild', 'dice-player', 4, 'decimal-dice-jackpot');
-    assert.strictEqual(decimalJackpot.multiplier, 87.5);
-    assert.strictEqual(decimalJackpot.payout, 350);
-    service.random = () => 0.70;
-    const decimalMid = service.dice('decimal-dice-guild', 'dice-player', 4, 'decimal-dice-mid');
-    assert.strictEqual(decimalMid.multiplier, 2.75);
-    assert.strictEqual(decimalMid.payout, 11);
-    service.random = () => 0.30;
-    assert.strictEqual(service.dice('decimal-dice-guild', 'dice-player', 4, 'decimal-dice-refund').multiplier, 1);
-    service.random = () => 0.10;
-    assert.strictEqual(service.dice('decimal-dice-guild', 'dice-player', 4, 'decimal-dice-loss').multiplier, 0);
-    Object.assign(service.config, savedDiceConfig);
+
+    let higherLowerSurvival = 1;
+    HIGHER_LOWER_MULTIPLIERS.forEach((multiplier, step) => {
+        higherLowerSurvival *= higherLowerSuccessProbability(step);
+        assert(Math.abs((higherLowerSurvival * multiplier) - HOUSE_GAME_RTP) < 1e-12);
+    });
+    service.random = () => 0;
+    service.admin('higher-lower-guild', 'add', 'card-climber', 1000, 'higher-lower-bankroll');
+    const higherLower = service.startHigherLower('higher-lower-guild', 'card-climber', 100, 'higher-lower-start');
+    assert.strictEqual(higherLower.step, 0);
+    const firstHigher = service.playHigherLower(higherLower.game_id, 'card-climber', 'higher');
+    assert.strictEqual(firstHigher.success, true);
+    assert.strictEqual(firstHigher.step, 1);
+    assert.strictEqual(firstHigher.multiplier, 1.5);
+    const higherCashout = service.cashOutHigherLower(higherLower.game_id, 'card-climber');
+    assert.strictEqual(higherCashout.payout, 150);
+    assert.strictEqual(higherCashout.balance, 1050);
+    service.admin('higher-lower-summit', 'add', 'summit-climber', 1000, 'summit-bankroll');
+    let summit = service.startHigherLower('higher-lower-summit', 'summit-climber', 40, 'summit-start');
+    for (let step = 0; step < HIGHER_LOWER_MULTIPLIERS.length; step += 1) {
+        summit = service.playHigherLower(summit.game_id, 'summit-climber', step % 2 ? 'lower' : 'higher');
+    }
+    assert.strictEqual(summit.status, 'completed');
+    assert.strictEqual(summit.multiplier, 25);
+    assert.strictEqual(summit.payout, 1000);
+
+    assert.deepStrictEqual(DRAGON_TOWER_EGGS_PER_ROW, [3, 3, 3, 3, 3, 1, 1, 1]);
+    let towerSurvival = 1;
+    DRAGON_TOWER_MULTIPLIERS.forEach((multiplier, row) => {
+        towerSurvival *= DRAGON_TOWER_EGGS_PER_ROW[row] / DRAGON_TOWER_COLUMNS;
+        assert(Math.abs((towerSurvival * multiplier) - HOUSE_GAME_RTP) < 1e-12);
+    });
+    service.admin('dragon-guild', 'add', 'dragon-climber', 1000, 'dragon-bankroll');
+    const tower = service.startDragonTower('dragon-guild', 'dragon-climber', 100, 'dragon-start');
+    assert.strictEqual(tower.trapPositions.length, 8);
+    assert.strictEqual(tower.trapPositions[0].length, 1);
+    assert.strictEqual(tower.trapPositions[5].length, 3);
+    const firstEgg = service.pickDragonTower(tower.game_id, 'dragon-climber', 0);
+    assert.strictEqual(firstEgg.success, true);
+    assert.strictEqual(firstEgg.row_number, 1);
+    const towerCashout = service.cashOutDragonTower(tower.game_id, 'dragon-climber');
+    assert.strictEqual(towerCashout.payout, 114);
+    assert.strictEqual(towerCashout.balance, 1014);
+    service.admin('dragon-danger-guild', 'add', 'tower-tester', 1000, 'dragon-danger-bankroll');
+    let dangerTower = service.startDragonTower('dragon-danger-guild', 'tower-tester', 100, 'dragon-danger-start');
+    for (let row = 0; row < 6; row += 1) dangerTower = service.pickDragonTower(dangerTower.game_id, 'tower-tester', 0);
+    assert.strictEqual(dangerTower.row_number, 6);
+    assert.strictEqual(dangerTower.success, true);
+    const topRowTrap = service.pickDragonTower(dangerTower.game_id, 'tower-tester', 1);
+    assert.strictEqual(topRowTrap.success, false);
+    assert.strictEqual(topRowTrap.status, 'lost');
     service.random = savedDiceRandom;
 
     const savedGlobalLimits = {

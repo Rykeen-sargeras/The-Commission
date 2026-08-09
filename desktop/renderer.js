@@ -67,22 +67,12 @@ function applyConfig(config) {
     document.getElementById('metricConfig').textContent = config.hasDiscordToken ? 'Token saved' : 'Token needed';
     document.getElementById('memberBridgeSimulationWarning').classList.toggle('hidden', !settings.memberBridgeSimulationMode);
     updateMemberBridgeRedirects();
-    updateDicePercentTotal();
 }
 
 function updateMemberBridgeRedirects() {
     const base = String(document.querySelector('[data-setting="memberBridgePublicBaseUrl"]')?.value || '').replace(/\/$/, '') || 'https://members.example.com';
     document.getElementById('mbDiscordRedirect').textContent = `${base}/oauth/discord/callback`;
     document.getElementById('mbCreatorRedirect').textContent = `${base}/oauth/google/creator-callback`;
-}
-
-function updateDicePercentTotal() {
-    const output = document.getElementById('dicePercentTotal');
-    if (!output) return;
-    const total = [...document.querySelectorAll('.dice-percent-input')]
-        .reduce((sum, input) => sum + (Number.parseFloat(input.value) || 0), 0);
-    output.textContent = `${Number(total.toFixed(4)).toLocaleString()}%`;
-    output.style.color = Math.abs(total - 100) <= 0.0001 ? '' : '#ff647c';
 }
 
 function collectPayload() {
@@ -421,7 +411,6 @@ document.querySelectorAll('.nav-item').forEach(button => {
 document.querySelector('[data-setting="memberBridgePublicBaseUrl"]').addEventListener('input', updateMemberBridgeRedirects);
 document.querySelector('[data-setting="memberBridgeSimulationMode"]').addEventListener('change', event => document.getElementById('memberBridgeSimulationWarning').classList.toggle('hidden', !event.target.checked));
 
-document.querySelectorAll('.dice-percent-input').forEach(input => input.addEventListener('input', updateDicePercentTotal));
 
 document.getElementById('saveButton').addEventListener('click', async () => {
     const button = document.getElementById('saveButton');

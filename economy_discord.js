@@ -1,5 +1,20 @@
 const crypto = require('crypto');
 const Discord = require('discord.js');
+const {
+    DICE_PAYOUT_TABLE,
+    HIGHER_LOWER_MULTIPLIERS,
+    DRAGON_TOWER_COLUMNS,
+    DRAGON_TOWER_ROWS,
+    DRAGON_TOWER_EGGS_PER_ROW,
+    diceExpectedReturn,
+    diceHouseEdge,
+    higherLowerSuccessProbability,
+} = require('./economy');
+
+const DICE_ODDS_TEXT = [...DICE_PAYOUT_TABLE]
+    .reverse()
+    .map(outcome => `${outcome.multiplier}× at ${outcome.weight / 100}%`)
+    .join(', ');
 
 function money(value) {
     return Number(value || 0).toLocaleString('en-US');
@@ -38,6 +53,10 @@ function economyCommandData() {
             .addIntegerOption(option => option.setName('amount').setDescription('Amount to transfer').setMinValue(1).setRequired(true)),
         new Discord.SlashCommandBuilder().setName('dice').setDescription('Wager Blood Money on a dice roll')
             .addIntegerOption(option => option.setName('amount').setDescription('Wager amount').setMinValue(1).setRequired(true)),
+        new Discord.SlashCommandBuilder().setName('higher-lower').setDescription('Climb a Higher / Lower card multiplier ladder')
+            .addIntegerOption(option => option.setName('amount').setDescription('Wager amount').setMinValue(1).setRequired(true)),
+        new Discord.SlashCommandBuilder().setName('dragon-tower').setDescription('Climb an eight-row Dragon Tower for increasing multipliers')
+            .addIntegerOption(option => option.setName('amount').setDescription('Wager amount').setMinValue(1).setRequired(true)),
         new Discord.SlashCommandBuilder().setName('poker').setDescription('Play one-draw video poker with Blood Money')
             .addIntegerOption(option => option.setName('amount').setDescription('Wager amount').setMinValue(1).setRequired(true)),
         new Discord.SlashCommandBuilder().setName('blackjack').setDescription('Play public blackjack with administrator-set limits')
@@ -60,6 +79,95 @@ function economyCommandData() {
             .addSubcommand(sub => sub.setName('enable-gambling').setDescription('Enable all gambling commands'))
             .addSubcommand(sub => sub.setName('settings').setDescription('Show active economy settings')),
     ].map(command => command.toJSON());
+}
+
+function higherLowerPayload(game, userMention, currencyName, note = '') {
+    const active = game.status === 'active';
+    const currentMultiplier = game.step > 0 ? HIGHER_LOWER_MULTIPLIERS[game.step - 1] : 0;
+    const nextMultiplier = active ? HIGHER_LOWER_MULTIPLIERS[game.step] : null;
+    const last = game.history?.at(-1);
+    const description = active
+        ? `${userMention}, is the hidden card **Higher** or **Lower** than **${game.current_card}**?${last?.success ? `\n\n✅ ${last.reference} → ${last.revealed} was correct.` : ''}`
+        : game.status === 'lost'
+            ? `${userMention} guessed **${last?.direction || 'incorrectly'}**: ${last?.reference || '?'} → ${last?.revealed || '?'}. The wager was lost.`
+            : `${userMention} cashed out the card ladder${game.status === 'completed' ? ' at the 25× summit' : ''}.`;
+    const fields = [
+        { name: 'Wager', value: `${money(game.wager)} ${currencyName}`, inline: true },
+        { name: 'Correct cards', value: String(game.step), inline: true },
+    ];
+    if (active) fields.push(
+        { name: 'Current cash-out', value: game.step ? `${currentMultiplier}×` : 'Locked', inline: true },
+        { name: 'Next win', value: `${nextMultiplier}× · ${(higherLowerSuccessProbability(game.step) * 100).toFixed(2)}%`, inline: true },
+    );
+    else fields.push(
+        { name: 'Payout', value: `${money(game.payout)} ${currencyName}`, inline: true },
+        { name: 'Balance', value: `${money(game.balance)} ${currencyName}`, inline: true },
+    );
+    const components = active ? [new Discord.ActionRowBuilder().addComponents(
+        new Discord.ButtonBuilder().setCustomId(`econ:hilo:${game.game_id}:higher`).setLabel('Higher').setEmoji('⬆️').setStyle(Discord.ButtonStyle.Success),
+        new Discord.ButtonBuilder().setCustomId(`econ:hilo:${game.game_id}:lower`).setLabel('Lower').setEmoji('⬇️').setStyle(Discord.ButtonStyle.Danger),
+        new Discord.ButtonBuilder().setCustomId(`econ:hilo:${game.game_id}:cash`).setLabel(game.step ? `Cash Out ${currentMultiplier}×` : 'Cash Out').setEmoji('💰').setStyle(Discord.ButtonStyle.Primary).setDisabled(game.step < 1),
+    )] : [];
+    return {
+        embeds: [new Discord.EmbedBuilder().setColor(active ? 0x7c3aed : game.status === 'lost' ? 0x9b1c31 : 0x2ea043)
+            .setTitle('🃏 Higher / Lower Cards').setDescription(`${description}${note ? `\n\n*${note}*` : ''}`).addFields(fields)
+            .setFooter({ text: '85% RTP · 15% house edge · ties lose · inactivity cashes out earned progress' }).setTimestamp()],
+        components,
+    };
+}
+
+function dragonTowerGrid(game) {
+    const history = new Map((game.history || []).map(item => [item.row, item]));
+    const revealAll = game.status !== 'active';
+    const lines = [];
+    for (let row = DRAGON_TOWER_ROWS - 1; row >= 0; row -= 1) {
+        const played = history.get(row);
+        let tiles;
+        if (played || revealAll) {
+            const traps = played?.traps || game.trapPositions[row];
+            tiles = Array.from({ length: DRAGON_TOWER_COLUMNS }, (_, column) => traps.includes(column) ? '🔥' : '🥚');
+            if (played) tiles[played.selected] = played.success ? '🐉' : '💥';
+        } else if (row === game.row_number) tiles = Array(DRAGON_TOWER_COLUMNS).fill('❓');
+        else tiles = Array(DRAGON_TOWER_COLUMNS).fill('⬛');
+        lines.push(`**${String(row + 1).padStart(2, '0')}**  ${tiles.join('  ')}`);
+    }
+    return lines.join('\n');
+}
+
+function dragonTowerPayload(game, userMention, currencyName, note = '') {
+    const active = game.status === 'active';
+    const description = game.status === 'lost'
+        ? `${userMention} triggered a trap on row ${game.row_number + 1}. The tower took the wager.`
+        : active
+            ? `${userMention}, choose one of four tiles on row **${game.row_number + 1}**. Find an egg, then climb again or cash out.`
+            : `${userMention} ${game.status === 'completed' ? 'conquered all eight rows' : 'cashed out safely'}.`;
+    const eggs = active ? DRAGON_TOWER_EGGS_PER_ROW[game.row_number] : 0;
+    const fields = [
+        { name: 'Wager', value: `${money(game.wager)} ${currencyName}`, inline: true },
+        { name: 'Rows cleared', value: `${game.row_number}/${DRAGON_TOWER_ROWS}`, inline: true },
+    ];
+    if (active) fields.push(
+        { name: 'Current cash-out', value: game.row_number ? `${game.multiplier.toFixed(2)}×` : 'Locked', inline: true },
+        { name: 'Next row', value: `${eggs}/4 eggs · ${game.nextMultiplier.toFixed(2)}×`, inline: true },
+    );
+    else fields.push(
+        { name: 'Payout', value: `${money(game.payout)} ${currencyName} · ${Number(game.multiplier || 0).toFixed(2)}×`, inline: true },
+        { name: 'Balance', value: `${money(game.balance)} ${currencyName}`, inline: true },
+    );
+    const components = active ? [
+        new Discord.ActionRowBuilder().addComponents(...Array.from({ length: DRAGON_TOWER_COLUMNS }, (_, column) =>
+            new Discord.ButtonBuilder().setCustomId(`econ:dragon:${game.game_id}:pick:${column}`).setLabel(`Tile ${column + 1}`).setEmoji('🥚').setStyle(Discord.ButtonStyle.Secondary))),
+        new Discord.ActionRowBuilder().addComponents(
+            new Discord.ButtonBuilder().setCustomId(`econ:dragon:${game.game_id}:auto`).setLabel('Auto-Pick').setEmoji('🎲').setStyle(Discord.ButtonStyle.Primary),
+            new Discord.ButtonBuilder().setCustomId(`econ:dragon:${game.game_id}:cash`).setLabel(game.row_number ? `Cash Out ${game.multiplier.toFixed(2)}×` : 'Cash Out').setEmoji('💰').setStyle(Discord.ButtonStyle.Success).setDisabled(game.row_number < 1),
+        ),
+    ] : [];
+    return {
+        embeds: [new Discord.EmbedBuilder().setColor(active ? 0xd29922 : game.status === 'lost' ? 0x9b1c31 : 0x2ea043)
+            .setTitle('🐉 Dragon Tower · 4×8').setDescription(`${description}\n\n${dragonTowerGrid(game)}${note ? `\n\n*${note}*` : ''}`).addFields(fields)
+            .setFooter({ text: 'Rows 1–5: 3 eggs · Rows 6–8: 1 egg · 85% RTP · 15% house edge' }).setTimestamp()],
+        components,
+    };
 }
 
 function pokerComponents(game) {
@@ -665,6 +773,25 @@ function createEconomyIntegration(client, economy, options = {}) {
             }
             if (expiredBlackjack.length) console.log(`🂡 Completed ${expiredBlackjack.length} timed-out blackjack game(s).`);
 
+            const expiredProgressive = economy.expireProgressiveGames();
+            for (const result of expiredProgressive.higherLower) {
+                if (!result.channel_id || !result.message_id) continue;
+                const channel = await client.channels.fetch(result.channel_id).catch(() => null);
+                const message = channel?.isTextBased() ? await channel.messages.fetch(result.message_id).catch(() => null) : null;
+                if (message) await message.edit(higherLowerPayload(result, `<@${result.user_id}>`, economy.config.currencyName,
+                    result.step ? 'The two-minute timer expired, so your earned multiplier was cashed out automatically.' : 'The two-minute timer expired before the first guess.')).catch(() => {});
+            }
+            for (const result of expiredProgressive.dragonTower) {
+                if (!result.channel_id || !result.message_id) continue;
+                const channel = await client.channels.fetch(result.channel_id).catch(() => null);
+                const message = channel?.isTextBased() ? await channel.messages.fetch(result.message_id).catch(() => null) : null;
+                if (message) await message.edit(dragonTowerPayload(result, `<@${result.user_id}>`, economy.config.currencyName,
+                    result.row_number ? 'The two-minute timer expired, so your cleared rows were cashed out automatically.' : 'The two-minute timer expired before the first pick.')).catch(() => {});
+            }
+            if (expiredProgressive.higherLower.length || expiredProgressive.dragonTower.length) {
+                console.log(`🎮 Completed ${expiredProgressive.higherLower.length + expiredProgressive.dragonTower.length} timed-out progressive game(s).`);
+            }
+
             const expiredDuels = economy.expireDuels();
             for (const duel of expiredDuels) await editDuelMessage(duel);
             if (expiredDuels.length) console.log(`⚔️ Refunded ${expiredDuels.length} expired duel challenge(s).`);
@@ -734,6 +861,56 @@ function createEconomyIntegration(client, economy, options = {}) {
                 }
                 return true;
             }
+        }
+        if (interaction.customId.startsWith('econ:hilo:')) {
+            const [, , gameId, action] = interaction.customId.split(':');
+            const game = economy.higherLowerGame(gameId);
+            if (!game || game.status !== 'active') {
+                await interaction.reply({ content: 'This Higher / Lower game is no longer active.', ephemeral: true });
+                return true;
+            }
+            if (game.user_id !== interaction.user.id) {
+                await interaction.reply({ content: 'This is not your Higher / Lower game.', ephemeral: true });
+                return true;
+            }
+            try {
+                const result = action === 'cash'
+                    ? economy.cashOutHigherLower(gameId, interaction.user.id)
+                    : economy.playHigherLower(gameId, interaction.user.id, action);
+                await interaction.update(higherLowerPayload(result, `${interaction.user}`, economy.config.currencyName));
+                if (result.status !== 'active') {
+                    await audit(interaction.guild, 'Higher / Lower result', `${interaction.user} wagered ${money(result.wager)} and received ${money(result.payout)} after ${result.step} correct card(s).`);
+                }
+            } catch (error) {
+                await interaction.reply({ content: `❌ ${error.message}`, ephemeral: true }).catch(() => {});
+            }
+            return true;
+        }
+        if (interaction.customId.startsWith('econ:dragon:')) {
+            const [, , gameId, action, column] = interaction.customId.split(':');
+            const game = economy.dragonTowerGame(gameId);
+            if (!game || game.status !== 'active') {
+                await interaction.reply({ content: 'This Dragon Tower game is no longer active.', ephemeral: true });
+                return true;
+            }
+            if (game.user_id !== interaction.user.id) {
+                await interaction.reply({ content: 'This is not your Dragon Tower game.', ephemeral: true });
+                return true;
+            }
+            try {
+                const result = action === 'cash'
+                    ? economy.cashOutDragonTower(gameId, interaction.user.id)
+                    : action === 'auto'
+                        ? economy.autoPickDragonTower(gameId, interaction.user.id)
+                        : economy.pickDragonTower(gameId, interaction.user.id, column);
+                await interaction.update(dragonTowerPayload(result, `${interaction.user}`, economy.config.currencyName));
+                if (result.status !== 'active') {
+                    await audit(interaction.guild, 'Dragon Tower result', `${interaction.user} wagered ${money(result.wager)}, cleared ${result.row_number} row(s), and received ${money(result.payout)}.`);
+                }
+            } catch (error) {
+                await interaction.reply({ content: `❌ ${error.message}`, ephemeral: true }).catch(() => {});
+            }
+            return true;
         }
         if (interaction.customId.startsWith('econ:blackjack:')) {
             const [, , gameId, action] = interaction.customId.split(':');
@@ -806,7 +983,7 @@ function createEconomyIntegration(client, economy, options = {}) {
         }
         if (action === 'settings') {
             const c = economy.config;
-            await interaction.reply({ content: `🩸 **Blood Money settings**\nText: ${c.messageRewardMin}-${c.messageRewardMax}, ${c.messageChance}% chance, ${c.messageCooldownSeconds}s cooldown, ${c.messageDailyCap}/day\nMedia: ${c.mediaRewardMin}-${c.mediaRewardMax}, ${c.mediaDailyCap}/day\nVoice: ${c.voiceRewardMin}-${c.voiceRewardMax} every ${c.voiceIntervalMinutes}m, ${c.voiceDailyCap}/day\nDaily: ${c.dailyBase} base, ${c.dailyStreakMaximum} maximum\nBlackjack: ${money(c.blackjackMinimumWager)}-${money(c.blackjackMaximumWager)} opening wager, ${money(c.blackjackDailyCap)}/day\nPoker: ${money(c.pokerMinimumWager)}-${money(c.pokerMaximumWager)} per game, ${money(c.pokerDailyCap)}/day\nDice: ${c.diceJackpotMultiplier}× at ${c.diceJackpotPercent}%, ${c.diceMidMultiplier}× at ${c.diceMidPercent}%, 1× at ${c.diceRefundPercent}%, 0× at ${c.diceLossPercent}%. Maximum wager is 10% of the server's highest current balance.\nGlobal gambling: ${c.gamblingDailyWagerCap || 'unlimited'} wagered/day, ${c.gamblingMaxActionsPerMinute || 'unlimited'} action(s)/minute, ${c.gamblingMaxActionsPerHour || 'unlimited'} action(s)/hour.`, ephemeral: true });
+            await interaction.reply({ content: `🩸 **Blood Money settings**\nText: ${c.messageRewardMin}-${c.messageRewardMax}, ${c.messageChance}% chance, ${c.messageCooldownSeconds}s cooldown, ${c.messageDailyCap}/day\nMedia: ${c.mediaRewardMin}-${c.mediaRewardMax}, ${c.mediaDailyCap}/day\nVoice: ${c.voiceRewardMin}-${c.voiceRewardMax} every ${c.voiceIntervalMinutes}m, ${c.voiceDailyCap}/day\nDaily: ${c.dailyBase} base, ${c.dailyStreakMaximum} maximum\nBlackjack: ${money(c.blackjackMinimumWager)}-${money(c.blackjackMaximumWager)} opening wager, ${money(c.blackjackDailyCap)}/day\nPoker: ${money(c.pokerMinimumWager)}-${money(c.pokerMaximumWager)} per game, ${money(c.pokerDailyCap)}/day\nDice: ${DICE_ODDS_TEXT}. RTP ${(diceExpectedReturn() * 100).toFixed(1)}%; house edge ${(diceHouseEdge() * 100).toFixed(1)}%.\nHigher / Lower: ${HIGHER_LOWER_MULTIPLIERS.join('× · ')}× ladder. RTP 85%; house edge 15%.\nDragon Tower: 4×8; rows 1–5 have 3 eggs, rows 6–8 have 1 egg. Cash out after any cleared row. RTP 85%; house edge 15%.\nProgressive-game and dice maximum wager: 10% of the server's highest current balance.\nGlobal gambling: ${c.gamblingDailyWagerCap || 'unlimited'} wagered/day, ${c.gamblingMaxActionsPerMinute || 'unlimited'} action(s)/minute, ${c.gamblingMaxActionsPerHour || 'unlimited'} action(s)/hour.`, ephemeral: true });
             return;
         }
         if (action === 'disable-gambling' || action === 'enable-gambling') {
@@ -838,7 +1015,7 @@ function createEconomyIntegration(client, economy, options = {}) {
     async function handleCommand(interaction) {
         if (!interaction.isChatInputCommand()) return false;
         const name = interaction.commandName;
-        if (!['balance','leaderboard','daily','economy-stats','pay','dice','poker','blackjack','duel','economy'].includes(name)) return false;
+        if (!['balance','leaderboard','daily','economy-stats','pay','dice','higher-lower','dragon-tower','poker','blackjack','duel','economy'].includes(name)) return false;
         try {
             if (name === 'balance') {
                 const user = interaction.options.getUser('user') || interaction.user;
@@ -871,7 +1048,8 @@ function createEconomyIntegration(client, economy, options = {}) {
                         { name: 'Members', value: money(stats.members), inline: true }, { name: 'In circulation', value: money(stats.circulation), inline: true },
                         { name: 'Richest balance', value: money(stats.richest), inline: true }, { name: 'Lifetime wagered', value: money(stats.wagered), inline: true },
                         { name: 'Transactions', value: money(stats.transactions), inline: true }, { name: 'Active poker games', value: money(stats.activePoker), inline: true },
-                        { name: 'Active blackjack', value: money(stats.activeBlackjack), inline: true }, { name: 'Pending duels', value: money(stats.pendingDuels), inline: true },
+                        { name: 'Active blackjack', value: money(stats.activeBlackjack), inline: true }, { name: 'Active Higher / Lower', value: money(stats.activeHigherLower), inline: true },
+                        { name: 'Active Dragon Tower', value: money(stats.activeDragonTower), inline: true }, { name: 'Pending duels', value: money(stats.pendingDuels), inline: true },
                     )] });
             } else if (name === 'pay') {
                 const user = interaction.options.getUser('user', true);
@@ -889,10 +1067,29 @@ function createEconomyIntegration(client, economy, options = {}) {
                     throw new Error(`Use gambling commands in <#${economy.config.gamblingChannelId}>.`);
                 }
                 const result = economy.dice(interaction.guild.id, interaction.user.id, interaction.options.getInteger('amount', true), interaction.id);
-                await interaction.reply({ embeds: [new Discord.EmbedBuilder().setColor(result.payout ? 0x2ea043 : 0x9b1c31).setTitle(`🎲 Dice · ${result.multiplier}×`)
+                await interaction.reply({ embeds: [new Discord.EmbedBuilder().setColor(result.payout ? 0x2ea043 : 0x9b1c31).setTitle(`🎲 Dice · ${result.outcome} · ${result.multiplier}×`)
                     .setDescription(result.payout ? `You received **${money(result.payout)} ${economy.config.currencyName}**.` : `The house took **${money(result.wager)} ${economy.config.currencyName}**.`)
-                    .addFields({ name: 'Balance', value: money(result.balance), inline: true })] });
+                    .addFields(
+                        { name: 'Outcome chance', value: `${result.odds}%`, inline: true },
+                        { name: 'Balance', value: money(result.balance), inline: true },
+                    )] });
                 await audit(interaction.guild, 'Dice result', `${interaction.user} wagered ${money(result.wager)} and received ${money(result.payout)} (${result.multiplier}×).`);
+            } else if (name === 'higher-lower') {
+                if (economy.config.gamblingChannelId && interaction.channelId !== economy.config.gamblingChannelId) {
+                    throw new Error(`Play Higher / Lower in <#${economy.config.gamblingChannelId}>.`);
+                }
+                const game = economy.startHigherLower(interaction.guild.id, interaction.user.id, interaction.options.getInteger('amount', true), interaction.id);
+                await interaction.reply(higherLowerPayload(game, `${interaction.user}`, economy.config.currencyName));
+                const gameMessage = await interaction.fetchReply();
+                economy.attachHigherLowerMessage(game.game_id, interaction.channelId, gameMessage.id);
+            } else if (name === 'dragon-tower') {
+                if (economy.config.gamblingChannelId && interaction.channelId !== economy.config.gamblingChannelId) {
+                    throw new Error(`Play Dragon Tower in <#${economy.config.gamblingChannelId}>.`);
+                }
+                const game = economy.startDragonTower(interaction.guild.id, interaction.user.id, interaction.options.getInteger('amount', true), interaction.id);
+                await interaction.reply(dragonTowerPayload(game, `${interaction.user}`, economy.config.currencyName));
+                const gameMessage = await interaction.fetchReply();
+                economy.attachDragonTowerMessage(game.game_id, interaction.channelId, gameMessage.id);
             } else if (name === 'poker') {
                 if (economy.config.gamblingChannelId && interaction.channelId !== economy.config.gamblingChannelId) {
                     throw new Error(`Play public poker in <#${economy.config.gamblingChannelId}>.`);

@@ -35,12 +35,6 @@ const DEFAULTS = Object.freeze({
     dailyStreakStep: 100,
     dailyStreakMaximum: 700,
     gamblingEnabled: true,
-    diceJackpotPercent: 1,
-    diceMidPercent: 22,
-    diceRefundPercent: 15,
-    diceLossPercent: 62,
-    diceJackpotMultiplier: 100,
-    diceMidMultiplier: 3,
     gamblingDailyWagerCap: 0,
     gamblingMaxActionsPerMinute: 0,
     gamblingMaxActionsPerHour: 0,
@@ -78,14 +72,63 @@ const RANKS = [
     [0, 'Street Rat'],
 ];
 
-function boundedInt(value, fallback, minimum = 0, maximum = Number.MAX_SAFE_INTEGER) {
-    const parsed = Number.parseInt(value, 10);
-    if (!Number.isFinite(parsed)) return fallback;
-    return Math.max(minimum, Math.min(maximum, parsed));
+const DICE_WEIGHT_TOTAL = 10000;
+const DICE_PAYOUT_TABLE = Object.freeze([
+    Object.freeze({ name: 'House wins', multiplier: 0, weight: 5738 }),
+    Object.freeze({ name: 'Push', multiplier: 1, weight: 2000 }),
+    Object.freeze({ name: 'Double', multiplier: 2, weight: 1500 }),
+    Object.freeze({ name: 'Triple', multiplier: 3, weight: 500 }),
+    Object.freeze({ name: 'Hot roll', multiplier: 5, weight: 200 }),
+    Object.freeze({ name: 'Big win', multiplier: 10, weight: 50 }),
+    Object.freeze({ name: 'High roller', multiplier: 25, weight: 10 }),
+    Object.freeze({ name: 'Jackpot', multiplier: 100, weight: 2 }),
+]);
+
+const HOUSE_GAME_RTP = 0.85;
+const HIGHER_LOWER_MULTIPLIERS = Object.freeze([1.5, 2, 3, 5, 8, 12, 18, 25]);
+const DRAGON_TOWER_COLUMNS = 4;
+const DRAGON_TOWER_ROWS = 8;
+const DRAGON_TOWER_EGGS_PER_ROW = Object.freeze([3, 3, 3, 3, 3, 1, 1, 1]);
+const DRAGON_TOWER_MULTIPLIERS = Object.freeze(DRAGON_TOWER_EGGS_PER_ROW.map((_, index) => {
+    const survival = DRAGON_TOWER_EGGS_PER_ROW.slice(0, index + 1)
+        .reduce((chance, eggs) => chance * (eggs / DRAGON_TOWER_COLUMNS), 1);
+    return HOUSE_GAME_RTP / survival;
+}));
+
+function higherLowerSuccessProbability(step) {
+    const index = boundedInt(step, 0, 0, HIGHER_LOWER_MULTIPLIERS.length - 1);
+    return index === 0
+        ? HOUSE_GAME_RTP / HIGHER_LOWER_MULTIPLIERS[0]
+        : HIGHER_LOWER_MULTIPLIERS[index - 1] / HIGHER_LOWER_MULTIPLIERS[index];
 }
 
-function boundedNumber(value, fallback, minimum = 0, maximum = Number.MAX_SAFE_INTEGER) {
-    const parsed = Number.parseFloat(value);
+function randomizedPayout(value, random = Math.random) {
+    const exact = Math.max(0, Number(value) || 0);
+    const whole = Math.floor(exact);
+    const fraction = exact - whole;
+    return fraction > 0 && random() < fraction ? whole + 1 : whole;
+}
+
+function diceExpectedReturn(table = DICE_PAYOUT_TABLE) {
+    return table.reduce((total, outcome) => total + (outcome.multiplier * outcome.weight), 0) / DICE_WEIGHT_TOTAL;
+}
+
+function diceHouseEdge(table = DICE_PAYOUT_TABLE) {
+    return 1 - diceExpectedReturn(table);
+}
+
+function diceOutcome(randomValue, table = DICE_PAYOUT_TABLE) {
+    const roll = Math.min(DICE_WEIGHT_TOTAL - 1, Math.max(0, Math.floor(Number(randomValue) * DICE_WEIGHT_TOTAL)));
+    let threshold = 0;
+    for (const outcome of table) {
+        threshold += outcome.weight;
+        if (roll < threshold) return { ...outcome, probabilityPercent: outcome.weight / 100, roll };
+    }
+    throw new Error('Dice payout table weights must total exactly 10,000.');
+}
+
+function boundedInt(value, fallback, minimum = 0, maximum = Number.MAX_SAFE_INTEGER) {
+    const parsed = Number.parseInt(value, 10);
     if (!Number.isFinite(parsed)) return fallback;
     return Math.max(minimum, Math.min(maximum, parsed));
 }
@@ -232,12 +275,6 @@ class EconomyService {
             ...raw,
             enabled: raw.enabled !== false,
             gamblingEnabled: raw.gamblingEnabled !== false,
-            diceJackpotPercent: boundedNumber(raw.diceJackpotPercent, 1, 0, 100),
-            diceMidPercent: boundedNumber(raw.diceMidPercent, 22, 0, 100),
-            diceRefundPercent: boundedNumber(raw.diceRefundPercent, 15, 0, 100),
-            diceLossPercent: boundedNumber(raw.diceLossPercent, 62, 0, 100),
-            diceJackpotMultiplier: boundedNumber(raw.diceJackpotMultiplier, 100, 0, 10000),
-            diceMidMultiplier: boundedNumber(raw.diceMidMultiplier, 3, 0, 10000),
             gamblingDailyWagerCap: boundedInt(raw.gamblingDailyWagerCap, 0, 0),
             gamblingMaxActionsPerMinute: boundedInt(raw.gamblingMaxActionsPerMinute, 0, 0, 10000),
             gamblingMaxActionsPerHour: boundedInt(raw.gamblingMaxActionsPerHour, 0, 0, 100000),
@@ -284,12 +321,6 @@ class EconomyService {
         this.config.blackjackDailyCap = Math.max(this.config.blackjackMinimumWager, this.config.blackjackDailyCap);
         this.config.pokerMaximumWager = Math.max(this.config.pokerMinimumWager, this.config.pokerMaximumWager);
         this.config.pokerDailyCap = Math.max(this.config.pokerMinimumWager, this.config.pokerDailyCap);
-        if (Math.abs(this.config.diceJackpotPercent + this.config.diceMidPercent + this.config.diceRefundPercent + this.config.diceLossPercent - 100) > 0.0001) {
-            this.config.diceJackpotPercent = DEFAULTS.diceJackpotPercent;
-            this.config.diceMidPercent = DEFAULTS.diceMidPercent;
-            this.config.diceRefundPercent = DEFAULTS.diceRefundPercent;
-            this.config.diceLossPercent = DEFAULTS.diceLossPercent;
-        }
         this.excludedChannels = csvSet(raw.excludedChannelIds);
         this.mediaChannels = csvSet(raw.mediaChannelIds);
         this.excludedVoiceChannels = csvSet(raw.excludedVoiceChannelIds);
@@ -373,6 +404,23 @@ class EconomyService {
                 created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, completed_at INTEGER
             );
             CREATE UNIQUE INDEX IF NOT EXISTS blackjack_one_active ON blackjack_games(guild_id, user_id) WHERE status='active';
+            CREATE TABLE IF NOT EXISTS higher_lower_games (
+                game_id TEXT PRIMARY KEY, guild_id TEXT NOT NULL, user_id TEXT NOT NULL,
+                wager INTEGER NOT NULL, current_card TEXT NOT NULL, step INTEGER NOT NULL DEFAULT 0,
+                history TEXT NOT NULL DEFAULT '[]', status TEXT NOT NULL, payout INTEGER NOT NULL DEFAULT 0,
+                channel_id TEXT NOT NULL DEFAULT '', message_id TEXT NOT NULL DEFAULT '',
+                interaction_id TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, completed_at INTEGER
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS higher_lower_one_active ON higher_lower_games(guild_id, user_id) WHERE status='active';
+            CREATE TABLE IF NOT EXISTS dragon_tower_games (
+                game_id TEXT PRIMARY KEY, guild_id TEXT NOT NULL, user_id TEXT NOT NULL,
+                wager INTEGER NOT NULL, row_number INTEGER NOT NULL DEFAULT 0,
+                trap_positions TEXT NOT NULL, history TEXT NOT NULL DEFAULT '[]',
+                status TEXT NOT NULL, payout INTEGER NOT NULL DEFAULT 0,
+                channel_id TEXT NOT NULL DEFAULT '', message_id TEXT NOT NULL DEFAULT '',
+                interaction_id TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, completed_at INTEGER
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS dragon_tower_one_active ON dragon_tower_games(guild_id, user_id) WHERE status='active';
             CREATE TABLE IF NOT EXISTS duels (
                 duel_id TEXT PRIMARY KEY, guild_id TEXT NOT NULL,
                 challenger_id TEXT NOT NULL, challenged_id TEXT NOT NULL, wager INTEGER NOT NULL,
@@ -707,18 +755,8 @@ class EconomyService {
                 throw new Error(`Dice maximum wager is ${maximumWager} ${this.config.currencyName} (10% of the server's highest balance).`);
             }
             const reserved = this.reserveWager(guildId, userId, wager, interactionId, `dice:${interactionId}`, now);
-            const roll = this.random() * 100;
-            let multiplier = 0;
-            let threshold = 100 - this.config.diceJackpotPercent;
-            if (roll >= threshold) multiplier = this.config.diceJackpotMultiplier;
-            else {
-                threshold -= this.config.diceMidPercent;
-                if (roll >= threshold) multiplier = this.config.diceMidMultiplier;
-                else {
-                    threshold -= this.config.diceRefundPercent;
-                    if (roll >= threshold) multiplier = 1;
-                }
-            }
+            const outcome = diceOutcome(this.random());
+            const multiplier = outcome.multiplier;
             const payout = Math.floor(reserved.amount * multiplier);
             let balance = reserved.balance;
             if (payout) balance = this.applyDelta(guildId, userId, payout, 'dice-payout', `x${multiplier}`, null, now);
@@ -726,13 +764,252 @@ class EconomyService {
             this.db.prepare(`UPDATE economy_members SET lifetime_won=lifetime_won+?, lifetime_lost=lifetime_lost+?,
                 gambling_wins=gambling_wins+?, gambling_losses=gambling_losses+? WHERE guild_id=? AND user_id=?`)
                 .run(payout, payout === 0 ? reserved.amount : 0, won ? 1 : 0, payout === 0 ? 1 : 0, guildId, userId);
-            return { wager: reserved.amount, multiplier, payout, balance, maximumWager };
+            return {
+                wager: reserved.amount,
+                outcome: outcome.name,
+                odds: outcome.probabilityPercent,
+                multiplier,
+                payout,
+                balance,
+                maximumWager,
+            };
         });
     }
 
     diceMaximumWager(guildId) {
         const highestBalance = this.db.prepare('SELECT COALESCE(MAX(balance),0) AS highest FROM economy_members WHERE guild_id=?').get(guildId).highest;
         return Math.max(1, Math.floor(highestBalance * 0.10));
+    }
+
+    startProgressiveWager(guildId, userId, wager, interactionId, related, now = Date.now()) {
+        const maximumWager = this.diceMaximumWager(guildId);
+        if (boundedInt(wager, 0, 0) > maximumWager) {
+            throw new Error(`Maximum wager is ${maximumWager} ${this.config.currencyName} (10% of the server's highest balance).`);
+        }
+        return { ...this.reserveWager(guildId, userId, wager, interactionId, related, now), maximumWager };
+    }
+
+    higherLowerReferenceCard() {
+        const ranks = ['5', '6', '7', '8', '9', '10'];
+        const suits = ['♠', '♥', '♦', '♣'];
+        return `${ranks[randomInt(0, ranks.length - 1, this.random)]}${suits[randomInt(0, suits.length - 1, this.random)]}`;
+    }
+
+    higherLowerReveal(referenceCard, direction, success) {
+        const ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+        const suits = ['♠', '♥', '♦', '♣'];
+        const referenceRank = referenceCard.slice(0, -1);
+        const referenceValue = ranks.indexOf(referenceRank);
+        const candidates = ranks.filter((rank, index) => {
+            const guessed = direction === 'higher' ? index > referenceValue : index < referenceValue;
+            return success ? guessed : !guessed;
+        });
+        const rank = candidates[randomInt(0, candidates.length - 1, this.random)];
+        const suit = suits[randomInt(0, suits.length - 1, this.random)];
+        return `${rank}${suit}`;
+    }
+
+    higherLowerGame(gameId) {
+        const row = this.db.prepare('SELECT * FROM higher_lower_games WHERE game_id=?').get(gameId);
+        return row ? { ...row, history: JSON.parse(row.history || '[]') } : null;
+    }
+
+    attachHigherLowerMessage(gameId, channelId, messageId) {
+        this.db.prepare('UPDATE higher_lower_games SET channel_id=?,message_id=? WHERE game_id=?').run(channelId, messageId, gameId);
+    }
+
+    startHigherLower(guildId, userId, wager, interactionId, now = Date.now()) {
+        return this.transaction(() => {
+            if (this.db.prepare("SELECT 1 FROM higher_lower_games WHERE guild_id=? AND user_id=? AND status='active'").get(guildId, userId)) {
+                throw new Error('Finish your active Higher / Lower game first.');
+            }
+            const gameId = crypto.randomUUID();
+            const reserved = this.startProgressiveWager(guildId, userId, wager, interactionId, `higher-lower:${gameId}`, now);
+            const currentCard = this.higherLowerReferenceCard();
+            this.db.prepare(`INSERT INTO higher_lower_games
+                (game_id,guild_id,user_id,wager,current_card,status,interaction_id,created_at,updated_at)
+                VALUES(?,?,?,?,?,'active',?,?,?)`)
+                .run(gameId, guildId, userId, reserved.amount, currentCard, interactionId, now, now);
+            return { ...this.higherLowerGame(gameId), balance: reserved.balance, maximumWager: reserved.maximumWager };
+        });
+    }
+
+    finishHigherLower(game, now = Date.now(), status = 'cashed-out') {
+        if (game.step < 1) {
+            this.db.prepare(`UPDATE higher_lower_games SET status='lost',completed_at=?,updated_at=? WHERE game_id=? AND status='active'`)
+                .run(now, now, game.game_id);
+            this.db.prepare(`UPDATE economy_members SET lifetime_lost=lifetime_lost+?,gambling_losses=gambling_losses+1
+                WHERE guild_id=? AND user_id=?`).run(game.wager, game.guild_id, game.user_id);
+            return { ...this.higherLowerGame(game.game_id), multiplier: 0, payout: 0, balance: this.member(game.guild_id, game.user_id).balance };
+        }
+        const multiplier = HIGHER_LOWER_MULTIPLIERS[game.step - 1];
+        const payout = randomizedPayout(game.wager * multiplier, this.random);
+        const balance = this.applyDelta(game.guild_id, game.user_id, payout, 'higher-lower-payout', game.game_id, null, now);
+        this.db.prepare(`UPDATE economy_members SET lifetime_won=lifetime_won+?,gambling_wins=gambling_wins+1
+            WHERE guild_id=? AND user_id=?`).run(payout, game.guild_id, game.user_id);
+        this.db.prepare(`UPDATE higher_lower_games SET status=?,payout=?,completed_at=?,updated_at=? WHERE game_id=? AND status='active'`)
+            .run(status, payout, now, now, game.game_id);
+        return { ...this.higherLowerGame(game.game_id), multiplier, payout, balance };
+    }
+
+    playHigherLower(gameId, userId, direction, now = Date.now()) {
+        return this.transaction(() => {
+            const game = this.higherLowerGame(gameId);
+            if (!game || game.status !== 'active') throw new Error('This Higher / Lower game is no longer active.');
+            if (game.user_id !== userId) throw new Error('This is not your Higher / Lower game.');
+            if (!['higher', 'lower'].includes(direction)) throw new Error('Choose Higher or Lower.');
+            const successChance = higherLowerSuccessProbability(game.step);
+            const success = this.random() < successChance;
+            const revealedCard = this.higherLowerReveal(game.current_card, direction, success);
+            const history = [...game.history, { reference: game.current_card, direction, revealed: revealedCard, success }];
+            if (!success) {
+                this.db.prepare(`UPDATE higher_lower_games SET history=?,status='lost',completed_at=?,updated_at=?
+                    WHERE game_id=? AND status='active'`).run(JSON.stringify(history), now, now, gameId);
+                this.db.prepare(`UPDATE economy_members SET lifetime_lost=lifetime_lost+?,gambling_losses=gambling_losses+1
+                    WHERE guild_id=? AND user_id=?`).run(game.wager, game.guild_id, game.user_id);
+                return { ...this.higherLowerGame(gameId), revealedCard, success: false, multiplier: 0, balance: this.member(game.guild_id, userId).balance };
+            }
+            const step = game.step + 1;
+            const currentCard = this.higherLowerReferenceCard();
+            this.db.prepare('UPDATE higher_lower_games SET current_card=?,step=?,history=?,updated_at=? WHERE game_id=? AND status=\'active\'')
+                .run(currentCard, step, JSON.stringify(history), now, gameId);
+            const updated = this.higherLowerGame(gameId);
+            if (step === HIGHER_LOWER_MULTIPLIERS.length) {
+                return { ...this.finishHigherLower(updated, now, 'completed'), revealedCard, success: true };
+            }
+            return {
+                ...updated,
+                revealedCard,
+                success: true,
+                multiplier: HIGHER_LOWER_MULTIPLIERS[step - 1],
+                nextMultiplier: HIGHER_LOWER_MULTIPLIERS[step],
+                nextSuccessChance: higherLowerSuccessProbability(step) * 100,
+                balance: this.member(game.guild_id, userId).balance,
+            };
+        });
+    }
+
+    cashOutHigherLower(gameId, userId, now = Date.now()) {
+        return this.transaction(() => {
+            const game = this.higherLowerGame(gameId);
+            if (!game || game.status !== 'active') throw new Error('This Higher / Lower game is no longer active.');
+            if (game.user_id !== userId) throw new Error('This is not your Higher / Lower game.');
+            if (game.step < 1) throw new Error('Win at least one card before cashing out.');
+            return this.finishHigherLower(game, now);
+        });
+    }
+
+    dragonTowerGame(gameId) {
+        const row = this.db.prepare('SELECT * FROM dragon_tower_games WHERE game_id=?').get(gameId);
+        return row ? {
+            ...row,
+            trapPositions: JSON.parse(row.trap_positions),
+            history: JSON.parse(row.history || '[]'),
+            multiplier: row.row_number > 0 ? DRAGON_TOWER_MULTIPLIERS[row.row_number - 1] : 0,
+            nextMultiplier: row.row_number < DRAGON_TOWER_ROWS ? DRAGON_TOWER_MULTIPLIERS[row.row_number] : null,
+        } : null;
+    }
+
+    attachDragonTowerMessage(gameId, channelId, messageId) {
+        this.db.prepare('UPDATE dragon_tower_games SET channel_id=?,message_id=? WHERE game_id=?').run(channelId, messageId, gameId);
+    }
+
+    startDragonTower(guildId, userId, wager, interactionId, now = Date.now()) {
+        return this.transaction(() => {
+            if (this.db.prepare("SELECT 1 FROM dragon_tower_games WHERE guild_id=? AND user_id=? AND status='active'").get(guildId, userId)) {
+                throw new Error('Finish your active Dragon Tower first.');
+            }
+            const gameId = crypto.randomUUID();
+            const reserved = this.startProgressiveWager(guildId, userId, wager, interactionId, `dragon-tower:${gameId}`, now);
+            const traps = DRAGON_TOWER_EGGS_PER_ROW.map(eggs => {
+                const columns = Array.from({ length: DRAGON_TOWER_COLUMNS }, (_, column) => column);
+                for (let index = columns.length - 1; index > 0; index -= 1) {
+                    const other = randomInt(0, index, this.random);
+                    [columns[index], columns[other]] = [columns[other], columns[index]];
+                }
+                return columns.slice(0, DRAGON_TOWER_COLUMNS - eggs).sort();
+            });
+            this.db.prepare(`INSERT INTO dragon_tower_games
+                (game_id,guild_id,user_id,wager,trap_positions,status,interaction_id,created_at,updated_at)
+                VALUES(?,?,?,?,?,'active',?,?,?)`)
+                .run(gameId, guildId, userId, reserved.amount, JSON.stringify(traps), interactionId, now, now);
+            return { ...this.dragonTowerGame(gameId), balance: reserved.balance, maximumWager: reserved.maximumWager };
+        });
+    }
+
+    finishDragonTower(game, now = Date.now(), status = 'cashed-out') {
+        if (game.row_number < 1) {
+            this.db.prepare(`UPDATE dragon_tower_games SET status='lost',completed_at=?,updated_at=? WHERE game_id=? AND status='active'`)
+                .run(now, now, game.game_id);
+            this.db.prepare(`UPDATE economy_members SET lifetime_lost=lifetime_lost+?,gambling_losses=gambling_losses+1
+                WHERE guild_id=? AND user_id=?`).run(game.wager, game.guild_id, game.user_id);
+            return { ...this.dragonTowerGame(game.game_id), multiplier: 0, payout: 0, balance: this.member(game.guild_id, game.user_id).balance };
+        }
+        const multiplier = DRAGON_TOWER_MULTIPLIERS[game.row_number - 1];
+        const payout = randomizedPayout(game.wager * multiplier, this.random);
+        const balance = this.applyDelta(game.guild_id, game.user_id, payout, 'dragon-tower-payout', game.game_id, null, now);
+        this.db.prepare(`UPDATE economy_members SET lifetime_won=lifetime_won+?,gambling_wins=gambling_wins+1
+            WHERE guild_id=? AND user_id=?`).run(payout, game.guild_id, game.user_id);
+        this.db.prepare(`UPDATE dragon_tower_games SET status=?,payout=?,completed_at=?,updated_at=? WHERE game_id=? AND status='active'`)
+            .run(status, payout, now, now, game.game_id);
+        return { ...this.dragonTowerGame(game.game_id), multiplier, payout, balance };
+    }
+
+    pickDragonTower(gameId, userId, column, now = Date.now()) {
+        return this.transaction(() => {
+            const game = this.dragonTowerGame(gameId);
+            if (!game || game.status !== 'active') throw new Error('This Dragon Tower game is no longer active.');
+            if (game.user_id !== userId) throw new Error('This is not your Dragon Tower game.');
+            const selected = boundedInt(column, -1, -1, DRAGON_TOWER_COLUMNS - 1);
+            if (selected < 0) throw new Error('Choose a valid tower tile.');
+            const traps = game.trapPositions[game.row_number];
+            const success = !traps.includes(selected);
+            const history = [...game.history, { row: game.row_number, selected, traps, success }];
+            if (!success) {
+                this.db.prepare(`UPDATE dragon_tower_games SET history=?,status='lost',completed_at=?,updated_at=?
+                    WHERE game_id=? AND status='active'`).run(JSON.stringify(history), now, now, gameId);
+                this.db.prepare(`UPDATE economy_members SET lifetime_lost=lifetime_lost+?,gambling_losses=gambling_losses+1
+                    WHERE guild_id=? AND user_id=?`).run(game.wager, game.guild_id, game.user_id);
+                return { ...this.dragonTowerGame(gameId), success: false, selected, traps, multiplier: 0, balance: this.member(game.guild_id, userId).balance };
+            }
+            const rowNumber = game.row_number + 1;
+            this.db.prepare('UPDATE dragon_tower_games SET row_number=?,history=?,updated_at=? WHERE game_id=? AND status=\'active\'')
+                .run(rowNumber, JSON.stringify(history), now, gameId);
+            const updated = this.dragonTowerGame(gameId);
+            if (rowNumber === DRAGON_TOWER_ROWS) return { ...this.finishDragonTower(updated, now, 'completed'), success: true, selected, traps };
+            return { ...updated, success: true, selected, traps, balance: this.member(game.guild_id, userId).balance };
+        });
+    }
+
+    autoPickDragonTower(gameId, userId, now = Date.now()) {
+        return this.pickDragonTower(gameId, userId, randomInt(0, DRAGON_TOWER_COLUMNS - 1, this.random), now);
+    }
+
+    cashOutDragonTower(gameId, userId, now = Date.now()) {
+        return this.transaction(() => {
+            const game = this.dragonTowerGame(gameId);
+            if (!game || game.status !== 'active') throw new Error('This Dragon Tower game is no longer active.');
+            if (game.user_id !== userId) throw new Error('This is not your Dragon Tower game.');
+            if (game.row_number < 1) throw new Error('Find at least one egg before cashing out.');
+            return this.finishDragonTower(game, now);
+        });
+    }
+
+    expireProgressiveGames(now = Date.now()) {
+        const cutoff = now - 120_000;
+        const higherLower = this.db.prepare("SELECT game_id,user_id,step FROM higher_lower_games WHERE status='active' AND updated_at<=?").all(cutoff)
+            .map(game => {
+                try {
+                    return game.step > 0 ? this.cashOutHigherLower(game.game_id, game.user_id, now) : this.transaction(() => this.finishHigherLower(this.higherLowerGame(game.game_id), now, 'expired'));
+                } catch { return null; }
+            }).filter(Boolean);
+        const dragonTower = this.db.prepare("SELECT game_id,user_id,row_number FROM dragon_tower_games WHERE status='active' AND updated_at<=?").all(cutoff)
+            .map(game => {
+                try {
+                    return game.row_number > 0 ? this.cashOutDragonTower(game.game_id, game.user_id, now) : this.transaction(() => this.finishDragonTower(this.dragonTowerGame(game.game_id), now, 'expired'));
+                } catch { return null; }
+            }).filter(Boolean);
+        return { higherLower, dragonTower };
     }
 
     pay(guildId, senderId, receiverId, amountValue, interactionId, now = Date.now()) {
@@ -1543,6 +1820,8 @@ class EconomyService {
             this.db.prepare('UPDATE economy_members SET balance=0,updated_at=? WHERE guild_id=?').run(now, guildId);
             this.db.prepare("UPDATE poker_games SET status='cancelled',completed_at=? WHERE guild_id=? AND status='active'").run(now, guildId);
             this.db.prepare("UPDATE blackjack_games SET status='cancelled',completed_at=? WHERE guild_id=? AND status='active'").run(now, guildId);
+            this.db.prepare("UPDATE higher_lower_games SET status='cancelled',completed_at=? WHERE guild_id=? AND status='active'").run(now, guildId);
+            this.db.prepare("UPDATE dragon_tower_games SET status='cancelled',completed_at=? WHERE guild_id=? AND status='active'").run(now, guildId);
             this.db.prepare("UPDATE duels SET status='cancelled',completed_at=? WHERE guild_id=? AND status='pending'").run(now, guildId);
             this.db.prepare("UPDATE heist_rounds SET status='cancelled',completed_at=? WHERE guild_id=? AND status='signup'").run(now, guildId);
             this.setSetting(guildId, 'active_month', currentMonth);
@@ -1557,8 +1836,10 @@ class EconomyService {
         const transactions = this.db.prepare('SELECT COUNT(*) AS total FROM economy_transactions WHERE guild_id=?').get(guildId).total;
         const activePoker = this.db.prepare("SELECT COUNT(*) AS total FROM poker_games WHERE guild_id=? AND status='active'").get(guildId).total;
         const activeBlackjack = this.db.prepare("SELECT COUNT(*) AS total FROM blackjack_games WHERE guild_id=? AND status='active'").get(guildId).total;
+        const activeHigherLower = this.db.prepare("SELECT COUNT(*) AS total FROM higher_lower_games WHERE guild_id=? AND status='active'").get(guildId).total;
+        const activeDragonTower = this.db.prepare("SELECT COUNT(*) AS total FROM dragon_tower_games WHERE guild_id=? AND status='active'").get(guildId).total;
         const pendingDuels = this.db.prepare("SELECT COUNT(*) AS total FROM duels WHERE guild_id=? AND status='pending'").get(guildId).total;
-        return { ...totals, transactions, activePoker, activeBlackjack, pendingDuels, database: this.dbPath, currencyName: this.config.currencyName };
+        return { ...totals, transactions, activePoker, activeBlackjack, activeHigherLower, activeDragonTower, pendingDuels, database: this.dbPath, currencyName: this.config.currencyName };
     }
 
     resetBeta(guildId, now = Date.now()) {
@@ -1568,6 +1849,8 @@ class EconomyService {
             this.db.prepare('DELETE FROM heist_entries WHERE guild_id=?').run(guildId);
             this.db.prepare('DELETE FROM heist_rounds WHERE guild_id=?').run(guildId);
             this.db.prepare('DELETE FROM duels WHERE guild_id=?').run(guildId);
+            this.db.prepare('DELETE FROM dragon_tower_games WHERE guild_id=?').run(guildId);
+            this.db.prepare('DELETE FROM higher_lower_games WHERE guild_id=?').run(guildId);
             this.db.prepare('DELETE FROM blackjack_games WHERE guild_id=?').run(guildId);
             this.db.prepare('DELETE FROM poker_games WHERE guild_id=?').run(guildId);
             this.db.prepare('DELETE FROM economy_media WHERE guild_id=?').run(guildId);
@@ -1583,6 +1866,8 @@ class EconomyService {
                 transactionsCleared: before.transactions,
                 pokerGamesCleared: before.activePoker,
                 blackjackGamesCleared: before.activeBlackjack,
+                higherLowerGamesCleared: before.activeHigherLower,
+                dragonTowerGamesCleared: before.activeDragonTower,
                 duelsCleared: before.pendingDuels,
                 heistRoundsCleared: heistRounds,
                 circulationCleared: before.circulation,
@@ -1635,4 +1920,26 @@ class EconomyService {
     }
 }
 
-module.exports = { EconomyService, DEFAULTS, normalizeMessage, similarity, rankFor, repMonthKey, blackjackHand, blackjackPayout };
+module.exports = {
+    EconomyService,
+    DEFAULTS,
+    DICE_WEIGHT_TOTAL,
+    DICE_PAYOUT_TABLE,
+    HOUSE_GAME_RTP,
+    HIGHER_LOWER_MULTIPLIERS,
+    DRAGON_TOWER_COLUMNS,
+    DRAGON_TOWER_ROWS,
+    DRAGON_TOWER_EGGS_PER_ROW,
+    DRAGON_TOWER_MULTIPLIERS,
+    diceExpectedReturn,
+    diceHouseEdge,
+    diceOutcome,
+    higherLowerSuccessProbability,
+    randomizedPayout,
+    normalizeMessage,
+    similarity,
+    rankFor,
+    repMonthKey,
+    blackjackHand,
+    blackjackPayout,
+};
