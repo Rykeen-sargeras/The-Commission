@@ -1,41 +1,22 @@
 'use strict';
 
 const Discord = require('discord.js');
+const { GOING_LIVE_COMMAND, GUILD_ID } = require('./going_live');
 
-const COMMAND = {
-  name: 'goinglive',
-  description: 'Add your upcoming stream to the Misfit Mafia live schedule',
-  options: [
-    { type: Discord.ApplicationCommandOptionType.String, name: 'date', description: 'Date: MM/DD or YYYY-MM-DD', required: true },
-    { type: Discord.ApplicationCommandOptionType.String, name: 'time', description: 'Time: 7, 7:30, 11:45, etc.', required: true },
-    {
-      type: Discord.ApplicationCommandOptionType.String,
-      name: 'am_pm',
-      description: 'AM or PM (Eastern Time)',
-      required: true,
-      choices: [
-        { name: 'AM', value: 'AM' },
-        { name: 'PM', value: 'PM' }
-      ]
-    },
-    { type: Discord.ApplicationCommandOptionType.String, name: 'show', description: 'Stream/show title', required: false, maxLength: 80 },
-    { type: Discord.ApplicationCommandOptionType.String, name: 'link', description: 'YouTube, Kick, Twitch, etc. stream/channel URL', required: false, maxLength: 250 }
-  ]
-};
+const CLIENT_READY = Discord.Events?.ClientReady || 'ready';
 
 async function ensureGoingLive(client) {
   if (!client?.isReady?.()) return;
-  for (const guild of client.guilds.cache.values()) {
-    try {
-      const commands = await guild.commands.fetch();
-      const existing = commands.find(c => c.name === 'goinglive');
-      if (!existing) {
-        await guild.commands.create(COMMAND);
-        console.log(`✅ /goinglive command restored for guild: ${guild.name}`);
-      }
-    } catch (error) {
-      console.error(`[Going Live] Could not verify slash command in ${guild.name}:`, error.message);
+  try {
+    const guild = await client.guilds.fetch(GUILD_ID);
+    const commands = await guild.commands.fetch();
+    const existing = commands.find(command => command.name === GOING_LIVE_COMMAND.name);
+    if (!existing) {
+      await guild.commands.create(GOING_LIVE_COMMAND);
+      console.log(`✅ /goinglive command restored for guild: ${guild.name}`);
     }
+  } catch (error) {
+    console.error(`[Going Live] Could not verify slash command in guild ${GUILD_ID}:`, error.message);
   }
 }
 
@@ -47,7 +28,7 @@ function installGuard() {
   const previousLogin = proto.login;
   proto.login = function(...args) {
     const client = this;
-    client.once(Discord.Events.ClientReady, () => {
+    client.once(CLIENT_READY, () => {
       // The core Commission registrar clears/rebuilds commands during startup.
       // Check after that workflow has had time to finish, then keep guarding it.
       setTimeout(() => ensureGoingLive(client), 10_000).unref?.();
@@ -58,4 +39,4 @@ function installGuard() {
   };
 }
 
-module.exports = { installGuard, ensureGoingLive, COMMAND };
+module.exports = { installGuard, ensureGoingLive, COMMAND: GOING_LIVE_COMMAND };

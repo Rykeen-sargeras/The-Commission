@@ -19,6 +19,18 @@ The Commission is a Windows control panel for the existing Discord protection bo
 - Local persistence under the current Windows user's application-data folder
 - Integrated MemberBridge for official YouTube channel-membership verification and permanent level-ID → Discord role-ID mapping
 
+- `/goinglive` Eastern Time stream scheduling with conflict resolution, a persistent Discord board, and a public hosted schedule
+
+## Going Live schedule
+
+Streamers use `/goinglive` with a date, time, required AM/PM choice, and optional show title and stream link. Times are interpreted in `America/New_York`, so EST/EDT daylight-saving changes are handled automatically.
+
+The bot maintains one persistent schedule message in the configured Going Live channel. When a streamer requests an occupied time, the person already scheduled receives a direct-message choice to keep the slot or adjust it. The requester can keep the overlap or remove the pending request and choose another time. If the original streamer adjusts and no other conflict remains, the waiting request is confirmed automatically.
+
+The public Railway display is available at `/going-live` (for example, `https://YOUR-DOMAIN.up.railway.app/going-live`) and refreshes every 30 seconds. Its JSON feed is `/api/going-live`. The Discord board and web display roll over at 5:00 AM Eastern every day; stale active and pending entries from the previous schedule day are removed.
+
+Configure `GOING_LIVE_GUILD_ID` and `GOING_LIVE_CHANNEL_ID`. The supplied examples target guild `1532503754350264571` and channel `1532513768855175279`. On Railway, mount a persistent volume at `DATA_DIR=/data` so the schedule and persistent board message ID survive redeploys.
+
 ## First run
 
 1. Install and open **The Commission**.
