@@ -4,20 +4,17 @@ const fs = require('fs');
 const path = require('path');
 const http = require('http');
 const childProcess = require('child_process');
+const {
+  ZONE,
+  RESET_HOUR,
+  operationalDate,
+  pruneForDailyReset,
+  normalizeLink,
+} = require('./going_live_time');
 
 const dataDir = process.env.DATA_DIR || path.join(process.cwd(), 'data');
 const scheduleFile = path.join(dataDir, 'going-live-schedule.json');
 const resetFile = path.join(dataDir, 'going-live-reset.json');
-const zone = 'America/New_York';
-
-function easternParts() {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: zone, year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', hour12: false
-  }).formatToParts(new Date());
-  const m = Object.fromEntries(parts.map(p => [p.type, p.value]));
-  return { date: `${m.year}-${m.month}-${m.day}`, hour: Number(m.hour === '24' ? '0' : m.hour), minute: Number(m.minute) };
-}
 
 function readJson(file, fallback) {
   try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return fallback; }
@@ -31,15 +28,16 @@ function writeJson(file, value) {
 }
 
 function dailyReset() {
-  const now = easternParts();
-  if (now.hour < 5) return;
+  const now = new Date();
+  const scheduleDate = operationalDate(now);
   const reset = readJson(resetFile, {});
-  if (reset.lastReset === now.date) return;
+  if (reset.lastReset === scheduleDate) return false;
   const store = readJson(scheduleFile, { entries: [], boardMessageId: '' });
-  store.entries = (store.entries || []).filter(e => String(e.date || '') >= now.date);
+  store.entries = pruneForDailyReset(store.entries, now);
   writeJson(scheduleFile, store);
-  writeJson(resetFile, { lastReset: now.date, resetAt: new Date().toISOString(), zone });
-  console.log(`[Going Live] Daily 5:00 AM ET board reset completed for ${now.date}.`);
+  writeJson(resetFile, { lastReset: scheduleDate, resetAt: now.toISOString(), zone: ZONE });
+  console.log(`[Going Live] Daily ${RESET_HOUR}:00 AM ET board reset completed for ${scheduleDate}.`);
+  return true;
 }
 
 function scheduleEntries() {
@@ -52,6 +50,10 @@ function scheduleEntries() {
 
 function esc(v) {
   return String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function safeLink(value) {
+  try { return normalizeLink(value); } catch { return ''; }
 }
 
 function schedulePage() {
@@ -68,10 +70,10 @@ function schedulePage() {
 function apiPayload() {
   const entries = scheduleEntries().map(e => ({
     id: e.id, userId: e.userId, username: e.username, date: e.date, hm: e.hm,
-    displayTime: e.displayTime, title: e.title || '', link: e.link || '',
+    displayTime: e.displayTime, title: e.title || '', link: safeLink(e.link),
     prettyDate: (() => { try { const [y,m,d]=e.date.split('-').map(Number); return new Intl.DateTimeFormat('en-US',{weekday:'long',month:'long',day:'numeric',timeZone:'UTC'}).format(new Date(Date.UTC(y,m-1,d))); } catch { return e.date; } })()
   }));
-  return { ok: true, timeZone: 'America/New_York', resetHour: 5, generatedAt: new Date().toISOString(), entries };
+  return { ok: true, timeZone: ZONE, resetHour: RESET_HOUR, generatedAt: new Date().toISOString(), entries };
 }
 
 const originalCreateServer = http.createServer;

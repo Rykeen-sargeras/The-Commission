@@ -4,12 +4,21 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const Discord = require('discord.js');
+const {
+  ZONE,
+  easternParts,
+  pruneForDailyReset,
+  normalizeDate,
+  normalizeTime,
+  normalizeLink,
+} = require('./going_live_time');
 
 const GUILD_ID = process.env.GOING_LIVE_GUILD_ID || '1532503754350264571';
 const BOARD_CHANNEL_ID = process.env.GOING_LIVE_CHANNEL_ID || '1532513768855175279';
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const FILE = path.join(DATA_DIR, 'going-live-schedule.json');
-const ZONE = 'America/New_York';
+const INTERACTION_CREATE = Discord.Events?.InteractionCreate || 'interactionCreate';
+const CLIENT_READY = Discord.Events?.ClientReady || 'ready';
 
 fs.mkdirSync(DATA_DIR, { recursive: true });
 
@@ -28,52 +37,9 @@ function writeStore(store) {
   fs.renameSync(tmp, FILE);
 }
 
-function easternNowParts() {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: ZONE, year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', hour12: false
-  }).formatToParts(new Date());
-  const map = Object.fromEntries(parts.map(p => [p.type, p.value]));
-  return { date: `${map.year}-${map.month}-${map.day}`, hm: `${map.hour === '24' ? '00' : map.hour}:${map.minute}` };
-}
-
-function normalizeDate(input) {
-  const raw = String(input || '').trim();
-  let y, m, d;
-  if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(raw)) {
-    [y, m, d] = raw.split('-').map(Number);
-  } else if (/^\d{1,2}\/\d{1,2}(?:\/\d{2,4})?$/.test(raw)) {
-    const p = raw.split('/').map(Number);
-    m = p[0]; d = p[1];
-    if (p[2]) y = p[2] < 100 ? 2000 + p[2] : p[2];
-    else y = Number(easternNowParts().date.slice(0,4));
-  } else {
-    throw new Error('Date must be YYYY-MM-DD or MM/DD.');
-  }
-  const check = new Date(Date.UTC(y, m - 1, d));
-  if (check.getUTCFullYear() !== y || check.getUTCMonth() !== m - 1 || check.getUTCDate() !== d) throw new Error('That date is not valid.');
-  return `${String(y).padStart(4,'0')}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-}
-
-function normalizeTime(input, ampm) {
-  const raw = String(input || '').trim().replace(/\s+/g, '');
-  const match = raw.match(/^(\d{1,2})(?::(\d{2}))?$/);
-  if (!match) throw new Error('Time must look like 7, 7:30, 11, or 11:45.');
-  let hour = Number(match[1]);
-  const minute = Number(match[2] || 0);
-  const period = String(ampm || '').toUpperCase();
-  if (hour < 1 || hour > 12 || minute < 0 || minute > 59 || !['AM','PM'].includes(period)) throw new Error('Enter a valid 12-hour time and choose AM or PM.');
-  const display = `${hour}:${String(minute).padStart(2,'0')} ${period}`;
-  if (period === 'AM') hour = hour === 12 ? 0 : hour;
-  else hour = hour === 12 ? 12 : hour + 12;
-  return { display, hm: `${String(hour).padStart(2,'0')}:${String(minute).padStart(2,'0')}` };
-}
-
 function cleanup(store) {
-  const now = easternNowParts();
-  const cutoff = `${now.date} ${now.hm}`;
   const before = store.entries.length;
-  store.entries = store.entries.filter(e => e.status === 'pending' || `${e.date} ${e.hm}` >= cutoff);
+  store.entries = pruneForDailyReset(store.entries);
   if (store.entries.length !== before) writeStore(store);
   return store;
 }
@@ -88,17 +54,31 @@ function prettyDate(date) {
   return new Intl.DateTimeFormat('en-US',{weekday:'short',month:'short',day:'numeric',timeZone:'UTC'}).format(new Date(Date.UTC(y,m-1,d)));
 }
 
+function safeLink(value) {
+  try { return normalizeLink(value); } catch { return ''; }
+}
+
 function boardEmbed(entries) {
-  const lines = entries.slice(0, 35).map((e, i) => {
+  const lines = entries.map((e, i) => {
     const conflict = entries.some((x,j) => j !== i && x.date === e.date && x.hm === e.hm) ? ' ⚠️' : '';
-    const link = e.link ? ` • [Watch](${e.link})` : '';
+    const linkUrl = safeLink(e.link);
+    const link = linkUrl ? ` • [Watch](${linkUrl})` : '';
     const title = e.title ? ` — **${e.title}**` : '';
     return `**${prettyDate(e.date)} • ${e.displayTime} ET**${conflict}\n<@${e.userId}>${title}${link}`;
   });
+  const visible = [];
+  let descriptionLength = 0;
+  for (const line of lines) {
+    if (descriptionLength + line.length + 2 > 3_850) break;
+    visible.push(line);
+    descriptionLength += line.length + 2;
+  }
+  if (visible.length < lines.length) visible.push(`*…and ${lines.length - visible.length} more scheduled stream(s).*`);
+
   return new Discord.EmbedBuilder()
     .setColor('#b21f38')
     .setTitle('📺 Who’s Going Live')
-    .setDescription(lines.length ? lines.join('\n\n') : 'No upcoming streams are scheduled yet. Use **/goinglive** to claim a time.')
+    .setDescription(visible.length ? visible.join('\n\n') : 'No upcoming streams are scheduled yet. Use **/goinglive** to claim a time.')
     .setFooter({ text: 'All schedule times are Eastern Time • Board resets daily at 5:00 AM ET' })
     .setTimestamp();
 }
@@ -162,34 +142,67 @@ async function notifyConflict(client, existing, newcomer) {
   const user = await client.users.fetch(existing.userId).catch(() => null);
   if (!user) return;
   const row = new Discord.ActionRowBuilder().addComponents(
-    new Discord.ButtonBuilder().setCustomId(`gl:keep:${existing.id}`).setLabel('Keep My Slot').setStyle(Discord.ButtonStyle.Primary),
-    new Discord.ButtonBuilder().setCustomId(`gl:release:${existing.id}`).setLabel('Release My Slot').setStyle(Discord.ButtonStyle.Secondary)
+    new Discord.ButtonBuilder().setCustomId(`gl:keep:${existing.id}:${newcomer.id}`).setLabel('Keep My Slot').setStyle(Discord.ButtonStyle.Primary),
+    new Discord.ButtonBuilder().setCustomId(`gl:adjust:${existing.id}:${newcomer.id}`).setLabel('Adjust My Time').setStyle(Discord.ButtonStyle.Secondary)
   );
   await user.send({
-    content: `⚠️ **Going Live schedule conflict**\n<@${newcomer.userId}> requested **${prettyDate(newcomer.date)} at ${newcomer.displayTime} ET**, which matches your scheduled time. You can keep your slot or release it.`,
+    content: `⚠️ **Going Live schedule conflict**\n<@${newcomer.userId}> requested **${prettyDate(newcomer.date)} at ${newcomer.displayTime} ET**, which matches your scheduled time. You can keep your slot or adjust to another time.`,
     components: [row], allowedMentions: { parse: [] }
   }).catch(() => null);
 }
 
+async function notifyUser(client, userId, content) {
+  const user = await client.users.fetch(userId).catch(() => null);
+  if (user) await user.send({ content, allowedMentions: { parse: [] } }).catch(() => null);
+}
+
+function activateEntry(store, entry) {
+  store.entries = store.entries.filter(candidate => !(
+    candidate.id !== entry.id
+    && candidate.status === 'active'
+    && candidate.userId === entry.userId
+    && candidate.date === entry.date
+  ));
+  entry.status = 'active';
+}
+
+function remainingConflicts(store, entry) {
+  return store.entries.filter(candidate => candidate.status === 'active'
+    && candidate.id !== entry.id
+    && candidate.userId !== entry.userId
+    && candidate.date === entry.date
+    && candidate.hm === entry.hm);
+}
+
+function promoteOldestPendingForSlot(store, date, hm) {
+  const candidate = store.entries
+    .filter(entry => entry.status === 'pending' && entry.date === date && entry.hm === hm)
+    .sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)))[0];
+  if (!candidate || remainingConflicts(store, candidate).length) return null;
+  activateEntry(store, candidate);
+  return candidate;
+}
+
 async function handleGoingLive(interaction, client) {
   try {
+    await interaction.deferReply({ ephemeral: true });
     const date = normalizeDate(interaction.options.getString('date'));
     const time = normalizeTime(interaction.options.getString('time'), interaction.options.getString('am_pm'));
-    const now = easternNowParts();
-    if (`${date} ${time.hm}` < `${now.date} ${now.hm}`) return interaction.reply({ content: 'That time has already passed in Eastern Time. Pick an upcoming time.', ephemeral: true });
+    const now = easternParts();
+    if (`${date} ${time.hm}` < `${now.date} ${now.hm}`) return interaction.editReply({ content: 'That time has already passed in Eastern Time. Pick an upcoming time.' });
 
     const store = cleanup(readStore());
     const entry = {
       id: crypto.randomUUID().slice(0,12), userId: interaction.user.id,
       username: interaction.user.globalName || interaction.user.username,
       date, hm: time.hm, displayTime: time.display,
-      title: interaction.options.getString('show') || '',
-      link: interaction.options.getString('link') || '',
+      title: String(interaction.options.getString('show') || '').trim(),
+      link: normalizeLink(interaction.options.getString('link')),
       createdAt: new Date().toISOString(), status: 'active'
     };
     const conflicts = store.entries.filter(e => e.status === 'active' && e.date === date && e.hm === time.hm && e.userId !== interaction.user.id);
     const own = store.entries.find(e => e.status === 'active' && e.userId === interaction.user.id && e.date === date && e.hm === time.hm);
-    if (own) return interaction.reply({ content: `You are already scheduled for **${prettyDate(date)} at ${time.display} ET**.`, ephemeral: true });
+    if (own) return interaction.editReply({ content: `You are already scheduled for **${prettyDate(date)} at ${time.display} ET**.` });
 
     if (conflicts.length) {
       entry.status = 'pending';
@@ -199,49 +212,76 @@ async function handleGoingLive(interaction, client) {
         new Discord.ButtonBuilder().setCustomId(`gl:anyway:${entry.id}`).setLabel('Keep Anyway').setStyle(Discord.ButtonStyle.Danger),
         new Discord.ButtonBuilder().setCustomId(`gl:change:${entry.id}`).setLabel('Change Time').setStyle(Discord.ButtonStyle.Secondary)
       );
-      return interaction.reply({
+      return interaction.editReply({
         content: `⚠️ **That time is already booked.**\n${conflicts.map(e=>`<@${e.userId}> — ${e.title || 'Scheduled stream'}`).join('\n')}\n\nThey have been notified. You can keep the overlapping time anyway or change your time.`,
-        components:[row], ephemeral:true
+        components:[row]
       });
     }
 
     store.entries = store.entries.filter(e => !(e.status === 'active' && e.userId === interaction.user.id && e.date === date));
     store.entries.push(entry); writeStore(store);
     await refreshBoard(client);
-    return interaction.reply({ content: `✅ Added to the live schedule: **${prettyDate(date)} at ${time.display} ET**${entry.title ? ` — ${entry.title}` : ''}.`, ephemeral: true });
+    return interaction.editReply({ content: `✅ Added to the live schedule: **${prettyDate(date)} at ${time.display} ET**${entry.title ? ` — ${entry.title}` : ''}.` });
   } catch (error) {
-    return interaction.reply({ content: `❌ ${error.message}`, ephemeral: true }).catch(() => null);
+    const alreadyAcknowledged = interaction.deferred || interaction.replied;
+    const respond = alreadyAcknowledged ? interaction.editReply.bind(interaction) : interaction.reply.bind(interaction);
+    const payload = { content: `❌ ${error.message}` };
+    if (!alreadyAcknowledged) payload.ephemeral = true;
+    return respond(payload).catch(() => null);
   }
 }
 
 async function handleButton(interaction, client) {
   if (!interaction.customId.startsWith('gl:')) return false;
-  const [, action, id] = interaction.customId.split(':');
-  const store = readStore();
+  const [, action, id, pendingId] = interaction.customId.split(':');
+  const store = cleanup(readStore());
   const entry = store.entries.find(e => e.id === id);
   if (!entry) { await interaction.reply({content:'That schedule request no longer exists.',ephemeral:true}).catch(()=>null); return true; }
 
+  const deny = async () => {
+    await interaction.reply({ content: 'Only the streamer who owns this schedule request can use that button.', ephemeral: true }).catch(() => null);
+    return true;
+  };
+
   if (action === 'anyway') {
-    if (interaction.user.id !== entry.userId) return true;
-    entry.status = 'active'; writeStore(store); await refreshBoard(client);
+    if (interaction.user.id !== entry.userId) return deny();
+    activateEntry(store, entry); writeStore(store);
     await interaction.update({ content:`✅ You kept **${prettyDate(entry.date)} at ${entry.displayTime} ET**. The overlap is now shown on the schedule.`, components:[] });
+    await refreshBoard(client);
     return true;
   }
   if (action === 'change') {
-    if (interaction.user.id !== entry.userId) return true;
+    if (interaction.user.id !== entry.userId) return deny();
     store.entries = store.entries.filter(e => e.id !== id); writeStore(store);
     await interaction.update({ content:'Your pending request was removed. Run **/goinglive** again with your new time.', components:[] });
     return true;
   }
   if (action === 'keep') {
-    if (interaction.user.id !== entry.userId) return true;
+    if (interaction.user.id !== entry.userId) return deny();
     await interaction.update({ content:`✅ Your **${prettyDate(entry.date)} at ${entry.displayTime} ET** slot is staying on the schedule.`, components:[] });
+    const pending = store.entries.find(candidate => candidate.id === pendingId && candidate.status === 'pending');
+    if (pending) {
+      await notifyUser(client, pending.userId, `The streamer already booked for **${prettyDate(entry.date)} at ${entry.displayTime} ET** kept their slot. You can still keep the overlap or change your time using the buttons on your original /goinglive response.`);
+    }
     return true;
   }
-  if (action === 'release') {
-    if (interaction.user.id !== entry.userId) return true;
-    store.entries = store.entries.filter(e => e.id !== id); writeStore(store); await refreshBoard(client);
+  if (action === 'adjust' || action === 'release') {
+    if (interaction.user.id !== entry.userId) return deny();
+    store.entries = store.entries.filter(candidate => candidate.id !== id);
+    const requested = store.entries.find(candidate => candidate.id === pendingId && candidate.status === 'pending');
+    let promoted = null;
+    if (requested && !remainingConflicts(store, requested).length) {
+      activateEntry(store, requested);
+      promoted = requested;
+    } else {
+      promoted = promoteOldestPendingForSlot(store, entry.date, entry.hm);
+    }
+    writeStore(store);
     await interaction.update({ content:`Your **${prettyDate(entry.date)} at ${entry.displayTime} ET** slot was released.`, components:[] });
+    await refreshBoard(client);
+    if (promoted) {
+      await notifyUser(client, promoted.userId, `Your requested time, **${prettyDate(promoted.date)} at ${promoted.displayTime} ET**, is now confirmed and has been added to the Going Live board.`);
+    }
     return true;
   }
   return false;
@@ -252,13 +292,20 @@ function install(client) {
   client.__goingLiveInstalled = true;
   console.log('[Going Live] Scheduler installed on the active Discord client.');
 
-  client.on(Discord.Events.InteractionCreate, async interaction => {
-    if (interaction.guildId !== GUILD_ID && interaction.guildId) return;
-    if (interaction.isChatInputCommand() && interaction.commandName === 'goinglive') return handleGoingLive(interaction, client);
-    if (interaction.isButton() && interaction.customId.startsWith('gl:')) return handleButton(interaction, client);
+  client.on(INTERACTION_CREATE, async interaction => {
+    try {
+      if (interaction.guildId !== GUILD_ID && interaction.guildId) return;
+      if (interaction.isChatInputCommand() && interaction.commandName === 'goinglive') return await handleGoingLive(interaction, client);
+      if (interaction.isButton() && interaction.customId.startsWith('gl:')) return await handleButton(interaction, client);
+    } catch (error) {
+      console.error('[Going Live] Interaction failed:', error);
+      if (!interaction.deferred && !interaction.replied) {
+        await interaction.reply({ content: 'The Going Live schedule could not be updated. Please try again.', ephemeral: true }).catch(() => null);
+      }
+    }
   });
 
-  client.once(Discord.Events.ClientReady, async () => {
+  client.once(CLIENT_READY, async () => {
     console.log(`[Going Live] Discord ready as ${client.user.tag}; initializing Misfit Mafia schedule.`);
     const sync = async () => {
       try {
@@ -284,4 +331,4 @@ function patchDiscordClient() {
   };
 }
 
-module.exports = { install, patchDiscordClient, upcomingEntries, refreshBoard, registerCommand, FILE, GUILD_ID, BOARD_CHANNEL_ID, ZONE };
+module.exports = { install, patchDiscordClient, upcomingEntries, refreshBoard, registerCommand, GOING_LIVE_COMMAND, FILE, GUILD_ID, BOARD_CHANNEL_ID, ZONE };
