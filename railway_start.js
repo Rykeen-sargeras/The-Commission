@@ -1,5 +1,8 @@
 'use strict';
 
+// Load Railway web-board routes and Discord bootstrap patches relative to this file.
+require('./going_live_preload');
+
 const http = require('http');
 const crypto = require('crypto');
 const fs = require('fs');
