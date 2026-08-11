@@ -6,6 +6,7 @@ const { applyGuildBlueprint, captureGuildBlueprint } = require('./blueprint');
 const { EconomyService } = require('./economy');
 const { economyCommandData, createEconomyIntegration } = require('./economy_discord');
 const { MemberBridgeIntegration, memberBridgeCommandData } = require('./memberbridge/integration');
+const goingLive = require('./going_live');
 
 // Music dependencies
 // play-dl is used for YouTube searching/metadata.
@@ -40,6 +41,7 @@ const client = new Discord.Client({
         Discord.Partials.GuildMember,
     ]
 });
+goingLive.install(client);
 
 // Configuration - supplied by Railway or the Windows control panel.
 const CONFIG = {
@@ -623,6 +625,7 @@ client.on('ready', async () => {
                 .setName('clear')
                 .setDescription('Clear the entire music queue')
                 .toJSON(),
+            goingLive.GOING_LIVE_COMMAND,
             ...economyCommandData(),
             ...memberBridgeCommandData(),
         ];
@@ -635,7 +638,7 @@ client.on('ready', async () => {
         console.log('✅ Cleared old global commands');
 
         // Register as guild commands (instant) instead of global (up to 1hr delay)
-        const guild = client.guilds.cache.first();
+        const guild = client.guilds.cache.get(goingLive.GUILD_ID) || client.guilds.cache.first();
         if (guild) {
             await rest.put(
                 Routes.applicationGuildCommands(client.user.id, guild.id),
