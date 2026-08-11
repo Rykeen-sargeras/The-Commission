@@ -5,6 +5,7 @@ const path = require('path');
 const crypto = require('crypto');
 const Discord = require('discord.js');
 
+const GUILD_ID = process.env.GOING_LIVE_GUILD_ID || '1532503754350264571';
 const BOARD_CHANNEL_ID = process.env.GOING_LIVE_CHANNEL_ID || '1532513768855175279';
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const FILE = path.join(DATA_DIR, 'going-live-schedule.json');
@@ -98,43 +99,63 @@ function boardEmbed(entries) {
     .setColor('#b21f38')
     .setTitle('📺 Who’s Going Live')
     .setDescription(lines.length ? lines.join('\n\n') : 'No upcoming streams are scheduled yet. Use **/goinglive** to claim a time.')
-    .setFooter({ text: 'All schedule times are Eastern Time • Updated automatically' })
+    .setFooter({ text: 'All schedule times are Eastern Time • Board resets daily at 5:00 AM ET' })
     .setTimestamp();
 }
 
 async function refreshBoard(client) {
   const store = cleanup(readStore());
   const entries = store.entries.filter(e => e.status === 'active').sort((a,b) => `${a.date} ${a.hm}`.localeCompare(`${b.date} ${b.hm}`));
-  const channel = await client.channels.fetch(BOARD_CHANNEL_ID).catch(() => null);
-  if (!channel || !channel.isTextBased()) return;
+  const channel = await client.channels.fetch(BOARD_CHANNEL_ID).catch(error => {
+    console.error(`[Going Live] Could not fetch board channel ${BOARD_CHANNEL_ID}: ${error.message}`);
+    return null;
+  });
+  if (!channel || !channel.isTextBased()) {
+    console.error(`[Going Live] Board channel ${BOARD_CHANNEL_ID} is unavailable or not text based.`);
+    return;
+  }
   const payload = { embeds: [boardEmbed(entries)], allowedMentions: { parse: [] } };
   let message = null;
   if (store.boardMessageId) message = await channel.messages.fetch(store.boardMessageId).catch(() => null);
-  if (message) await message.edit(payload);
-  else {
+  if (message) {
+    await message.edit(payload);
+    console.log(`[Going Live] Board refreshed in #${channel.name}.`);
+  } else {
     message = await channel.send(payload);
     store.boardMessageId = message.id;
     writeStore(store);
+    console.log(`[Going Live] Board created in #${channel.name} (${BOARD_CHANNEL_ID}), message ${message.id}.`);
   }
 }
 
+const GOING_LIVE_COMMAND = {
+  name: 'goinglive',
+  description: 'Add your upcoming stream to the Misfit Mafia live schedule',
+  options: [
+    { type: 3, name: 'date', description: 'Date: MM/DD or YYYY-MM-DD', required: true },
+    { type: 3, name: 'time', description: 'Time: 7, 7:30, 11:45, etc.', required: true },
+    { type: 3, name: 'am_pm', description: 'AM or PM (Eastern Time)', required: true, choices: [{name:'AM',value:'AM'},{name:'PM',value:'PM'}] },
+    { type: 3, name: 'show', description: 'Stream/show title', required: false, max_length: 80 },
+    { type: 3, name: 'link', description: 'YouTube, Kick, Twitch, etc. stream/channel URL', required: false, max_length: 250 }
+  ]
+};
+
 async function registerCommand(client) {
-  const guild = client.guilds.cache.first();
-  if (!guild) return;
-  const existing = await guild.commands.fetch().catch(() => null);
-  if (existing?.some(c => c.name === 'goinglive')) return;
-  await guild.commands.create({
-    name: 'goinglive',
-    description: 'Add your upcoming stream to the Misfit Mafia live schedule',
-    options: [
-      { type: 3, name: 'date', description: 'Date: MM/DD or YYYY-MM-DD', required: true },
-      { type: 3, name: 'time', description: 'Time: 7, 7:30, 11:45, etc.', required: true },
-      { type: 3, name: 'am_pm', description: 'AM or PM (Eastern Time)', required: true, choices: [{name:'AM',value:'AM'},{name:'PM',value:'PM'}] },
-      { type: 3, name: 'show', description: 'Stream/show title', required: false, max_length: 80 },
-      { type: 3, name: 'link', description: 'YouTube, Kick, Twitch, etc. stream/channel URL', required: false, max_length: 250 }
-    ]
+  const guild = await client.guilds.fetch(GUILD_ID).catch(error => {
+    console.error(`[Going Live] Could not fetch Misfit Mafia guild ${GUILD_ID}: ${error.message}`);
+    return null;
   });
-  console.log('✅ /goinglive command registered');
+  if (!guild) return false;
+  const existing = await guild.commands.fetch().catch(error => {
+    console.error(`[Going Live] Could not fetch guild commands: ${error.message}`);
+    return null;
+  });
+  const found = existing?.find(c => c.name === 'goinglive');
+  if (!found) {
+    await guild.commands.create(GOING_LIVE_COMMAND);
+    console.log(`✅ /goinglive command registered directly in ${guild.name} (${GUILD_ID})`);
+  }
+  return true;
 }
 
 async function notifyConflict(client, existing, newcomer) {
@@ -229,16 +250,26 @@ async function handleButton(interaction, client) {
 function install(client) {
   if (client.__goingLiveInstalled) return;
   client.__goingLiveInstalled = true;
+  console.log('[Going Live] Scheduler installed on the active Discord client.');
+
   client.on(Discord.Events.InteractionCreate, async interaction => {
+    if (interaction.guildId !== GUILD_ID && interaction.guildId) return;
     if (interaction.isChatInputCommand() && interaction.commandName === 'goinglive') return handleGoingLive(interaction, client);
     if (interaction.isButton() && interaction.customId.startsWith('gl:')) return handleButton(interaction, client);
   });
+
   client.once(Discord.Events.ClientReady, async () => {
-    setTimeout(async () => {
-      try { await registerCommand(client); await refreshBoard(client); }
-      catch (e) { console.error('Going Live scheduler startup failed:', e); }
-    }, 2500).unref?.();
-    setInterval(() => refreshBoard(client).catch(e => console.error('Going Live board refresh failed:', e.message)), 5 * 60 * 1000).unref?.();
+    console.log(`[Going Live] Discord ready as ${client.user.tag}; initializing Misfit Mafia schedule.`);
+    const sync = async () => {
+      try {
+        await registerCommand(client);
+        await refreshBoard(client);
+      } catch (e) {
+        console.error('[Going Live] Sync failed:', e);
+      }
+    };
+    setTimeout(sync, 5000).unref?.();
+    setInterval(sync, 60 * 1000).unref?.();
   });
 }
 
@@ -253,4 +284,4 @@ function patchDiscordClient() {
   };
 }
 
-module.exports = { install, patchDiscordClient, upcomingEntries, FILE, BOARD_CHANNEL_ID, ZONE };
+module.exports = { install, patchDiscordClient, upcomingEntries, refreshBoard, registerCommand, FILE, GUILD_ID, BOARD_CHANNEL_ID, ZONE };
