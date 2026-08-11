@@ -77,7 +77,7 @@ function startBot(){
   desiredRunning=true; botState='starting';
   bot=fork(path.join(__dirname,'discord_bot.js'),[],{cwd:dataDir,env:childEnv(),silent:true});
   addLog('system',`Started The Commission bot (PID ${bot.pid}).`);
-  bot.stdout?.on('data',d=>addLog('bot',d)); bot.stderr?.on('data',d=>addLog('error',d));
+  bot.stdout?.on('data',d=>{addLog('bot',d);process.stdout.write(d);}); bot.stderr?.on('data',d=>{addLog('error',d);process.stderr.write(d);});
   bot.on('message',msg=>{ if(!msg?.id) return; const p=pending.get(msg.id); if(!p) return; clearTimeout(p.timer); pending.delete(msg.id); msg.ok?p.resolve(msg.data):p.reject(new Error(msg.error||'Bot operation failed.')); });
   bot.on('spawn',()=>{botState='running';});
   bot.on('exit',(code,signal)=>{ addLog('system',`Bot stopped (code ${code??'n/a'}, signal ${signal||'none'}).`); bot=null; botState='stopped'; for(const p of pending.values()){clearTimeout(p.timer);p.reject(new Error('Bot stopped.'));} pending.clear(); if(desiredRunning&&!shuttingDown) setTimeout(startBot,1500).unref?.(); });
