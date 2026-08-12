@@ -42,18 +42,19 @@ function guildWith(initialChannels) {
 }
 
 (async () => {
-    assert.strictEqual(numberedName('ðŸ”´ LIVE 1 ðŸ”´', 2, 'live'), 'ðŸ”´ LIVE 2 ðŸ”´');
-    assert.strictEqual(numberedName('â¬†ï¸ Waiting 1 â¬†ï¸', 3, 'waiting'), 'â¬†ï¸ Waiting 3 â¬†ï¸');
+    assert.strictEqual(numberedName('LIVE 1', 2, 'live'), 'LIVE 2');
+    assert.strictEqual(numberedName('Waiting 1', 3, 'waiting'), 'Waiting 3');
+    assert.strictEqual(numberedName('Waiting', 2, 'waiting'), 'Waiting 2');
 
     const permissions = [overwrite('everyone', 1, 2), overwrite('staff', 4, 8, 1)];
-    const live1 = channel('live-1', 'ðŸ”´ LIVE 1 ðŸ”´', 1, permissions);
-    const waiting1 = channel('waiting-1', 'â¬†ï¸ Waiting 1 â¬†ï¸', 0, permissions);
+    const live1 = channel('live-1', 'LIVE 1', 1, permissions);
+    const waiting1 = channel('waiting-1', 'Waiting', 0, permissions);
     const guild = guildWith([live1, waiting1]);
     const manager = new LiveVoicePairManager({}, { categoryId: '1532513765701189683' });
 
     await manager.reconcile(guild);
-    const live2 = Array.from(guild.channels.cache.values()).find(item => item.name === 'ðŸ”´ LIVE 2 ðŸ”´');
-    const waiting2 = Array.from(guild.channels.cache.values()).find(item => item.name === 'â¬†ï¸ Waiting 2 â¬†ï¸');
+    const live2 = Array.from(guild.channels.cache.values()).find(item => item.name === 'LIVE 2');
+    const waiting2 = Array.from(guild.channels.cache.values()).find(item => item.name === 'Waiting 2');
     assert(live2 && waiting2, 'joining pair 1 should create pair 2');
     assert.deepStrictEqual(live2.createdOptions.permissionOverwrites, [
         { id: 'everyone', type: 0, allow: 1n, deny: 2n },
