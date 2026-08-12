@@ -56,13 +56,15 @@ function cloneChannelOptions(template, name, categoryId) {
 }
 
 class LiveVoicePairManager {
-    constructor(client, { categoryId, delayMs = 350, logger = console } = {}) {
+    constructor(client, { categoryId, delayMs = 350, cleanupDelayMs = 60_000, logger = console } = {}) {
         this.client = client;
         this.categoryId = String(categoryId || '');
         this.delayMs = delayMs;
+        this.cleanupDelayMs = cleanupDelayMs;
         this.logger = logger;
         this.timers = new Map();
         this.guildQueues = new Map();
+        this.cleanupTimers = new Map();
     }
 
     install() {
@@ -72,18 +74,30 @@ class LiveVoicePairManager {
         }
 
         this.client.on('ready', () => {
-            for (const guild of this.client.guilds.cache.values()) this.schedule(guild, 0);
+            for (const guild of this.client.guilds.cache.values()) this.schedule(guild, 0, false);
         });
 
         this.client.on('voiceStateUpdate', (oldState, newState) => {
             if (oldState.channel?.parentId !== this.categoryId && newState.channel?.parentId !== this.categoryId) return;
-            this.schedule(newState.guild || oldState.guild);
+            const guild = newState.guild || oldState.guild;
+            const oldManaged = describeManagedChannel(oldState.channel, this.categoryId);
+            const newManaged = describeManagedChannel(newState.channel, this.categoryId);
+
+            if (newManaged) this.cancelCleanup(guild.id, newManaged.number);
+            if (oldManaged && oldManaged.number > 1 && oldState.channelId !== newState.channelId) {
+                this.scheduleCleanup(guild, oldManaged.number);
+            }
+
+            // Only joining a LIVE channel consumes an open LIVE slot. Waiting
+            // channels are deliberately excluded from the availability check.
+            const joinedLive = newManaged?.kind === 'live' && oldState.channelId !== newState.channelId;
+            if (joinedLive) this.schedule(guild, this.delayMs, true);
         });
 
         return this;
     }
 
-    schedule(guild, delayMs = this.delayMs) {
+    schedule(guild, delayMs = this.delayMs, ensureOpen = true) {
         if (!guild) return;
         clearTimeout(this.timers.get(guild.id));
         this.timers.set(guild.id, setTimeout(() => {
@@ -91,13 +105,35 @@ class LiveVoicePairManager {
             const previous = this.guildQueues.get(guild.id) || Promise.resolve();
             const next = previous
                 .catch(() => {})
-                .then(() => this.reconcile(guild))
+                .then(() => this.reconcile(guild, ensureOpen))
                 .catch(error => this.logger.error(`[voice-pairs] ${guild.id}:`, error));
             this.guildQueues.set(guild.id, next);
         }, delayMs));
     }
 
-    async reconcile(guild) {
+    cleanupKey(guildId, number) {
+        return `${guildId}:${number}`;
+    }
+
+    cancelCleanup(guildId, number) {
+        const key = this.cleanupKey(guildId, number);
+        clearTimeout(this.cleanupTimers.get(key));
+        this.cleanupTimers.delete(key);
+    }
+
+    scheduleCleanup(guild, number) {
+        if (!guild || number <= 1) return;
+        const key = this.cleanupKey(guild.id, number);
+        clearTimeout(this.cleanupTimers.get(key));
+        this.cleanupTimers.set(key, setTimeout(() => {
+            this.cleanupTimers.delete(key);
+            this.deletePairIfEmpty(guild, number).catch(error => {
+                this.logger.error(`[voice-pairs] cleanup ${guild.id}:${number}:`, error);
+            });
+        }, this.cleanupDelayMs));
+    }
+
+    async collectPairs(guild) {
         await guild.channels.fetch();
 
         const pairs = new Map();
@@ -108,6 +144,11 @@ class LiveVoicePairManager {
             pair[managed.kind] = channel;
             pairs.set(managed.number, pair);
         }
+        return pairs;
+    }
+
+    async reconcile(guild, ensureOpen = true) {
+        const pairs = await this.collectPairs(guild);
 
         const templates = pairs.get(1);
         if (!templates?.live || !templates?.waiting) {
@@ -115,47 +156,41 @@ class LiveVoicePairManager {
             return;
         }
 
-        // Any occupied pair gets one empty successor pair.
-        const occupiedNumbers = Array.from(pairs.entries())
-            .filter(([, pair]) => memberCount(pair.live) + memberCount(pair.waiting) > 0)
-            .map(([number]) => number)
-            .sort((a, b) => a - b);
+        if (ensureOpen) {
+            const occupiedLiveExists = Array.from(pairs.values()).some(pair => memberCount(pair.live) > 0);
+            const openLiveExists = Array.from(pairs.values()).some(pair => pair.live && memberCount(pair.live) === 0);
 
-        for (const number of occupiedNumbers) {
-            const nextNumber = number + 1;
-            const nextPair = pairs.get(nextNumber) || {};
-            if (!nextPair.live) {
+            // Waiting channels do not count here. If every LIVE channel is in
+            // use, create the lowest available numbered pair.
+            if (occupiedLiveExists && !openLiveExists) {
+                let nextNumber = 2;
+                while (pairs.has(nextNumber)) nextNumber += 1;
+                const nextPair = {};
                 nextPair.live = await guild.channels.create(cloneChannelOptions(
                     templates.live,
                     numberedName(templates.live.name, nextNumber, 'live'),
                     this.categoryId,
                 ));
-            }
-            if (!nextPair.waiting) {
                 nextPair.waiting = await guild.channels.create(cloneChannelOptions(
                     templates.waiting,
                     numberedName(templates.waiting.name, nextNumber, 'waiting'),
                     this.categoryId,
                 ));
+                pairs.set(nextNumber, nextPair);
             }
-            pairs.set(nextNumber, nextPair);
         }
+    }
 
-        // Pair 1 is permanent. Other empty pairs only remain while the pair
-        // immediately before them is occupied and therefore needs a spare.
-        const numbersDescending = Array.from(pairs.keys()).filter(number => number > 1).sort((a, b) => b - a);
-        for (const number of numbersDescending) {
-            const pair = pairs.get(number) || {};
-            const previous = pairs.get(number - 1) || {};
-            const pairOccupied = memberCount(pair.live) + memberCount(pair.waiting) > 0;
-            const previousOccupied = memberCount(previous.live) + memberCount(previous.waiting) > 0;
-            if (pairOccupied || previousOccupied) continue;
-            for (const channel of [pair.live, pair.waiting]) {
-                if (channel && memberCount(channel) === 0) {
-                    await channel.delete('Remove idle dynamic LIVE/Waiting voice channel pair');
-                }
+    async deletePairIfEmpty(guild, number) {
+        if (number <= 1) return false;
+        const pair = (await this.collectPairs(guild)).get(number) || {};
+        if (memberCount(pair.live) + memberCount(pair.waiting) > 0) return false;
+        for (const channel of [pair.live, pair.waiting]) {
+            if (channel) {
+                await channel.delete('Remove LIVE/Waiting pair after one minute empty');
             }
         }
+        return true;
     }
 }
 
