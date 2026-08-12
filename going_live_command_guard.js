@@ -1,7 +1,7 @@
 'use strict';
 
 const Discord = require('discord.js');
-const { GOING_LIVE_COMMAND, GUILD_ID } = require('./going_live');
+const { GOING_LIVE_COMMAND, WHO_COMMAND, GUILD_ID } = require('./going_live');
 
 const CLIENT_READY = Discord.Events?.ClientReady || 'ready';
 
@@ -10,10 +10,12 @@ async function ensureGoingLive(client) {
   try {
     const guild = await client.guilds.fetch(GUILD_ID);
     const commands = await guild.commands.fetch();
-    const existing = commands.find(command => command.name === GOING_LIVE_COMMAND.name);
-    if (!existing) {
-      await guild.commands.create(GOING_LIVE_COMMAND);
-      console.log(`✅ /goinglive command restored for guild: ${guild.name}`);
+    for (const definition of [GOING_LIVE_COMMAND, WHO_COMMAND]) {
+      const existing = commands.find(command => command.name === definition.name);
+      if (!existing) {
+        await guild.commands.create(definition);
+        console.log(`✅ /${definition.name} command restored for guild: ${guild.name}`);
+      }
     }
   } catch (error) {
     console.error(`[Going Live] Could not verify slash command in guild ${GUILD_ID}:`, error.message);
@@ -39,4 +41,4 @@ function installGuard() {
   };
 }
 
-module.exports = { installGuard, ensureGoingLive, COMMAND: GOING_LIVE_COMMAND };
+module.exports = { installGuard, ensureGoingLive, COMMAND: GOING_LIVE_COMMAND, COMMANDS: [GOING_LIVE_COMMAND, WHO_COMMAND] };
