@@ -50,7 +50,10 @@ function guildWith(initialChannels) {
     const live1 = channel('live-1', 'LIVE 1', 1, permissions);
     const waiting1 = channel('waiting-1', 'Waiting', 0, permissions);
     const guild = guildWith([live1, waiting1]);
-    const manager = new LiveVoicePairManager({}, { categoryId: '1532513765701189683' });
+    const manager = new LiveVoicePairManager({}, {
+        categoryId: '1532513765701189683',
+        cleanupDelayMs: 10,
+    });
 
     await manager.reconcile(guild);
     const live2 = Array.from(guild.channels.cache.values()).find(item => item.name === 'LIVE 2');
@@ -61,8 +64,23 @@ function guildWith(initialChannels) {
         { id: 'staff', type: 1, allow: 4n, deny: 8n },
     ]);
 
-    live1.members.size = 0;
+    // Waiting channels never count as open LIVE channels. Live 2 is open, so
+    // another reconciliation must not create Live 3 yet.
+    waiting2.members.size = 1;
     await manager.reconcile(guild);
+    assert(!Array.from(guild.channels.cache.values()).some(item => item.name === 'LIVE 3'));
+
+    // Once Live 2 is occupied too, there is no open LIVE channel and pair 3
+    // must be created.
+    live2.members.size = 1;
+    await manager.reconcile(guild);
+    assert(Array.from(guild.channels.cache.values()).some(item => item.name === 'LIVE 3'));
+
+    live1.members.size = 0;
+    live2.members.size = 0;
+    waiting2.members.size = 0;
+    manager.scheduleCleanup(guild, 2);
+    await new Promise(resolve => setTimeout(resolve, 30));
     assert.strictEqual(live2.deleted, true, 'idle LIVE 2 should be removed');
     assert.strictEqual(waiting2.deleted, true, 'idle Waiting 2 should be removed');
     assert.strictEqual(live1.deleted, false, 'LIVE 1 must remain');
