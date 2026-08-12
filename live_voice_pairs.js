@@ -2,6 +2,7 @@
 
 const LIVE_RE = /^(.*\bLIVE\s+)(\d+)(\b.*)$/iu;
 const WAITING_RE = /^(.*\bWaiting\s+)(\d+)(\b.*)$/iu;
+const UNNUMBERED_WAITING_RE = /^(.*\bWaiting)(\b.*)$/iu;
 
 function describeManagedChannel(channel, categoryId) {
     if (!channel || channel.parentId !== categoryId) return null;
@@ -9,12 +10,20 @@ function describeManagedChannel(channel, categoryId) {
     if (liveMatch) return { kind: 'live', number: Number(liveMatch[2]) };
     const waitingMatch = String(channel.name || '').match(WAITING_RE);
     if (waitingMatch) return { kind: 'waiting', number: Number(waitingMatch[2]) };
+    if (UNNUMBERED_WAITING_RE.test(String(channel.name || ''))) return { kind: 'waiting', number: 1 };
     return null;
 }
 
 function numberedName(templateName, number, kind) {
     const pattern = kind === 'live' ? LIVE_RE : WAITING_RE;
-    return String(templateName).replace(pattern, (_, before, _oldNumber, after) => `${before}${number}${after}`);
+    const name = String(templateName);
+    if (pattern.test(name)) {
+        return name.replace(pattern, (_, before, _oldNumber, after) => `${before}${number}${after}`);
+    }
+    if (kind === 'waiting') {
+        return name.replace(UNNUMBERED_WAITING_RE, (_, before, after) => `${before} ${number}${after}`);
+    }
+    return name;
 }
 
 function memberCount(channel) {
