@@ -108,6 +108,44 @@ async function refreshBoard(client) {
   }
 }
 
+let repostQueue = Promise.resolve();
+
+async function repostBoardNow(client) {
+  const store = cleanup(readStore());
+  const entries = store.entries.filter(e => e.status === 'active').sort((a,b) => `${a.date} ${a.hm}`.localeCompare(`${b.date} ${b.hm}`));
+  const channel = await client.channels.fetch(BOARD_CHANNEL_ID).catch(error => {
+    console.error(`[Going Live] Could not fetch board channel ${BOARD_CHANNEL_ID}: ${error.message}`);
+    return null;
+  });
+  if (!channel || !channel.isTextBased()) {
+    throw new Error(`Going Live board channel ${BOARD_CHANNEL_ID} is unavailable.`);
+  }
+
+  if (store.boardMessageId) {
+    const previous = await channel.messages.fetch(store.boardMessageId).catch(() => null);
+    if (previous) {
+      await previous.delete().catch(error => {
+        console.warn(`[Going Live] Could not remove previous board message: ${error.message}`);
+      });
+    }
+  }
+
+  const message = await channel.send({
+    embeds: [boardEmbed(entries)],
+    allowedMentions: { parse: [] },
+  });
+  store.boardMessageId = message.id;
+  writeStore(store);
+  console.log(`[Going Live] Board reposted in #${channel.name} (${message.id}).`);
+  return message;
+}
+
+function repostBoard(client) {
+  const next = repostQueue.catch(() => null).then(() => repostBoardNow(client));
+  repostQueue = next;
+  return next;
+}
+
 const GOING_LIVE_COMMAND = {
   name: 'goinglive',
   description: 'Add your upcoming stream to the Misfit Mafia live schedule',
@@ -120,6 +158,11 @@ const GOING_LIVE_COMMAND = {
   ]
 };
 
+const WHO_COMMAND = {
+  name: 'who',
+  description: 'Repost the Who’s Going Live schedule board',
+};
+
 async function registerCommand(client) {
   const guild = await client.guilds.fetch(GUILD_ID).catch(error => {
     console.error(`[Going Live] Could not fetch Misfit Mafia guild ${GUILD_ID}: ${error.message}`);
@@ -130,10 +173,12 @@ async function registerCommand(client) {
     console.error(`[Going Live] Could not fetch guild commands: ${error.message}`);
     return null;
   });
-  const found = existing?.find(c => c.name === 'goinglive');
-  if (!found) {
-    await guild.commands.create(GOING_LIVE_COMMAND);
-    console.log(`✅ /goinglive command registered directly in ${guild.name} (${GUILD_ID})`);
+  for (const command of [GOING_LIVE_COMMAND, WHO_COMMAND]) {
+    const found = existing?.find(c => c.name === command.name);
+    if (!found) {
+      await guild.commands.create(command);
+      console.log(`✅ /${command.name} command registered directly in ${guild.name} (${GUILD_ID})`);
+    }
   }
   return true;
 }
@@ -183,6 +228,12 @@ function promoteOldestPendingForSlot(store, date, hm) {
   return candidate;
 }
 
+async function handleWho(interaction, client) {
+  await interaction.deferReply({ ephemeral: true });
+  await repostBoard(client);
+  return interaction.editReply({ content: '✅ The Who’s Going Live board was reposted.' });
+}
+
 async function handleGoingLive(interaction, client) {
   try {
     await interaction.deferReply({ ephemeral: true });
@@ -220,7 +271,7 @@ async function handleGoingLive(interaction, client) {
 
     store.entries = store.entries.filter(e => !(e.status === 'active' && e.userId === interaction.user.id && e.date === date));
     store.entries.push(entry); writeStore(store);
-    await refreshBoard(client);
+    await repostBoard(client);
     return interaction.editReply({ content: `✅ Added to the live schedule: **${prettyDate(date)} at ${time.display} ET**${entry.title ? ` — ${entry.title}` : ''}.` });
   } catch (error) {
     const alreadyAcknowledged = interaction.deferred || interaction.replied;
@@ -247,7 +298,7 @@ async function handleButton(interaction, client) {
     if (interaction.user.id !== entry.userId) return deny();
     activateEntry(store, entry); writeStore(store);
     await interaction.update({ content:`✅ You kept **${prettyDate(entry.date)} at ${entry.displayTime} ET**. The overlap is now shown on the schedule.`, components:[] });
-    await refreshBoard(client);
+    await repostBoard(client);
     return true;
   }
   if (action === 'change') {
@@ -278,7 +329,8 @@ async function handleButton(interaction, client) {
     }
     writeStore(store);
     await interaction.update({ content:`Your **${prettyDate(entry.date)} at ${entry.displayTime} ET** slot was released.`, components:[] });
-    await refreshBoard(client);
+    if (promoted) await repostBoard(client);
+    else await refreshBoard(client);
     if (promoted) {
       await notifyUser(client, promoted.userId, `Your requested time, **${prettyDate(promoted.date)} at ${promoted.displayTime} ET**, is now confirmed and has been added to the Going Live board.`);
     }
@@ -296,6 +348,7 @@ function install(client) {
     try {
       if (interaction.guildId !== GUILD_ID && interaction.guildId) return;
       if (interaction.isChatInputCommand() && interaction.commandName === 'goinglive') return await handleGoingLive(interaction, client);
+      if (interaction.isChatInputCommand() && interaction.commandName === 'who') return await handleWho(interaction, client);
       if (interaction.isButton() && interaction.customId.startsWith('gl:')) return await handleButton(interaction, client);
     } catch (error) {
       console.error('[Going Live] Interaction failed:', error);
@@ -331,4 +384,4 @@ function patchDiscordClient() {
   };
 }
 
-module.exports = { install, patchDiscordClient, upcomingEntries, refreshBoard, registerCommand, GOING_LIVE_COMMAND, FILE, GUILD_ID, BOARD_CHANNEL_ID, ZONE };
+module.exports = { install, patchDiscordClient, upcomingEntries, refreshBoard, repostBoard, registerCommand, GOING_LIVE_COMMAND, WHO_COMMAND, FILE, GUILD_ID, BOARD_CHANNEL_ID, ZONE };
