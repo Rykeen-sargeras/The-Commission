@@ -7,6 +7,7 @@ const { EconomyService } = require('./economy');
 const { economyCommandData, createEconomyIntegration } = require('./economy_discord');
 const { MemberBridgeIntegration, memberBridgeCommandData } = require('./memberbridge/integration');
 const goingLive = require('./going_live');
+const { installLiveVoicePairs } = require('./live_voice_pairs');
 
 // Music dependencies
 // play-dl is used for YouTube searching/metadata.
@@ -68,9 +69,11 @@ const CONFIG = {
     JAIL_LOG_CHANNEL_ID: process.env.JAIL_LOG_CHANNEL_ID || '',
     PREEMPTIVE_BAN_USER_IDS: (process.env.PREEMPTIVE_BAN_USER_IDS || '').split(/[\s,]+/).filter(Boolean),
     PREEMPTIVE_BAN_REASON: process.env.PREEMPTIVE_BAN_REASON || 'Listed in The Commission preemptive ban list',
+    LIVE_VOICE_CATEGORY_ID: process.env.LIVE_VOICE_CATEGORY_ID || '1532513765701189683',
 };
 
 const PREEMPTIVE_BAN_USER_IDS = new Set(CONFIG.PREEMPTIVE_BAN_USER_IDS);
+installLiveVoicePairs(client, { categoryId: CONFIG.LIVE_VOICE_CATEGORY_ID });
 
 // Music channel configuration
 const MUSIC_CHANNEL_ID = CONFIG.MUSIC_CHANNEL_ID;
