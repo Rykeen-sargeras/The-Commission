@@ -1,6 +1,8 @@
 'use strict';
 
 const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
 const {
   easternParts,
   operationalDate,
@@ -69,6 +71,21 @@ test('stream links only allow complete HTTP(S) URLs', () => {
   assert.strictEqual(normalizeLink('https://twitch.tv/example'), 'https://twitch.tv/example');
   assert.throws(() => normalizeLink('javascript:alert(1)'), /http:\/\/ or https:\/\//);
   assert.throws(() => normalizeLink('twitch.tv/example'), /complete/);
+});
+
+
+test('/who is registered as the board repost command', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'going_live.js'), 'utf8');
+  assert.match(source, /name:\s*'who'/);
+  assert.match(source, /interaction\.commandName === 'who'/);
+  assert.match(source, /async function handleWho[\s\S]*await repostBoard\(client\)/);
+});
+
+test('confirmed schedule additions repost instead of only editing the board', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'going_live.js'), 'utf8');
+  assert.match(source, /store\.entries\.push\(entry\); writeStore\(store\);\s*await repostBoard\(client\)/);
+  assert.match(source, /previous\.delete\(\)/);
+  assert.match(source, /channel\.send\(/);
 });
 
 console.log('Going Live tests passed.');
