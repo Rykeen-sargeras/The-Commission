@@ -6,8 +6,8 @@ const economy = require('./economy');
 const { EconomyService } = economy;
 const GAME_HOURLY_LIMIT = 6;
 const DICE_WEIGHT_TOTAL = 10000;
+const HIGH_PAYOUT_WAGER_LIMIT = 5000;
 
-// Friendlier dice table: 44% loss, 31% push, 25% winning roll, ~93.4% RTP.
 const DICE_PAYOUT_TABLE = Object.freeze([
     Object.freeze({ name: 'House wins', multiplier: 0, weight: 4400 }),
     Object.freeze({ name: 'Push', multiplier: 1, weight: 3100 }),
@@ -25,22 +25,34 @@ function boundedInt(value, fallback, minimum = 0, maximum = Number.MAX_SAFE_INTE
     return Math.max(minimum, Math.min(maximum, parsed));
 }
 
+function tableWeight(table) {
+    return table.reduce((sum, outcome) => sum + Number(outcome.weight || 0), 0);
+}
+
 function diceExpectedReturn(table = DICE_PAYOUT_TABLE) {
-    return table.reduce((total, outcome) => total + (outcome.multiplier * outcome.weight), 0) / DICE_WEIGHT_TOTAL;
+    const totalWeight = tableWeight(table);
+    return table.reduce((total, outcome) => total + (outcome.multiplier * outcome.weight), 0) / totalWeight;
 }
 
 function diceHouseEdge(table = DICE_PAYOUT_TABLE) {
     return 1 - diceExpectedReturn(table);
 }
 
+function eligibleDiceTable(wager, table = DICE_PAYOUT_TABLE) {
+    if (Number(wager) <= HIGH_PAYOUT_WAGER_LIMIT) return table;
+    return table.filter(outcome => ![50, 100].includes(Number(outcome.multiplier)));
+}
+
 function diceOutcome(randomValue, table = DICE_PAYOUT_TABLE) {
-    const roll = Math.min(DICE_WEIGHT_TOTAL - 1, Math.max(0, Math.floor(Number(randomValue) * DICE_WEIGHT_TOTAL)));
+    const totalWeight = tableWeight(table);
+    if (totalWeight <= 0) throw new Error('Dice payout table has no eligible outcomes.');
+    const roll = Math.min(totalWeight - 1, Math.max(0, Math.floor(Number(randomValue) * totalWeight)));
     let threshold = 0;
     for (const outcome of table) {
         threshold += outcome.weight;
-        if (roll < threshold) return { ...outcome, probabilityPercent: outcome.weight / 100, roll };
+        if (roll < threshold) return { ...outcome, probabilityPercent: (outcome.weight / totalWeight) * 100, roll };
     }
-    throw new Error('Dice payout table weights must total exactly 10,000.');
+    throw new Error('Dice payout table weights are invalid.');
 }
 
 function gameCategory(related) {
@@ -51,7 +63,6 @@ function gameCategory(related) {
     if (value.startsWith('higher-lower:')) return 'higher-lower';
     if (value.startsWith('dragon-tower:')) return 'dragon-tower';
     if (value.startsWith('duel:')) return 'duel';
-    if (value.startsWith('heist:')) return 'heist';
     return '';
 }
 
@@ -67,7 +78,6 @@ EconomyService.prototype.reserveWager = function reserveWagerWithCategoryLimit(g
         }
     }
 
-    // Replace the old shared hourly action bucket with the per-game buckets above.
     const previousHourlyLimit = this.config.gamblingMaxActionsPerHour;
     this.config.gamblingMaxActionsPerHour = 0;
     try {
@@ -77,7 +87,6 @@ EconomyService.prototype.reserveWager = function reserveWagerWithCategoryLimit(g
     }
 };
 
-// Allow callers to request casino-style multi-deck shoes while keeping a single deck as the default.
 EconomyService.prototype.createDeck = function createDeck(deckCount = 1) {
     const deck = [];
     const count = boundedInt(deckCount, 1, 1, 8);
@@ -110,8 +119,6 @@ EconomyService.prototype.startPoker = function startPokerTwoDeck(guildId, userId
     });
 };
 
-// A two-deck video-poker shoe can produce five cards of one rank. Count that as the top quads tier
-// instead of allowing it to fall through as a losing hand.
 EconomyService.prototype.evaluatePoker = function evaluatePokerTwoDeck(cards) {
     const values = cards.map(card => card.slice(0, -1));
     const suits = cards.map(card => card.slice(-1));
@@ -160,13 +167,10 @@ EconomyService.prototype.startBlackjack = function startBlackjackThreeDeck(guild
 EconomyService.prototype.dice = function diceRebalanced(guildId, userId, wager, interactionId, now = Date.now()) {
     return this.transaction(() => {
         if (this.hasInteraction(guildId, interactionId)) throw new Error('This wager was already processed.');
-        const highestBalance = this.db.prepare('SELECT COALESCE(MAX(balance),0) AS highest FROM economy_members WHERE guild_id=?').get(guildId).highest;
-        const maximumWager = Math.max(1, Math.floor(highestBalance * 0.10));
-        if (boundedInt(wager, 0, 0) > maximumWager) {
-            throw new Error(`Dice maximum wager is ${maximumWager} ${this.config.currencyName} (10% of the server's highest balance).`);
-        }
-        const reserved = this.reserveWager(guildId, userId, wager, interactionId, `dice:${interactionId}`, now);
-        const outcome = diceOutcome(this.random());
+        const amount = boundedInt(wager, 0, 1);
+        const reserved = this.reserveWager(guildId, userId, amount, interactionId, `dice:${interactionId}`, now);
+        const table = eligibleDiceTable(reserved.amount);
+        const outcome = diceOutcome(this.random(), table);
         const multiplier = outcome.multiplier;
         const payout = Math.floor(reserved.amount * multiplier);
         let balance = reserved.balance;
@@ -182,21 +186,25 @@ EconomyService.prototype.dice = function diceRebalanced(guildId, userId, wager, 
             multiplier,
             payout,
             balance,
-            maximumWager,
+            maximumWager: null,
+            highPayoutEligible: reserved.amount <= HIGH_PAYOUT_WAGER_LIMIT,
         };
     });
 };
 
-// economy_discord.js loads these exports after this patch, so its displayed odds/RTP match gameplay.
 economy.DICE_PAYOUT_TABLE = DICE_PAYOUT_TABLE;
 economy.DICE_WEIGHT_TOTAL = DICE_WEIGHT_TOTAL;
 economy.diceExpectedReturn = diceExpectedReturn;
 economy.diceHouseEdge = diceHouseEdge;
 economy.diceOutcome = diceOutcome;
+economy.eligibleDiceTable = eligibleDiceTable;
+economy.HIGH_PAYOUT_WAGER_LIMIT = HIGH_PAYOUT_WAGER_LIMIT;
 
 module.exports = {
     GAME_HOURLY_LIMIT,
     DICE_PAYOUT_TABLE,
+    HIGH_PAYOUT_WAGER_LIMIT,
+    eligibleDiceTable,
     diceExpectedReturn,
     diceHouseEdge,
     diceOutcome,
