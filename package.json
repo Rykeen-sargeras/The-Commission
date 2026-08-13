@@ -8,8 +8,8 @@
   "scripts": {
     "start": "electron .",
     "start:bot": "node discord_bootstrap.js",
-    "railway:start": "node railway_start.js",
-    "check": "node --check discord_bot.js && node --check live_voice_pairs.js && node --check discord_bootstrap.js && node --check going_live.js && node --check going_live_time.js && node --check going_live_command_guard.js && node --check going_live_preload.js && node --check economy.js && node --check economy_discord.js && node --check railway_start.js && node --check desktop/main.js && node --check desktop/preload.js && node --check desktop/renderer.js && node --check memberbridge/integration.js",
+    "railway:start": "node -r ./economy_balance_patch.js railway_start.js",
+    "check": "node --check discord_bot.js && node --check live_voice_pairs.js && node --check discord_bootstrap.js && node --check going_live.js && node --check going_live_time.js && node --check going_live_command_guard.js && node --check going_live_preload.js && node --check economy.js && node --check economy_balance_patch.js && node --check economy_discord.js && node --check railway_start.js && node --check desktop/main.js && node --check desktop/preload.js && node --check desktop/renderer.js && node --check memberbridge/integration.js",
     "test": "node tests/live-voice-pairs.test.js && node tests/preemptive-ban.test.js && node tests/blueprint.test.js && node tests/economy.test.js && node tests/going-live.test.js && node tests/memberbridge-retirement.test.js",
     "dist": "electron-builder --win nsis portable",
     "dist:dir": "electron-builder --dir"
@@ -42,6 +42,7 @@
       "tests/**/*",
       "blueprint.js",
       "economy.js",
+      "economy_balance_patch.js",
       "economy_discord.js",
       "going_live.js",
       "going_live_time.js",
