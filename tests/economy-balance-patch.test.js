@@ -43,23 +43,27 @@ try {
         { name: 'Five of a Kind', multiplier: 25 },
     );
 
-    service.admin('guild', 'add', 'dice-user', 1000, 'fund-dice');
     const now = Date.now();
+    service.admin('guild', 'add', 'limit-user', 1000, 'fund-limit-user');
+
     for (let index = 0; index < 6; index += 1) {
-        service.dice('guild', 'dice-user', 1, `dice-${index}`, now + index);
+        service.dice('guild', 'limit-user', 1, `dice-${index}`, now + index);
     }
     assert.throws(
-        () => service.dice('guild', 'dice-user', 1, 'dice-7', now + 10),
+        () => service.dice('guild', 'limit-user', 1, 'dice-7', now + 10),
         /hourly limit reached: maximum 6 game\(s\) per hour/i,
     );
 
-    // A different category gets its own six-game allowance.
-    service.admin('guild', 'add', 'other-user', 1000, 'fund-other');
+    // Poker has its own six-game bucket even after the same member used all six dice plays.
     for (let index = 0; index < 6; index += 1) {
-        const game = service.startPoker('guild', `poker-limit-${index}`, 1, `poker-limit-${index}`, now + index);
+        const game = service.startPoker('guild', 'limit-user', 1, `poker-limit-${index}`, now + 20 + index);
         assert(game.gameId);
-        service.admin('guild', 'add', `poker-limit-${index}`, 10, `fund-poker-limit-${index}`);
+        service.drawPoker(game.gameId, 'limit-user', now + 20 + index);
     }
+    assert.throws(
+        () => service.startPoker('guild', 'limit-user', 1, 'poker-limit-7', now + 40),
+        /hourly limit reached: maximum 6 game\(s\) per hour/i,
+    );
 
     console.log('Economy balance patch tests passed.');
 } finally {
