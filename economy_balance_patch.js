@@ -58,6 +58,7 @@ function diceOutcome(randomValue, table = DICE_PAYOUT_TABLE) {
 function gameCategory(related) {
     const value = String(related || '');
     if (value.startsWith('dice:')) return 'dice';
+    if (value.startsWith('slots:')) return 'slots';
     if (value.startsWith('blackjack:')) return 'blackjack';
     if (value.startsWith('poker:')) return 'poker';
     if (value.startsWith('higher-lower:')) return 'higher-lower';
