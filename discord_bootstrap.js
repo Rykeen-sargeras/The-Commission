@@ -7,4 +7,5 @@ patchDiscordClient();
 installGuard();
 require('./economy_balance_patch');
 require('./economy_luck_store_patch');
+require('./economy_luck_rng_fix');
 require('./discord_bot.js');
