@@ -75,27 +75,26 @@ function economyCommandData() {
 const GAMBLE_GAMES = new Set(['slots', 'dice', 'higher-lower', 'dragon-tower', 'poker', 'blackjack', 'duel']);
 
 function gambleMenuPayload(currencyName) {
-    const menu = new Discord.StringSelectMenuBuilder()
-        .setCustomId('econ:gamble:menu')
-        .setPlaceholder('Choose a game')
-        .addOptions(
-            { label: 'Slots', value: 'slots', description: 'Spin the 3×3 Commission slot machine', emoji: '🎰' },
-            { label: 'Dice', value: 'dice', description: 'Roll for weighted multipliers', emoji: '🎲' },
-            { label: 'Higher / Lower', value: 'higher-lower', description: 'Climb the card multiplier ladder', emoji: '🃏' },
-            { label: 'Dragon Tower', value: 'dragon-tower', description: 'Climb eight rows and cash out', emoji: '🐉' },
-            { label: 'Poker', value: 'poker', description: 'Play one-draw video poker', emoji: '♠️' },
-            { label: 'Blackjack', value: 'blackjack', description: 'Play public blackjack', emoji: '🃏' },
-            { label: 'Duel', value: 'duel', description: 'Challenge another member 50/50', emoji: '⚔️' },
-        );
+    const gameButton = (game, label, emoji, style = Discord.ButtonStyle.Secondary) => new Discord.ButtonBuilder()
+        .setCustomId(`econ:gamble:choose:${game}`).setLabel(label).setEmoji(emoji).setStyle(style);
     return {
         embeds: [new Discord.EmbedBuilder().setColor(0x9b1c31)
             .setTitle('🎲 The Commission — Gambling')
-            .setDescription(`Choose a game below, then enter your wager in ${currencyName}.`)
-            .addFields(
-                { name: 'Casino', value: 'Slots · Dice · Higher / Lower · Dragon Tower · Poker · Blackjack' },
-                { name: 'Player vs Player', value: 'Duel · 50/50 · no house fee' },
-            ).setFooter({ text: 'One command. Every game.' })],
-        components: [new Discord.ActionRowBuilder().addComponents(menu)],
+            .setDescription(`Push a game button, enter your ${currencyName} wager, and play.`)
+            .setFooter({ text: 'One command. Seven games.' })],
+        components: [
+            new Discord.ActionRowBuilder().addComponents(
+                gameButton('slots', 'Slots', '🎰'),
+                gameButton('dice', 'Dice', '🎲'),
+                gameButton('higher-lower', 'Higher / Lower', '🃏'),
+                gameButton('dragon-tower', 'Dragon Tower', '🐉'),
+            ),
+            new Discord.ActionRowBuilder().addComponents(
+                gameButton('poker', 'Poker', '♠️'),
+                gameButton('blackjack', 'Blackjack', '🃏'),
+                gameButton('duel', 'Duel', '⚔️', Discord.ButtonStyle.Danger),
+            ),
+        ],
         ephemeral: true,
     };
 }
@@ -930,9 +929,9 @@ function createEconomyIntegration(client, economy, options = {}) {
     }
 
     async function handleButton(interaction) {
-        if (interaction.isStringSelectMenu?.() && interaction.customId === 'econ:gamble:menu') {
+        if (interaction.isButton?.() && interaction.customId.startsWith('econ:gamble:choose:')) {
             try {
-                await interaction.showModal(wagerModal(interaction.values[0]));
+                await interaction.showModal(wagerModal(interaction.customId.split(':').at(-1)));
             } catch (error) {
                 if (!interaction.replied && !interaction.deferred) await interaction.reply({ content: `❌ ${error.message}`, ephemeral: true }).catch(() => {});
             }

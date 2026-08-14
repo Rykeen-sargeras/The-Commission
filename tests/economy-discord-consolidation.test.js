@@ -20,9 +20,10 @@ assert.deepStrictEqual(manage.options.map(option => option.name), [
 
 const menu = gambleMenuPayload('Blood Money');
 assert.strictEqual(menu.ephemeral, true);
-assert.strictEqual(menu.components[0].components[0].data.custom_id, 'econ:gamble:menu');
-assert.deepStrictEqual(menu.components[0].components[0].options.map(option => option.data.value), [...oldGames]);
-assert.strictEqual(menu.components[0].components[0].options.find(option => option.data.value === 'blackjack').data.emoji.name, '🃏');
+const gameButtons = menu.components.flatMap(row => row.components);
+assert.strictEqual(menu.components.length, 2);
+assert.deepStrictEqual(gameButtons.map(button => button.data.custom_id.replace('econ:gamble:choose:', '')), [...oldGames]);
+assert.strictEqual(gameButtons.find(button => button.data.custom_id.endsWith(':blackjack')).data.emoji.name, '🃏');
 assert.strictEqual(wagerModal('slots').components.length, 1);
 assert.strictEqual(wagerModal('duel').components.length, 2);
 
@@ -54,15 +55,15 @@ function baseClient() {
         reply: async payload => { commandReply = payload; },
     }), true);
     assert.strictEqual(commandReply.ephemeral, true);
-    assert.strictEqual(commandReply.components[0].components[0].data.custom_id, 'econ:gamble:menu');
+    assert.strictEqual(commandReply.components[0].components[0].data.custom_id, 'econ:gamble:choose:slots');
 
     const selectIntegration = createEconomyIntegration(baseClient(), baseEconomy());
     let shownModal = null;
     const selectHandled = await selectIntegration.handleButton({
-        isStringSelectMenu: () => true,
+        isStringSelectMenu: () => false,
         isModalSubmit: () => false,
-        customId: 'econ:gamble:menu',
-        values: ['blackjack'],
+        isButton: () => true,
+        customId: 'econ:gamble:choose:blackjack',
         showModal: async modal => { shownModal = modal; },
     });
     assert.strictEqual(selectHandled, true);
