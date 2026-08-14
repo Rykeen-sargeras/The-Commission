@@ -148,12 +148,8 @@ try {
     assert.strictEqual(dice.odds, 0.02);
     assert.strictEqual(dice.multiplier, 100);
     assert.strictEqual(dice.payout, 5000);
-    const diceMaximum = service.diceMaximumWager('guild');
-    assert.strictEqual(diceMaximum, 705);
-    assert.throws(() => service.dice('guild', 'alice', diceMaximum + 1, 'dice-too-large'), /10% of the server's highest balance/i);
-    const maximumDice = service.dice('guild', 'alice', diceMaximum, 'dice-maximum');
-    assert.strictEqual(maximumDice.wager, diceMaximum);
-    assert.strictEqual(service.publicMember('guild', 'alice').daily_wagered, 755);
+    assert.strictEqual(service.diceMaximumWager('guild'), 25000);
+    assert.strictEqual(service.publicMember('guild', 'alice').daily_wagered, 50);
 
     const diceBoundaryCases = [
         [0, 'House wins', 0],
@@ -225,24 +221,14 @@ try {
     assert.strictEqual(topRowTrap.status, 'lost');
     service.random = savedDiceRandom;
 
-    const savedGlobalLimits = {
-        gamblingDailyWagerCap: service.config.gamblingDailyWagerCap,
-        gamblingMaxActionsPerMinute: service.config.gamblingMaxActionsPerMinute,
-        gamblingMaxActionsPerHour: service.config.gamblingMaxActionsPerHour,
-    };
     const limitNow = Date.UTC(2026, 7, 2, 12, 0);
-    Object.assign(service.config, { gamblingDailyWagerCap: 10, gamblingMaxActionsPerMinute: 0, gamblingMaxActionsPerHour: 0 });
-    service.admin('global-daily-guild', 'add', 'daily-gambler', 1000, 'global-daily-bankroll', limitNow);
-    service.dice('global-daily-guild', 'daily-gambler', 6, 'global-daily-first', limitNow + 1);
-    assert.throws(() => service.dice('global-daily-guild', 'daily-gambler', 5, 'global-daily-over', limitNow + 2), /daily gambling allowance remaining: 4/i);
-    Object.assign(service.config, { gamblingDailyWagerCap: 0, gamblingMaxActionsPerMinute: 2, gamblingMaxActionsPerHour: 3 });
-    service.admin('global-rate-guild', 'add', 'rate-gambler', 1000, 'global-rate-bankroll', limitNow);
-    service.dice('global-rate-guild', 'rate-gambler', 1, 'global-rate-one', limitNow + 1);
-    service.dice('global-rate-guild', 'rate-gambler', 1, 'global-rate-two', limitNow + 2);
-    assert.throws(() => service.dice('global-rate-guild', 'rate-gambler', 1, 'global-rate-minute', limitNow + 3), /maximum 2 action\(s\) per minute/i);
-    service.dice('global-rate-guild', 'rate-gambler', 1, 'global-rate-three', limitNow + 60002);
-    assert.throws(() => service.dice('global-rate-guild', 'rate-gambler', 1, 'global-rate-hour', limitNow + 120003), /maximum 3 action\(s\) per hour/i);
-    Object.assign(service.config, savedGlobalLimits);
+    assert.strictEqual(service.config.gamblingHourlyWagerCap, 25000);
+    service.admin('hourly-limit-guild', 'add', 'hourly-gambler', 100000, 'hourly-bankroll', limitNow);
+    service.dice('hourly-limit-guild', 'hourly-gambler', 15000, 'hourly-first', limitNow + 1);
+    service.dice('hourly-limit-guild', 'hourly-gambler', 10000, 'hourly-second', limitNow + 2);
+    assert.throws(() => service.dice('hourly-limit-guild', 'hourly-gambler', 1, 'hourly-over', limitNow + 3), /hourly gambling allowance remaining: 0.*25,000 maximum wagered per hour/i);
+    const nextHour = service.dice('hourly-limit-guild', 'hourly-gambler', 1, 'hourly-reset', limitNow + 3600002);
+    assert.strictEqual(nextHour.wager, 1);
 
     const poker = service.startPoker('guild', 'alice', 5, 'poker-1');
     assert.strictEqual(poker.cards.length, 5);
@@ -263,7 +249,9 @@ try {
     assert.strictEqual(pairResult.payout, 7, 'fractional poker payouts should round down to whole Blood Money');
 
     service.admin('blackjack-guild', 'add', 'card-player', 5000, 'blackjack-bankroll');
-    assert.throws(() => service.startBlackjack('blackjack-guild', 'card-player', 1001, 'blackjack-too-large'), /maximum wager/i);
+    service.admin('blackjack-guild', 'add', 'large-card-player', 5000, 'large-blackjack-bankroll');
+    let largeBlackjack = service.startBlackjack('blackjack-guild', 'large-card-player', 1001, 'blackjack-over-legacy-maximum');
+    while (largeBlackjack.status === 'active') largeBlackjack = service.standBlackjack(largeBlackjack.game_id, 'large-card-player');
     let blackjack = service.startBlackjack('blackjack-guild', 'card-player', 400, 'blackjack-game');
     assert.strictEqual(blackjack.status, 'active');
     blackjack = service.doubleBlackjack(blackjack.game_id, 'card-player', 'blackjack-double');
@@ -304,16 +292,15 @@ try {
     });
     service.admin('limits-guild', 'add', 'limited-player', 5000, 'limits-bankroll');
     assert.throws(() => service.startBlackjack('limits-guild', 'limited-player', 99, 'blackjack-minimum'), /minimum wager/i);
-    assert.throws(() => service.startBlackjack('limits-guild', 'limited-player', 201, 'blackjack-maximum'), /maximum wager/i);
-    let limitedBlackjack = service.startBlackjack('limits-guild', 'limited-player', 200, 'blackjack-limited');
-    assert.throws(() => service.doubleBlackjack(limitedBlackjack.game_id, 'limited-player', 'blackjack-daily-double'), /daily wager allowance/i);
+    let limitedBlackjack = service.startBlackjack('limits-guild', 'limited-player', 201, 'blackjack-over-legacy-maximum');
     while (limitedBlackjack.status === 'active') limitedBlackjack = service.standBlackjack(limitedBlackjack.game_id, 'limited-player');
-    assert.throws(() => service.startBlackjack('limits-guild', 'limited-player', 101, 'blackjack-daily-next'), /daily wager allowance/i);
+    limitedBlackjack = service.startBlackjack('limits-guild', 'limited-player', 101, 'blackjack-over-legacy-daily');
+    while (limitedBlackjack.status === 'active') limitedBlackjack = service.standBlackjack(limitedBlackjack.game_id, 'limited-player');
     assert.throws(() => service.startPoker('limits-guild', 'limited-player', 99, 'poker-minimum'), /minimum wager/i);
-    assert.throws(() => service.startPoker('limits-guild', 'limited-player', 201, 'poker-maximum'), /maximum wager/i);
-    const limitedPoker = service.startPoker('limits-guild', 'limited-player', 200, 'poker-limited');
+    const limitedPoker = service.startPoker('limits-guild', 'limited-player', 201, 'poker-over-legacy-maximum');
     service.drawPoker(limitedPoker.gameId, 'limited-player');
-    assert.throws(() => service.startPoker('limits-guild', 'limited-player', 101, 'poker-daily-next'), /daily wager allowance/i);
+    const nextLimitedPoker = service.startPoker('limits-guild', 'limited-player', 101, 'poker-over-legacy-daily');
+    service.drawPoker(nextLimitedPoker.gameId, 'limited-player');
     Object.assign(service.config, originalLimits);
 
     service.admin('duel-guild', 'add', 'duelist-one', 10000, 'duel-bankroll-one');

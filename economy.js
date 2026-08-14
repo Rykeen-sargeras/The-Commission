@@ -38,6 +38,7 @@ const DEFAULTS = Object.freeze({
     gamblingDailyWagerCap: 0,
     gamblingMaxActionsPerMinute: 0,
     gamblingMaxActionsPerHour: 0,
+    gamblingHourlyWagerCap: 25000,
     blackjackMinimumWager: 1,
     blackjackMaximumWager: 100,
     blackjackDailyCap: 500,
@@ -278,6 +279,7 @@ class EconomyService {
             gamblingDailyWagerCap: boundedInt(raw.gamblingDailyWagerCap, 0, 0),
             gamblingMaxActionsPerMinute: boundedInt(raw.gamblingMaxActionsPerMinute, 0, 0, 10000),
             gamblingMaxActionsPerHour: boundedInt(raw.gamblingMaxActionsPerHour, 0, 0, 100000),
+            gamblingHourlyWagerCap: 25000,
             blackjackMinimumWager: boundedInt(raw.blackjackMinimumWager, 1, 1),
             blackjackMaximumWager: boundedInt(raw.blackjackMaximumWager, 100, 1),
             blackjackDailyCap: boundedInt(raw.blackjackDailyCap, 500, 1),
@@ -710,17 +712,11 @@ class EconomyService {
         if (!this.config.gamblingEnabled) throw new Error('Gambling is currently disabled.');
         if (amount < 1) throw new Error('Wager must be at least 1.');
         if (amount > row.balance) throw new Error(`You only have ${row.balance} ${this.config.currencyName}.`);
-        if (this.config.gamblingDailyWagerCap > 0 && row.daily_wagered + amount > this.config.gamblingDailyWagerCap) {
-            throw new Error(`Daily gambling allowance remaining: ${Math.max(0, this.config.gamblingDailyWagerCap - row.daily_wagered)} ${this.config.currencyName}.`);
-        }
-        const rateResetAt = boundedInt(this.setting(guildId, 'gambling_rate_reset_at'), 0, 0);
-        const rateCount = windowMs => this.db.prepare(`SELECT COUNT(*) AS total FROM economy_transactions
-            WHERE guild_id=? AND user_id=? AND type='wager' AND created_at>=?`).get(guildId, userId, Math.max(rateResetAt, now - windowMs)).total;
-        if (this.config.gamblingMaxActionsPerMinute > 0 && rateCount(60000) >= this.config.gamblingMaxActionsPerMinute) {
-            throw new Error(`Gambling rate limit reached: maximum ${this.config.gamblingMaxActionsPerMinute} action(s) per minute.`);
-        }
-        if (this.config.gamblingMaxActionsPerHour > 0 && rateCount(3600000) >= this.config.gamblingMaxActionsPerHour) {
-            throw new Error(`Gambling rate limit reached: maximum ${this.config.gamblingMaxActionsPerHour} action(s) per hour.`);
+        const hourlyWagered = this.db.prepare(`SELECT COALESCE(SUM(-amount),0) AS total FROM economy_transactions
+            WHERE guild_id=? AND user_id=? AND type='wager' AND created_at>?`).get(guildId, userId, now - 3600000).total;
+        const hourlyRemaining = Math.max(0, this.config.gamblingHourlyWagerCap - hourlyWagered);
+        if (amount > hourlyRemaining) {
+            throw new Error(`Hourly gambling allowance remaining: ${hourlyRemaining} ${this.config.currencyName} (25,000 maximum wagered per hour).`);
         }
         const balance = this.applyDelta(guildId, userId, -amount, 'wager', related, interactionId, now);
         this.db.prepare('UPDATE economy_members SET lifetime_wagered=lifetime_wagered+?,daily_wagered=daily_wagered+? WHERE guild_id=? AND user_id=?')
@@ -728,32 +724,18 @@ class EconomyService {
         return { amount, balance };
     }
 
-    reserveGameWager(game, guildId, userId, wager, interactionId, related, now = Date.now(), enforceGameCap = true) {
+    reserveGameWager(game, guildId, userId, wager, interactionId, related, now = Date.now()) {
         const amount = boundedInt(wager, 0, 0);
         const rules = game === 'blackjack'
-            ? { minimum: this.config.blackjackMinimumWager, maximum: this.config.blackjackMaximumWager, daily: this.config.blackjackDailyCap, column: 'daily_blackjack_wagered' }
-            : { minimum: this.config.pokerMinimumWager, maximum: this.config.pokerMaximumWager, daily: this.config.pokerDailyCap, column: 'daily_poker_wagered' };
-        const member = this.ensureMember(guildId, userId, now);
+            ? { minimum: this.config.blackjackMinimumWager }
+            : { minimum: this.config.pokerMinimumWager };
         if (amount < rules.minimum) throw new Error(`${game === 'blackjack' ? 'Blackjack' : 'Video poker'} minimum wager is ${rules.minimum} ${this.config.currencyName}.`);
-        if (enforceGameCap && amount > rules.maximum) throw new Error(`${game === 'blackjack' ? 'Blackjack' : 'Video poker'} maximum wager per game is ${rules.maximum} ${this.config.currencyName}.`);
-        const used = member[rules.column] || 0;
-        if (used + amount > rules.daily) {
-            throw new Error(`${game === 'blackjack' ? 'Blackjack' : 'Video poker'} daily wager allowance remaining: ${Math.max(0, rules.daily - used)} ${this.config.currencyName}.`);
-        }
-        const reserved = this.reserveWager(guildId, userId, amount, interactionId, related, now);
-        this.db.prepare(`UPDATE economy_members SET ${rules.column}=${rules.column}+? WHERE guild_id=? AND user_id=?`)
-            .run(amount, guildId, userId);
-        return { ...reserved, dailyUsed: used + amount, dailyLimit: rules.daily };
+        return this.reserveWager(guildId, userId, amount, interactionId, related, now);
     }
 
     dice(guildId, userId, wager, interactionId, now = Date.now()) {
         return this.transaction(() => {
             if (this.hasInteraction(guildId, interactionId)) throw new Error('This wager was already processed.');
-            const highestBalance = this.db.prepare('SELECT COALESCE(MAX(balance),0) AS highest FROM economy_members WHERE guild_id=?').get(guildId).highest;
-            const maximumWager = Math.max(1, Math.floor(highestBalance * 0.10));
-            if (boundedInt(wager, 0, 0) > maximumWager) {
-                throw new Error(`Dice maximum wager is ${maximumWager} ${this.config.currencyName} (10% of the server's highest balance).`);
-            }
             const reserved = this.reserveWager(guildId, userId, wager, interactionId, `dice:${interactionId}`, now);
             const outcome = diceOutcome(this.random());
             const multiplier = outcome.multiplier;
@@ -771,22 +753,17 @@ class EconomyService {
                 multiplier,
                 payout,
                 balance,
-                maximumWager,
+                maximumWager: this.config.gamblingHourlyWagerCap,
             };
         });
     }
 
     diceMaximumWager(guildId) {
-        const highestBalance = this.db.prepare('SELECT COALESCE(MAX(balance),0) AS highest FROM economy_members WHERE guild_id=?').get(guildId).highest;
-        return Math.max(1, Math.floor(highestBalance * 0.10));
+        return this.config.gamblingHourlyWagerCap;
     }
 
     startProgressiveWager(guildId, userId, wager, interactionId, related, now = Date.now()) {
-        const maximumWager = this.diceMaximumWager(guildId);
-        if (boundedInt(wager, 0, 0) > maximumWager) {
-            throw new Error(`Maximum wager is ${maximumWager} ${this.config.currencyName} (10% of the server's highest balance).`);
-        }
-        return { ...this.reserveWager(guildId, userId, wager, interactionId, related, now), maximumWager };
+        return { ...this.reserveWager(guildId, userId, wager, interactionId, related, now), maximumWager: this.config.gamblingHourlyWagerCap };
     }
 
     higherLowerReferenceCard() {
