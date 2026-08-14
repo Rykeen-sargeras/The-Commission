@@ -299,4 +299,4652 @@ const triviaQuestions = [
     { question: "Who was the first President of the United States?", answer: "George Washington", category: "History" },
 
     // Pop Culture & Entertainment (50)
-    { quÎΩ:ˆ⁄$z{-ÆÈ‹j◊ùW2«¬∑“ì∞¢ñbÜˆfdVÁG&ñW2Ê∆VÊwFÇ””“í∞¢ˆfd6ˆÁFñÊW"ÊñÊÊW$ÖD‘¬“s«7Gñ∆S“&6ˆ∆˜#¢f"Ç“◊FWáB÷◊WFVBì≤#‰ÊÚˆffVÁ6W2&V6˜&FVC¬˜‚s∞¢“V«6R∞¢ˆfd6ˆÁFñÊW"ÊñÊÊW$ÖD‘¬“ˆfdVÁG&ñW2Ê÷ÜgVÊ7Fñˆ‚ÜVÁG'íí∞¢f"VñB“VÁG'ï≥”∞¢f"6˜VÁB“VÁG'ï≥”∞¢f"∆&V¬“6˜VÁB””“ÚsR÷ñ‚¶ñ¬r¢6˜VÁB””“"Ús3÷ñ‚¶ñ¬r¢uW&÷ÊVÁB¶ñ¬s∞¢&WGW&‚s∆Fób7Gñ∆S“&Fó7∆ì¢f∆WÉ≤ßW7Fñgí÷6ˆÁFVÁC¢76R÷&WGvVV„≤∆ñv‚÷óFV◊3¢6VÁFW#≤&6∂w&˜VÊC¢f"Ç“÷&r◊FW'Fñ'íì≤FFñÊs¢'É≤&˜&FW"◊&FóW3¢áÉ≤÷&vñ‚÷&˜GFˆ”¢áÉ≤&˜&FW"÷∆VgC¢7Ç6ˆ∆ñBf"Ç“◊v&ÊñÊrì≤#‚r∞¢s∆Fóc„«7‚7Gñ∆S“&fˆÁB◊vVñváC¢c≤#ÂW6W"îC¢r≤VñB≤s¬˜7„„∆'#„«7‚7Gñ∆S“&6ˆ∆˜#¢f"Ç“◊FWáB◊6V6ˆÊF'íì≤fˆÁB◊6ó¶S¢7É≤#‰ˆffVÁ6W3¢r≤6˜VÁB≤rÇr≤∆&V¬≤rì¬˜7„„¬ˆFóc‚r∞¢s∆'WGFˆ‚ˆÊ6∆ñ6≥“'&W6WDˆffVÁ6W2Ö≈¬rr≤VñB≤u≈¬rí"6∆73“&'F‚'F‚◊6V6ˆÊF'í"7Gñ∆S“'FFñÊs¢gÇ'É≤fˆÁB◊6ó¶S¢'É≤#Â&W6WC¬ˆ'WGFˆ„‚r∞¢s¬ˆFóc‚s∞¢“íÊ¶ˆñ‚Çrrì∞¢–¢“6F6ÇÜW'"í∞¢6ˆÁ6ˆ∆RÊW'&˜"ÇtW'&˜"∆ˆFñÊr&ÊÊVBv˜&G3¢r¬W'"ì∞¢–¢–†¢7ñÊ2gVÊ7Fñˆ‚FD&ÊÊVEv˜&BÇí∞¢f"v˜&B“Fˆ7V÷VÁBÊvWDV∆V÷VÁD'îñBÇvÊWuv˜&BríÁf«VRÁG&ñ“Çì∞¢ñbÇv˜&Bí&WGW&‚6Ü˜t∆W'BÇwv˜&G4∆W'Br¬tVÁFW"v˜&B˜"á&6Rr¬vW'&˜"rì∞¢G'í∞¢f"&W2“vóBfWF6ÇÇrˆíˆ&ÊÊVB◊v˜&G2r¬∞¢÷WFÜˆC¢uı5Br¿¢ÜVFW'3¢≤t6ˆÁFVÁB’GóRs¢v∆ñ6Fñˆ‚ˆß6ˆ‚r“¿¢&ˆGì¢•4Ù‚Á7G&ñÊvñgíá≤77v˜&C¢77v˜&B¬7Fñˆ„¢vFBr¬v˜&C¢v˜&B“ê¢“ì∞¢f"FF“vóB&W2Êß6ˆ‚Çì∞¢ñbÜFFÁ7V66W72í∞¢6Ü˜t∆W'BÇwv˜&G4∆W'Br¬tFFVC¢r≤v˜&B¬w7V66W72rì∞¢Fˆ7V÷VÁBÊvWDV∆V÷VÁD'îñBÇvÊWuv˜&BríÁf«VR“rs∞¢∆ˆD&ÊÊVEv˜&G2Çì∞¢“V«6R∞¢6Ü˜t∆W'BÇwv˜&G4∆W'Br¬FFÊW'&˜"¬vW'&˜"rì∞¢–¢“6F6ÇÜW'"í∞¢6Ü˜t∆W'BÇwv˜&G4∆W'Br¬tW'&˜#¢r≤W'"Ê÷W76vR¬vW'&˜"rì∞¢–¢–†¢7ñÊ2gVÊ7Fñˆ‚&V÷˜fT&ÊÊVEv˜&Báv˜&Bí∞¢G'í∞¢f"&W2“vóBfWF6ÇÇrˆíˆ&ÊÊVB◊v˜&G2r¬∞¢÷WFÜˆC¢uı5Br¿¢ÜVFW'3¢≤t6ˆÁFVÁB’GóRs¢v∆ñ6Fñˆ‚ˆß6ˆ‚r“¿¢&ˆGì¢•4Ù‚Á7G&ñÊvñgíá≤77v˜&C¢77v˜&B¬7Fñˆ„¢w&V÷˜fRr¬v˜&C¢v˜&B“ê¢“ì∞¢f"FF“vóB&W2Êß6ˆ‚Çì∞¢ñbÜFFÁ7V66W72í∞¢6Ü˜t∆W'BÇwv˜&G4∆W'Br¬u&V÷˜fVC¢r≤v˜&B¬w7V66W72rì∞¢∆ˆD&ÊÊVEv˜&G2Çì∞¢–¢“6F6ÇÜW'"í∞¢6Ü˜t∆W'BÇwv˜&G4∆W'Br¬tW'&˜#¢r≤W'"Ê÷W76vR¬vW'&˜"rì∞¢–¢–†¢7ñÊ2gVÊ7Fñˆ‚&W6WDˆffVÁ6W2áW6W$ñBí∞¢G'í∞¢f"&W2“vóBfWF6ÇÇrˆíˆ&ÊÊVB◊v˜&G2r¬∞¢÷WFÜˆC¢uı5Br¿¢ÜVFW'3¢≤t6ˆÁFVÁB’GóRs¢v∆ñ6Fñˆ‚ˆß6ˆ‚r“¿¢&ˆGì¢•4Ù‚Á7G&ñÊvñgíá≤77v˜&C¢77v˜&B¬7Fñˆ„¢w&W6WB÷ˆffVÁ6W2r¬W6W$ñC¢W6W$ñB“ê¢“ì∞¢f"FF“vóB&W2Êß6ˆ‚Çì∞¢ñbÜFFÁ7V66W72í∞¢6Ü˜t∆W'BÇwv˜&G4∆W'Br¬tˆffVÁ6W2&W6WBf˜"r≤W6W$ñB¬w7V66W72rì∞¢∆ˆD&ÊÊVEv˜&G2Çì∞¢–¢“6F6ÇÜW'"í∞¢6Ü˜t∆W'BÇwv˜&G4∆W'Br¬tW'&˜#¢r≤W'"Ê÷W76vR¬vW'&˜"rì∞¢–¢–†¢ÚÚ7FófóGíF"gVÊ7FñˆÁ0¢7ñÊ2gVÊ7Fñˆ‚∆ˆD7FófóGíÇí∞¢G'í∞¢f"FFU6V∆V7B“Fˆ7V÷VÁBÊvWDV∆V÷VÁD'îñBÇv7FófóGîFFRrì∞¢f"6V∆V7FVDFFR“FFU6V∆V7BÁf«VS∞¢f"W&¬“rˆí˜fˆñ6R÷∆ˆs˜77v˜&C“r≤VÊ6ˆFUU$î6ˆ◊ˆÊVÁBá77v˜&Bì∞¢ñbá6V∆V7FVDFFRíW&¬≥“rfFFS“r≤6V∆V7FVDFFS∞†¢f"&W2“vóBfWF6ÇáW&¬ì∞¢f"FF“vóB&W2Êß6ˆ‚Çì∞¢ñbÜFFÊW'&˜"í&WGW&„∞†¢ÚÚWFFRFFRG&˜F˜v‡¢f"7W'&VÁEf¬“FFU6V∆V7BÁf«VS∞¢FFU6V∆V7BÊñÊÊW$ÖD‘¬“rs∞†¢ÚÚFBFˆFí˜Fñˆ‡¢f"FˆFî∂Wí“ÊWrFFRÇíÁFÙï4ı7G&ñÊrÇíÁ7∆óBÇuBrï≥”∞¢f"FˆFî˜B“Fˆ7V÷VÁBÊ7&VFTV∆V÷VÁBÇv˜Fñˆ‚rì∞¢FˆFî˜BÁf«VR“rs∞¢FˆFî˜BÁFWáD6ˆÁFVÁB“uFˆFíÇr≤FˆFî∂Wí≤rís∞¢FFU6V∆V7BÊVÊD6Üñ∆BáFˆFî˜Bì∞†¢ÚÚFBfñ∆&∆RFFW0¢ñbÜFFÊFFW2í∞¢FFÊFFW2Êf˜$V6ÇÜgVÊ7Fñˆ‚ÜBí∞¢ñbÜB”“FˆFî∂Wíí∞¢f"˜B“Fˆ7V÷VÁBÊ7&VFTV∆V÷VÁBÇv˜Fñˆ‚rì∞¢˜BÁf«VR“C∞¢f"FFTˆ&¢“ÊWrFFRÜB≤uC#££rì∞¢˜BÁFWáD6ˆÁFVÁB“FFTˆ&¢ÁFÙ∆ˆ6∆TFFU7G&ñÊrÇvV‚’U2r¬≤vVV∂Fì¢w6Ü˜'Br¬÷ˆÁFÉ¢w6Ü˜'Br¬Fì¢vÁV÷W&ñ2r¬ñV#¢vÁV÷W&ñ2r“ì∞¢FFU6V∆V7BÊVÊD6Üñ∆BÜ˜Bì∞¢–¢“ì∞¢–†¢FFU6V∆V7BÁf«VR“7W'&VÁEf√∞†¢ÚÚ6Ü˜r6V∆V7FVBFFP¢Fˆ7V÷VÁBÊvWDV∆V÷VÁD'îñBÇv7FófóGîFFT∆&V¬ríÁFWáD6ˆÁFVÁB“u6Ü˜vñÊs¢r≤ÜFFÁ6V∆V7FVDFFR«¬FˆFî∂Wíí≤rÇr≤ÜFFÁfˆñ6T∆ˆrÊ∆VÊwFÇí≤rfˆñ6RÚr≤ÜFFÊ÷V÷&W$∆ˆrÊ∆VÊwFÇí≤r÷V÷&W"VÁG&ñW2ís∞†¢ÚÚfˆñ6R∆ˆp¢f"d6ˆÁFñÊW"“Fˆ7V÷VÁBÊvWDV∆V÷VÁD'îñBÇwfˆñ6T∆ˆt6ˆÁFñÊW"rì∞¢ñbÇFFÁfˆñ6T∆ˆr«¬FFÁfˆñ6T∆ˆrÊ∆VÊwFÇ””“í∞¢d6ˆÁFñÊW"ÊñÊÊW$ÖD‘¬“s«7Gñ∆S“&6ˆ∆˜#¢f"Ç“◊FWáB÷◊WFVBì≤FWáB÷∆ñv„¢6VÁFW#≤FFñÊs¢#É≤#‰ÊÚfˆñ6R7FófóGíf˜"FÜó2FFS¬˜‚s∞¢“V«6R∞¢d6ˆÁFñÊW"ÊñÊÊW$ÖD‘¬“FFÁfˆñ6T∆ˆrÊ÷ÜgVÊ7Fñˆ‚ÜVÁG'íí∞¢f"6ˆ∆˜"¬ñ6ˆ‚¬7FñˆÂFWáC∞¢ñbÜVÁG'íÊ7Fñˆ‚””“v¶ˆñÊVBrí∞¢6ˆ∆˜"“wf"Ç“◊7V66W72ís≤ñ6ˆ‚“	˘˙"s≤7FñˆÂFWáB“v¶ˆñÊVBs∞¢“V«6RñbÜVÁG'íÊ7Fñˆ‚””“w7vóF6ÜVBrí∞¢6ˆ∆˜"“wf"Ç“◊v&ÊñÊrís≤ñ6ˆ‚“	˘HBs≤7FñˆÂFWáB“w7vóF6ÜVBg&ˆ“s∞¢“V«6R∞¢6ˆ∆˜"“wf"Ç“÷FÊvW"ís≤ñ6ˆ‚“	˘KBs≤7FñˆÂFWáB“v∆VgBs∞¢–¢f"GW%FWáB“VÁG'íÊGW&Fñˆ‚Úr(	B«7G&ˆÊs‚r≤VÁG'íÊGW&Fñˆ‚≤s¬˜7G&ˆÊs‚r¢rs∞¢f"FıFWáB“VÁG'íÁFÙ6ÜÊÊV¬Úr(i"«7G&ˆÊs‚2r≤VÁG'íÁFÙ6ÜÊÊV¬≤s¬˜7G&ˆÊs‚r¢rs∞¢&WGW&‚s∆Fób7Gñ∆S“&&6∂w&˜VÊC¢f"Ç“÷&r◊FW'Fñ'íì≤FFñÊs¢ÇGÉ≤&˜&FW"◊&FóW3¢gÉ≤÷&vñ‚÷&˜GFˆ”¢GÉ≤&˜&FW"÷∆VgC¢7Ç6ˆ∆ñBr≤6ˆ∆˜"≤s≤fˆÁB◊6ó¶S¢7É≤#‚r∞¢s«7‚7Gñ∆S“&6ˆ∆˜#¢f"Ç“◊FWáB÷◊WFVBì≤fˆÁB◊6ó¶S¢É≤f∆ˆC¢&ñváC≤#‚r≤VÁG'íÁFñ÷U7G"≤s¬˜7„‚r∞¢ñ6ˆ‚≤r«7G&ˆÊs‚r≤VÁG'íÁW6W&Ê÷R≤s¬˜7G&ˆÊs‚r∞¢s«7‚7Gñ∆S“&6ˆ∆˜#¢r≤6ˆ∆˜"≤s≤#‚r≤7FñˆÂFWáB≤s¬˜7„‚r∞¢s«7G&ˆÊs‚2r≤VÁG'íÊ6ÜÊÊVƒÊ÷R≤s¬˜7G&ˆÊs‚r≤FıFWáB≤GW%FWáB∞¢s¬ˆFóc‚s∞¢“íÊ¶ˆñ‚Çrrì∞¢–†¢ÚÚ÷V÷&W"∆ˆp¢f"‘6ˆÁFñÊW"“Fˆ7V÷VÁBÊvWDV∆V÷VÁD'îñBÇv÷V÷&W$∆ˆt6ˆÁFñÊW"rì∞¢ñbÇFFÊ÷V÷&W$∆ˆr«¬FFÊ÷V÷&W$∆ˆrÊ∆VÊwFÇ””“í∞¢‘6ˆÁFñÊW"ÊñÊÊW$ÖD‘¬“s«7Gñ∆S“&6ˆ∆˜#¢f"Ç“◊FWáB÷◊WFVBì≤FWáB÷∆ñv„¢6VÁFW#≤FFñÊs¢#É≤#‰ÊÚ÷V÷&W"7FófóGíf˜"FÜó2FFS¬˜‚s∞¢“V«6R∞¢‘6ˆÁFñÊW"ÊñÊÊW$ÖD‘¬“FFÊ÷V÷&W$∆ˆrÊ÷ÜgVÊ7Fñˆ‚ÜVÁG'íí∞¢f"6ˆ∆˜"“VÁG'íÊ7Fñˆ‚””“v¶ˆñÊVBrÚwf"Ç“◊7V66W72ír¢wf"Ç“÷FÊvW"ís∞¢f"ñ6ˆ‚“VÁG'íÊ7Fñˆ‚””“v¶ˆñÊVBrÚ	˘:Rr¢	˘:Bs∞¢f"7FñˆÂFWáB“VÁG'íÊ7Fñˆ‚””“v¶ˆñÊVBrÚv¶ˆñÊVBFÜR6W'fW"r¢v∆VgBFÜR6W'fW"s∞¢&WGW&‚s∆Fób7Gñ∆S“&&6∂w&˜VÊC¢f"Ç“÷&r◊FW'Fñ'íì≤FFñÊs¢ÇGÉ≤&˜&FW"◊&FóW3¢gÉ≤÷&vñ‚÷&˜GFˆ”¢GÉ≤&˜&FW"÷∆VgC¢7Ç6ˆ∆ñBr≤6ˆ∆˜"≤s≤fˆÁB◊6ó¶S¢7É≤#‚r∞¢s«7‚7Gñ∆S“&6ˆ∆˜#¢f"Ç“◊FWáB÷◊WFVBì≤fˆÁB◊6ó¶S¢É≤f∆ˆC¢&ñváC≤#‚r≤VÁG'íÁFñ÷U7G"≤s¬˜7„‚r∞¢ñ6ˆ‚≤r«7G&ˆÊs‚r≤VÁG'íÁW6W&Ê÷R≤s¬˜7G&ˆÊs‚r∞¢s«7‚7Gñ∆S“&6ˆ∆˜#¢r≤6ˆ∆˜"≤s≤#‚r≤7FñˆÂFWáB≤s¬˜7„‚Br≤VÁG'íÁFñ÷U7G"∞¢s¬ˆFóc‚s∞¢“íÊ¶ˆñ‚Çrrì∞¢–¢“6F6ÇÜW'"í∞¢6ˆÁ6ˆ∆RÊW'&˜"ÇtW'&˜"∆ˆFñÊr7FófóGì¢r¬W'"ì∞¢–¢–†¢6WDñÁFW'f¬ÜgVÊ7Fñˆ‚Çí∞¢ñbÜFˆ7V÷VÁBÊvWDV∆V÷VÁD'îñBÇwF"÷VFóBríÊ6∆74∆ó7BÊ6ˆÁFñÁ2Çv7FófRríí∆ˆDVFóD∆ˆrÇì∞¢ñbÜFˆ7V÷VÁBÊvWDV∆V÷VÁD'îñBÇwF"÷7FófóGíríÊ6∆74∆ó7BÊ6ˆÁFñÁ2Çv7FófRríí∆ˆD7FófóGíÇì∞¢“¬ì∞†¢Fˆ7V÷VÁBÊFDWfVÁD∆ó7FVÊW"ÇtDÙ‘6ˆÁFVÁD∆ˆFVBr¬gVÊ7Fñˆ‚Çí∞¢Fˆ7V÷VÁBÊvWDV∆V÷VÁD'îñBÇv∆ˆvñÂ77v˜&BríÊFDWfVÁD∆ó7FVÊW"Çv∂Wó&W72r¬gVÊ7Fñˆ‚ÜRí∞¢ñbÜRÊ∂Wí””“tVÁFW"rí∆ˆvñ‚Çì∞¢“ì∞¢“ì∞¢¬˜67&óC‡£¬ˆ&ˆGì‡£¬ˆáF÷√Ê∞ß–†¶gVÊ7Fñˆ‚6VÊD&«VW&ñÁD÷W76vRÜ÷W76vRí∞¢ñbáGóVˆb&ˆ6W72Á6VÊB””“vgVÊ7Fñˆ‚rí&ˆ6W72Á6VÊBÜ÷W76vRì∞ß–†ß&ˆ6W72Êˆ‚Çv÷W76vRr¬7ñÊ2÷W76vR”‚∞¢ñbÇ÷W76vRí&WGW&„∞¢ñbÜ÷W76vRÊ6ÜÊÊV¬””“v6ˆ÷÷ó76ñˆ„¶÷V÷&W&'&ñFvR◊&WVW7Brí∞¢6ˆÁ7B≤ñB¬7Fñˆ‚¬ñ∆ˆB“∑“““÷W76vS∞¢G'í∞¢ñbÇ6∆ñVÁBÊó5&VGíÇííFá&˜rÊWrW'&˜"Çu7F'BFÜR&˜BÊBvóBf˜"Fó66˜&BFÚ6ˆÊÊV7Bfó'7B‚rì∞¢6ˆÁ7BFF“vóB÷V÷&W$'&ñFvTñÁFVw&Fñˆ‚ÊF÷ñ‚Ü7Fñˆ‚¬ñ∆ˆBì∞¢ñbáGóVˆb&ˆ6W72Á6VÊB””“vgVÊ7Fñˆ‚rí&ˆ6W72Á6VÊBá≤6ÜÊÊV√¢v6ˆ÷÷ó76ñˆ„¶÷V÷&W&'&ñFvR◊&W7ˆÁ6Rr¬ñB¬ˆ≥¢G'VR¬FF“ì∞¢“6F6ÇÜW'&˜"í∞¢ñbáGóVˆb&ˆ6W72Á6VÊB””“vgVÊ7Fñˆ‚rí&ˆ6W72Á6VÊBá≤6ÜÊÊV√¢v6ˆ÷÷ó76ñˆ„¶÷V÷&W&'&ñFvR◊&W7ˆÁ6Rr¬ñB¬ˆ≥¢f«6R¬W'&˜#¢W'&˜"Ê÷W76vR“ì∞¢–¢&WGW&„∞¢–¢ñbÜ÷W76vRÊ6ÜÊÊV¬””“v6ˆ÷÷ó76ñˆ„¶V6ˆÊˆ◊í◊&WVW7Brí∞¢6ˆÁ7B≤ñB¬7Fñˆ‚¬ñ∆ˆB“∑“““÷W76vS∞¢G'í∞¢ñbÇ6∆ñVÁBÊó5&VGíÇííFá&˜rÊWrW'&˜"Çu7F'BFÜR&˜BÊBvóBf˜"Fó66˜&BFÚ6ˆÊÊV7Bfó'7B‚rì∞¢6ˆÁ7BwVñ∆DñB“ñ∆ˆBÊwVñ∆DñB«¬6∆ñVÁBÊwVñ∆G2Ê66ÜRÊfó'7BÇìÚÊñC∞¢ñbÇwVñ∆DñBíFá&˜rÊWrW'&˜"ÇuFÜR&˜Bó2Ê˜B6ˆÊÊV7FVBFÚ6W'fW"‚rì∞¢∆WBFF∞¢ñbÜ7Fñˆ‚””“w7FG2ríFF“V6ˆÊˆ◊íÁ7FG2ÜwVñ∆DñBì∞¢V«6RñbÜ7Fñˆ‚””“v∆VFW&&ˆ&BríFF“ñ∆ˆBÁGóR””“w&Wp¢ÚV6ˆÊˆ◊íÁ&W∆VFW&&ˆ&BÜwVñ∆DñB¬ê¢¢V6ˆÊˆ◊íÊ∆VFW&&ˆ&BÜwVñ∆DñB¬ñ∆ˆBÁGóR«¬v&∆Ê6Rr¬ì∞¢V«6RñbÜ7Fñˆ‚””“wW6Ç÷ÜVó7B◊ÊV¬ríFF“vóBV6ˆÊˆ◊îñÁFVw&Fñˆ‚ÁW6ÑÜVó7EÊV¬ÜwVñ∆DñB¬ñ∆ˆBÊ6ÜÊÊVƒñBì∞¢V«6RñbÜ7Fñˆ‚””“w&W6WB◊&WfñWrríFF“vóBV6ˆÊˆ◊îñÁFVw&Fñˆ‚Á&WfñWu&W6WBÜwVñ∆DñB¬ñ∆ˆBÊ7Fñˆ‚¬ñ∆ˆBÁW6W$ñBì∞¢V«6RñbÜ7Fñˆ‚””“w&W6WB÷WÜV7WFRríFF“vóBV6ˆÊˆ◊îñÁFVw&Fñˆ‚ÊWÜV7WFU&W6WBÜwVñ∆DñB¬ñ∆ˆBÁFˆ∂V‚ì∞¢V«6RñbÜ7Fñˆ‚””“v'V∆≤÷w&ÁB◊&WfñWrríFF“vóBV6ˆÊˆ◊îñÁFVw&Fñˆ‚Á&WfñWt'V∆¥w&ÁBÜwVñ∆DñB¬ñ∆ˆBÊ÷˜VÁBì∞¢V«6RñbÜ7Fñˆ‚””“v'V∆≤÷w&ÁB÷WÜV7WFRríFF“vóBV6ˆÊˆ◊îñÁFVw&Fñˆ‚ÊWÜV7WFT'V∆¥w&ÁBÜwVñ∆DñB¬ñ∆ˆBÁFˆ∂V‚ì∞¢V«6RFá&˜rÊWrW'&˜"ÜVÊ∂Ê˜v‚V6ˆÊˆ◊í7Fñˆ„¢G∂7FñˆÁ÷ì∞¢ñbáGóVˆb&ˆ6W72Á6VÊB””“vgVÊ7Fñˆ‚rí&ˆ6W72Á6VÊBá≤6ÜÊÊV√¢v6ˆ÷÷ó76ñˆ„¶V6ˆÊˆ◊í◊&W7ˆÁ6Rr¬ñB¬ˆ≥¢G'VR¬FF“ì∞¢“6F6ÇÜW'&˜"í∞¢ñbáGóVˆb&ˆ6W72Á6VÊB””“vgVÊ7Fñˆ‚rí&ˆ6W72Á6VÊBá≤6ÜÊÊV√¢v6ˆ÷÷ó76ñˆ„¶V6ˆÊˆ◊í◊&W7ˆÁ6Rr¬ñB¬ˆ≥¢f«6R¬W'&˜#¢W'&˜"Ê÷W76vR“ì∞¢–¢&WGW&„∞¢–¢ñbÜ÷W76vRÊ6ÜÊÊV¬”“v6ˆ÷÷ó76ñˆ„¶&«VW&ñÁB◊&WVW7Brí&WGW&„∞¢6ˆÁ7B≤ñB¬7Fñˆ‚¬ñ∆ˆB“∑“““÷W76vS∞†¢G'í∞¢ñbÇ6∆ñVÁBÊó5&VGíÇííFá&˜rÊWrW'&˜"Çu7F'BFÜR&˜BÊBvóBf˜"Fó66˜&BFÚ6ˆÊÊV7Bfó'7B‚rì∞†¢ñbÜ7Fñˆ‚””“v∆ó7B÷wVñ∆G2rí∞¢6ˆÁ7BwVñ∆G2“6∆ñVÁBÊwVñ∆G2Ê66ÜP¢Ê÷ÜwVñ∆B”‚á≤ñC¢wVñ∆BÊñB¬Ê÷S¢wVñ∆BÊÊ÷R¬ñ6ˆÂW&√¢wVñ∆BÊñ6ˆÂU$¬á≤WáFVÁ6ñˆ„¢wÊrr¬6ó¶S¢#Ç“í“íê¢Á6˜'BÇÜ¬"í”‚ÊÊ÷RÊ∆ˆ6∆T6ˆ◊&RÜ"ÊÊ÷Ríì∞¢6VÊD&«VW&ñÁD÷W76vRá≤6ÜÊÊV√¢v6ˆ÷÷ó76ñˆ„¶&«VW&ñÁB◊&W7ˆÁ6Rr¬ñB¬ˆ≥¢G'VR¬FF¢wVñ∆G2“ì∞¢&WGW&„∞¢–†¢ñbÜ7Fñˆ‚””“v6GW&Rrí∞¢6ˆÁ7BwVñ∆B“vóB6∆ñVÁBÊwVñ∆G2ÊfWF6Çáñ∆ˆBÊwVñ∆DñBì∞¢6VÊD&«VW&ñÁD÷W76vRá≤6ÜÊÊV√¢v6ˆ÷÷ó76ñˆ„¶&«VW&ñÁB◊&ˆw&W72r¬ñB¬÷W76vS¢6GW&ñÊrG∂wVñ∆BÊÊ÷W÷“ì∞¢6ˆÁ7B&«VW&ñÁB“vóB6GW&TwVñ∆D&«VW&ñÁBÜwVñ∆Bì∞¢6VÊD&«VW&ñÁD÷W76vRá≤6ÜÊÊV√¢v6ˆ÷÷ó76ñˆ„¶&«VW&ñÁB◊&W7ˆÁ6Rr¬ñB¬ˆ≥¢G'VR¬FF¢&«VW&ñÁB“ì∞¢&WGW&„∞¢–†¢ñbÜ7Fñˆ‚””“v«írí∞¢6ˆÁ7BwVñ∆B“vóB6∆ñVÁBÊwVñ∆G2ÊfWF6Çáñ∆ˆBÊwVñ∆DñBì∞¢6ˆÁ7B&W7V«B“vóB«îwVñ∆D&«VW&ñÁBÄ¢wVñ∆B¿¢ñ∆ˆBÊ&«VW&ñÁB¿¢≤«îWfW'ñˆÊUW&÷ó76ñˆÁ3¢&ˆˆ∆V‚áñ∆ˆBÊ«îWfW'ñˆÊUW&÷ó76ñˆÁ2í“¿¢&ˆw&W74÷W76vR”‚6VÊD&«VW&ñÁD÷W76vRá∞¢6ÜÊÊV√¢v6ˆ÷÷ó76ñˆ„¶&«VW&ñÁB◊&ˆw&W72r¿¢ñB¿¢÷W76vS¢&ˆw&W74÷W76vR¿¢“í¿¢ì∞¢6VÊD&«VW&ñÁD÷W76vRá≤6ÜÊÊV√¢v6ˆ÷÷ó76ñˆ„¶&«VW&ñÁB◊&W7ˆÁ6Rr¬ñB¬ˆ≥¢G'VR¬FF¢&W7V«B“ì∞¢&WGW&„∞¢–†¢Fá&˜rÊWrW'&˜"ÜVÊ∂Ê˜v‚&«VW&ñÁB7Fñˆ„¢G∂7FñˆÁ÷ì∞¢“6F6ÇÜW'&˜"í∞¢6VÊD&«VW&ñÁD÷W76vRá∞¢6ÜÊÊV√¢v6ˆ÷÷ó76ñˆ„¶&«VW&ñÁB◊&W7ˆÁ6Rr¿¢ñB¿¢ˆ≥¢f«6R¿¢W'&˜#¢W'&˜"Ê÷W76vR¿¢“ì∞¢–ß“ì∞†¢ÚÚ∆ˆvñ‡¶6ˆÁ7BDÙ¥T‚“&ˆ6W72ÊVÁb‰Dï44ı$EıDÙ¥T‚«¬rs∞¶ñbÇDÙ¥T‚í∞¢6ˆÁ6ˆ∆RÊW'&˜"ÇtFó66˜&BFˆ∂V‚ó2÷ó76ñÊr‚FBóBñ‚FÜR6ˆ÷÷ó76ñˆ‚6ˆÁG&ˆ¬ÊV¬‚rì∞¢&ˆ6W72ÊWÜóD6ˆFR“∞ß“V«6R∞¶∆WB6áWGFñÊtF˜v‚“f«6S∞¶7ñÊ2gVÊ7Fñˆ‚w&6VgV≈6áWFF˜v‚á6ñvÊ¬í∞¢ñbá6áWGFñÊtF˜v‚í&WGW&„∞¢6áWGFñÊtF˜v‚“G'VS∞¢6ˆÁ6ˆ∆RÊ∆ˆrÜ∑7ó7FV’“G∑6ñvÊ«“&V6VófVC≤6∆˜6ñÊr÷V÷&W$'&ñFvRÊBFó66˜&B6∆VÊ«íÊì∞¢G'í≤vóB÷V÷&W$'&ñFvTñÁFVw&Fñˆ‚Á7F˜Çì≤“6F6ÇÜW'&˜"í≤6ˆÁ6ˆ∆RÊW'&˜"Çu¥÷V÷&W$'&ñFvR6áWFF˜vÂ“r¬W'&˜"Ê÷W76vRì≤–¢G'í≤V6ˆÊˆ◊íÊ6∆˜6SÚ‚Çì≤“6F6ÇÜW'&˜"í≤6ˆÁ6ˆ∆RÊW'&˜"Çu¥V6ˆÊˆ◊í6áWFF˜vÂ“r¬W'&˜"Ê÷W76vRì≤–¢G'í≤6∆ñVÁBÊFW7G&˜íÇì≤“6F6Ç∑–¢&ˆ6W72ÊWÜóBÉì∞ß–ß&ˆ6W72ÊˆÊ6RÇu4îuDU$“r¬Çí”‚w&6VgV≈6áWFF˜v‚Çu4îuDU$“ríì∞ß&ˆ6W72ÊˆÊ6RÇu4îtîÂBr¬Çí”‚w&6VgV≈6áWFF˜v‚Çu4îtîÂBríì∞†¶6∆ñVÁBÊ∆ˆvñ‚ÖDÙ¥T‚íÊ6F6ÇÜW'&˜"”‚∞¢6ˆÁ6ˆ∆RÊW'&˜"ÇtFó66˜&B∆ˆvñ‚fñ∆VC¢r¬W'&˜"Ê÷W76vRì∞¢&ˆ6W72ÊWÜóD6ˆFR“∞¢“ì∞ß–†
+    { question: "What year did Minecraft release?", answer: "2011", category: "Gaming" },
+    { question: "Who created SpongeBob SquarePants?", answer: "Stephen Hillenburg", category: "TV" },
+    { question: "What is Mario's brother's name?", answer: "Luigi", category: "Gaming" },
+    { question: "What movie won Best Picture in 2020?", answer: "Parasite", category: "Movies" },
+    { question: "How many Infinity Stones are there?", answer: "6", category: "Marvel" },
+    { question: "What is the highest-grossing film of all time?", answer: "Avatar", category: "Movies" },
+    { question: "Who voices Woody in Toy Story?", answer: "Tom Hanks", category: "Movies" },
+    { question: "What year did Fortnite release?", answer: "2017", category: "Gaming" },
+    { question: "What is the name of Iron Man?", answer: "Tony Stark", category: "Marvel" },
+    { question: "How many Harry Potter books are there?", answer: "7", category: "Literature" },
+    { question: "What is the longest-running animated TV show?", answer: "The Simpsons", category: "TV" },
+    { question: "Who directed Jurassic Park?", answer: "Steven Spielberg", category: "Movies" },
+    { question: "What game is Pikachu from?", answer: "Pokemon", category: "Gaming" },
+    { question: "How many Dragon Balls are there?", answer: "7", category: "Anime" },
+    { question: "What is Batman's real name?", answer: "Bruce Wayne", category: "DC" },
+    { question: "Who created The Simpsons?", answer: "Matt Groening", category: "TV" },
+    { question: "What year did YouTube launch?", answer: "2005", category: "Tech" },
+    { question: "How many Star Wars movies are there?", answer: "9", category: "Movies" },
+    { question: "What is the name of Thor's hammer?", answer: "Mjolnir", category: "Marvel" },
+    { question: "Who is the main character in The Legend of Zelda?", answer: "Link", category: "Gaming" },
+    { question: "What streaming service created Stranger Things?", answer: "Netflix", category: "TV" },
+    { question: "How many seasons of Breaking Bad are there?", answer: "5", category: "TV" },
+    { question: "What is Superman's weakness?", answer: "Kryptonite", category: "DC" },
+    { question: "Who directed The Dark Knight?", answer: "Christopher Nolan", category: "Movies" },
+    { question: "What year did Roblox release?", answer: "2006", category: "Gaming" },
+    { question: "How many Avengers movies are there?", answer: "4", category: "Marvel" },
+    { question: "What is the name of the dog in The Simpsons?", answer: "Santa's Little Helper", category: "TV" },
+    { question: "Who voices Elsa in Frozen?", answer: "Idina Menzel", category: "Movies" },
+    { question: "What game features Steve as the main character?", answer: "Minecraft", category: "Gaming" },
+    { question: "How many seasons of Game of Thrones are there?", answer: "8", category: "TV" },
+    { question: "What is the name of Harry Potter's owl?", answer: "Hedwig", category: "Literature" },
+    { question: "Who created Marvel Comics?", answer: "Stan Lee", category: "Marvel" },
+    { question: "What year did Among Us release?", answer: "2018", category: "Gaming" },
+    { question: "How many Lord of the Rings movies are there?", answer: "3", category: "Movies" },
+    { question: "What is the Flash's real name?", answer: "Barry Allen", category: "DC" },
+    { question: "Who directed Avatar?", answer: "James Cameron", category: "Movies" },
+    { question: "What game series features Master Chief?", answer: "Halo", category: "Gaming" },
+    { question: "How many episodes of Friends are there?", answer: "236", category: "TV" },
+    { question: "What is Spider-Man's real name?", answer: "Peter Parker", category: "Marvel" },
+    { question: "Who wrote The Hunger Games?", answer: "Suzanne Collins", category: "Literature" },
+    { question: "What year did TikTok launch?", answer: "2016", category: "Tech" },
+    { question: "How many seasons of The Office US are there?", answer: "9", category: "TV" },
+    { question: "What is Wonder Woman's real name?", answer: "Diana Prince", category: "DC" },
+    { question: "Who directed Inception?", answer: "Christopher Nolan", category: "Movies" },
+    { question: "What game features the Victory Royale?", answer: "Fortnite", category: "Gaming" },
+    { question: "How many seasons of Stranger Things are there?", answer: "4", category: "TV" },
+    { question: "What is the name of the main character in Naruto?", answer: "Naruto Uzumaki", category: "Anime" },
+    { question: "Who created Rick and Morty?", answer: "Justin Roiland", category: "TV" },
+    { question: "What year did Instagram launch?", answer: "2010", category: "Tech" },
+    { question: "How many Batman movies did Christopher Nolan direct?", answer: "3", category: "Movies" },
+
+    // Science & Nature (50)
+    { question: "What is the powerhouse of the cell?", answer: "Mitochondria", category: "Biology" },
+    { question: "How many planets are in our solar system?", answer: "8", category: "Space" },
+    { question: "What is the largest organ in the human body?", answer: "Skin", category: "Biology" },
+    { question: "What gas do humans breathe out?", answer: "Carbon Dioxide", category: "Science" },
+    { question: "How many elements are on the periodic table?", answer: "118", category: "Chemistry" },
+    { question: "What is the closest star to Earth?", answer: "Sun", category: "Space" },
+    { question: "How many chambers does the human heart have?", answer: "4", category: "Biology" },
+    { question: "What is the chemical formula for salt?", answer: "NaCl", category: "Chemistry" },
+    { question: "What planet is closest to the Sun?", answer: "Mercury", category: "Space" },
+    { question: "How many legs does a spider have?", answer: "8", category: "Animals" },
+    { question: "What is the study of earthquakes called?", answer: "Seismology", category: "Science" },
+    { question: "How long does it take for light from the Sun to reach Earth?", answer: "8", category: "Space" },
+    { question: "What is the smallest bone in the human body?", answer: "Stapes", category: "Biology" },
+    { question: "What is the chemical symbol for sodium?", answer: "Na", category: "Chemistry" },
+    { question: "How many moons does Mars have?", answer: "2", category: "Space" },
+    { question: "What is the largest bird in the world?", answer: "Ostrich", category: "Animals" },
+    { question: "What is the study of plants called?", answer: "Botany", category: "Science" },
+    { question: "How many hearts does an octopus have?", answer: "3", category: "Animals" },
+    { question: "What is the most abundant gas in Earth's atmosphere?", answer: "Nitrogen", category: "Science" },
+    { question: "What planet has the most moons?", answer: "Saturn", category: "Space" },
+    { question: "How many lungs do humans have?", answer: "2", category: "Biology" },
+    { question: "What is the chemical symbol for carbon?", answer: "C", category: "Chemistry" },
+    { question: "What is the largest star in our solar system?", answer: "Sun", category: "Space" },
+    { question: "How many wings does a bee have?", answer: "4", category: "Animals" },
+    { question: "What is the study of weather called?", answer: "Meteorology", category: "Science" },
+    { question: "How many teeth do sharks regrow throughout life?", answer: "Unlimited", category: "Animals" },
+    { question: "What is the pH of pure water?", answer: "7", category: "Chemistry" },
+    { question: "What planet is known for its rings?", answer: "Saturn", category: "Space" },
+    { question: "How many pairs of ribs do humans have?", answer: "12", category: "Biology" },
+    { question: "What is the chemical formula for carbon dioxide?", answer: "CO2", category: "Chemistry" },
+    { question: "How many Earths could fit inside the Sun?", answer: "1000000", category: "Space" },
+    { question: "What is the fastest fish in the ocean?", answer: "Sailfish", category: "Animals" },
+    { question: "What is the study of fungi called?", answer: "Mycology", category: "Science" },
+    { question: "How many arms does a starfish have?", answer: "5", category: "Animals" },
+    { question: "What is the most common element in the universe?", answer: "Hydrogen", category: "Science" },
+    { question: "What is the hottest planet in our solar system?", answer: "Venus", category: "Space" },
+    { question: "How many chromosomes do humans have?", answer: "46", category: "Biology" },
+    { question: "What is the chemical symbol for iron?", answer: "Fe", category: "Chemistry" },
+    { question: "How many light years away is the nearest star?", answer: "4", category: "Space" },
+    { question: "What is the largest species of bear?", answer: "Polar Bear", category: "Animals" },
+    { question: "What is the study of rocks called?", answer: "Geology", category: "Science" },
+    { question: "How many legs does a lobster have?", answer: "10", category: "Animals" },
+    { question: "What is the atomic number of hydrogen?", answer: "1", category: "Chemistry" },
+    { question: "What galaxy is Earth in?", answer: "Milky Way", category: "Space" },
+    { question: "How many vertebrae are in the human spine?", answer: "33", category: "Biology" },
+    { question: "What is the rarest blood type?", answer: "AB Negative", category: "Biology" },
+    { question: "How many legs does a centipede have?", answer: "100", category: "Animals" },
+    { question: "What is the study of insects called?", answer: "Entomology", category: "Science" },
+    { question: "What is the largest land animal?", answer: "African Elephant", category: "Animals" },
+    { question: "How many moons does Jupiter have?", answer: "79", category: "Space" },
+
+    // Technology & Internet (50)
+    { question: "Who founded Microsoft?", answer: "Bill Gates", category: "Tech" },
+    { question: "What does CPU stand for?", answer: "Central Processing Unit", category: "Tech" },
+    { question: "Who founded Apple?", answer: "Steve Jobs", category: "Tech" },
+    { question: "What year was Google founded?", answer: "1998", category: "Tech" },
+    { question: "What does HTML stand for?", answer: "Hypertext Markup Language", category: "Tech" },
+    { question: "Who founded Facebook?", answer: "Mark Zuckerberg", category: "Tech" },
+    { question: "What does RAM stand for?", answer: "Random Access Memory", category: "Tech" },
+    { question: "Who founded Amazon?", answer: "Jeff Bezos", category: "Tech" },
+    { question: "What year was Twitter founded?", answer: "2006", category: "Tech" },
+    { question: "What does USB stand for?", answer: "Universal Serial Bus", category: "Tech" },
+    { question: "Who founded Tesla?", answer: "Elon Musk", category: "Tech" },
+    { question: "What does Wi-Fi stand for?", answer: "Wireless Fidelity", category: "Tech" },
+    { question: "Who created Linux?", answer: "Linus Torvalds", category: "Tech" },
+    { question: "What year was Wikipedia founded?", answer: "2001", category: "Tech" },
+    { question: "What does URL stand for?", answer: "Uniform Resource Locator", category: "Tech" },
+    { question: "Who founded PayPal?", answer: "Elon Musk", category: "Tech" },
+    { question: "What does GPU stand for?", answer: "Graphics Processing Unit", category: "Tech" },
+    { question: "Who invented the World Wide Web?", answer: "Tim Berners-Lee", category: "Tech" },
+    { question: "What year was Netflix founded?", answer: "1997", category: "Tech" },
+    { question: "What does DNS stand for?", answer: "Domain Name System", category: "Tech" },
+    { question: "Who founded Spotify?", answer: "Daniel Ek", category: "Tech" },
+    { question: "What does SSD stand for?", answer: "Solid State Drive", category: "Tech" },
+    { question: "Who created Python programming language?", answer: "Guido van Rossum", category: "Tech" },
+    { question: "What year was Snapchat founded?", answer: "2011", category: "Tech" },
+    { question: "What does VPN stand for?", answer: "Virtual Private Network", category: "Tech" },
+    { question: "Who founded Reddit?", answer: "Steve Huffman", category: "Tech" },
+    { question: "What does API stand for?", answer: "Application Programming Interface", category: "Tech" },
+    { question: "Who created Java programming language?", answer: "James Gosling", category: "Tech" },
+    { question: "What year was WhatsApp founded?", answer: "2009", category: "Tech" },
+    { question: "What does ISP stand for?", answer: "Internet Service Provider", category: "Tech" },
+    { question: "Who founded Uber?", answer: "Travis Kalanick", category: "Tech" },
+    { question: "What does OS stand for?", answer: "Operating System", category: "Tech" },
+    { question: "Who created the C programming language?", answer: "Dennis Ritchie", category: "Tech" },
+    { question: "What year was Twitch founded?", answer: "2011", category: "Tech" },
+    { question: "What does LAN stand for?", answer: "Local Area Network", category: "Tech" },
+    { question: "Who founded Airbnb?", answer: "Brian Chesky", category: "Tech" },
+    { question: "What does HTTP stand for?", answer: "Hypertext Transfer Protocol", category: "Tech" },
+    { question: "Who created JavaScript?", answer: "Brendan Eich", category: "Tech" },
+    { question: "What year was Slack founded?", answer: "2013", category: "Tech" },
+    { question: "What does FPS stand for in gaming?", answer: "Frames Per Second", category: "Gaming" },
+    { question: "Who founded Nvidia?", answer: "Jensen Huang", category: "Tech" },
+    { question: "What does BIOS stand for?", answer: "Basic Input Output System", category: "Tech" },
+    { question: "Who created Rust programming language?", answer: "Graydon Hoare", category: "Tech" },
+    { question: "What year was Discord founded?", answer: "2015", category: "Tech" },
+    { question: "What does SQL stand for?", answer: "Structured Query Language", category: "Tech" },
+    { question: "Who founded Adobe?", answer: "John Warnock", category: "Tech" },
+    { question: "What does AI stand for?", answer: "Artificial Intelligence", category: "Tech" },
+    { question: "Who created Ruby programming language?", answer: "Yukihiro Matsumoto", category: "Tech" },
+    { question: "What year was Zoom founded?", answer: "2011", category: "Tech" },
+    { question: "What does IoT stand for?", answer: "Internet of Things", category: "Tech" },
+
+    // Sports & Games (50)
+    { question: "How many points is a touchdown worth?", answer: "6", category: "Sports" },
+    { question: "How many players on a basketball team?", answer: "5", category: "Sports" },
+    { question: "What sport is played at Wimbledon?", answer: "Tennis", category: "Sports" },
+    { question: "How many holes are on a golf course?", answer: "18", category: "Sports" },
+    { question: "How many innings in a baseball game?", answer: "9", category: "Sports" },
+    { question: "What country hosted the 2016 Olympics?", answer: "Brazil", category: "Sports" },
+    { question: "How many players on a hockey team?", answer: "6", category: "Sports" },
+    { question: "Who has won the most Super Bowls?", answer: "Tom Brady", category: "Sports" },
+    { question: "How many points is a 3-pointer in basketball?", answer: "3", category: "Sports" },
+    { question: "What sport uses a shuttlecock?", answer: "Badminton", category: "Sports" },
+    { question: "How many Grand Slams are in tennis?", answer: "4", category: "Sports" },
+    { question: "What country won the 2018 World Cup?", answer: "France", category: "Sports" },
+    { question: "How many periods in a hockey game?", answer: "3", category: "Sports" },
+    { question: "Who holds the home run record?", answer: "Barry Bonds", category: "Sports" },
+    { question: "How many points is a field goal in football?", answer: "3", category: "Sports" },
+    { question: "What sport is played in the NBA?", answer: "Basketball", category: "Sports" },
+    { question: "How many bases in baseball?", answer: "4", category: "Sports" },
+    { question: "What country hosted the 2020 Olympics?", answer: "Japan", category: "Sports" },
+    { question: "How many quarters in a football game?", answer: "4", category: "Sports" },
+    { question: "Who has won the most NBA championships?", answer: "Bill Russell", category: "Sports" },
+    { question: "How many strikes for a strikeout?", answer: "3", category: "Sports" },
+    { question: "What sport is played in the NHL?", answer: "Hockey", category: "Sports" },
+    { question: "How many yards is a football field?", answer: "100", category: "Sports" },
+    { question: "What country hosted the 2014 World Cup?", answer: "Brazil", category: "Sports" },
+    { question: "How many players on a volleyball team?", answer: "6", category: "Sports" },
+    { question: "Who is the fastest man in the world?", answer: "Usain Bolt", category: "Sports" },
+    { question: "How many sets in a tennis match?", answer: "3", category: "Sports" },
+    { question: "What sport is played in the NFL?", answer: "Football", category: "Sports" },
+    { question: "How many outs in an inning?", answer: "3", category: "Sports" },
+    { question: "What country has won the most World Cups?", answer: "Brazil", category: "Sports" },
+    { question: "How many points for a safety in football?", answer: "2", category: "Sports" },
+    { question: "What sport is played in the MLB?", answer: "Baseball", category: "Sports" },
+    { question: "How many fouls before fouling out in NBA?", answer: "6", category: "Sports" },
+    { question: "What sport uses a puck?", answer: "Hockey", category: "Sports" },
+    { question: "How many yards for a first down?", answer: "10", category: "Sports" },
+    { question: "Who has the most Olympic gold medals?", answer: "Michael Phelps", category: "Sports" },
+    { question: "How many players on a rugby team?", answer: "15", category: "Sports" },
+    { question: "What sport is played at Augusta National?", answer: "Golf", category: "Sports" },
+    { question: "How many pins in bowling?", answer: "10", category: "Sports" },
+    { question: "What country hosted the first Olympics?", answer: "Greece", category: "Sports" },
+    { question: "How many timeouts per half in NBA?", answer: "7", category: "Sports" },
+    { question: "What sport uses a net and racket?", answer: "Tennis", category: "Sports" },
+    { question: "How many players in a cricket team?", answer: "11", category: "Sports" },
+    { question: "Who has the most Tour de France wins?", answer: "Lance Armstrong", category: "Sports" },
+    { question: "How many rounds in a boxing match?", answer: "12", category: "Sports" },
+    { question: "What sport is played at the Masters?", answer: "Golf", category: "Sports" },
+    { question: "How many games in a set of tennis?", answer: "6", category: "Sports" },
+    { question: "Who has the most career points in NBA?", answer: "LeBron James", category: "Sports" },
+    { question: "How many arrows in archery round?", answer: "72", category: "Sports" },
+    { question: "What sport uses a pommel horse?", answer: "Gymnastics", category: "Sports" },
+];
+
+// Store user states for interactive commands and tickets
+const userStates = new Map();
+
+// Audit log system
+const auditLog = [];
+const MAX_AUDIT_LOGS = 500; // Keep last 500 events
+
+function addAuditLog(action, user, details, severity = 'info') {
+    const logEntry = {
+        timestamp: new Date().toISOString(),
+        action,
+        user: user ? `${user.tag} (${user.id})` : 'System',
+        details,
+        severity // info, warning, error, success
+    };
+
+    auditLog.unshift(logEntry); // Add to beginning
+
+    // Keep only last MAX_AUDIT_LOGS entries
+    if (auditLog.length > MAX_AUDIT_LOGS) {
+        auditLog.pop();
+    }
+
+    console.log(`[AUDIT ${severity.toUpperCase()}] ${action} by ${logEntry.user}: ${details}`);
+}
+
+
+client.on('ready', async () => {
+    console.log(`‚úÖ Bot logged in as ${client.user.tag}`);
+    console.log(`Dashboard available at: http://localhost:${process.env.PORT || 10000}`);
+    addAuditLog('Bot Started', client.user, `Bot logged in as ${client.user.tag}`, 'success');
+
+    // Register slash commands using REST API
+    try {
+        console.log('üìù Registering slash commands...');
+        console.log(`   Application ID: ${client.user.id}`);
+
+        const { REST, Routes } = require('discord.js');
+        const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN || '');
+
+        const commands = [
+            new Discord.SlashCommandBuilder()
+                .setName('report')
+                .setDescription('Report a user to the mod team')
+                .addStringOption(option =>
+                    option.setName('user')
+                        .setDescription('Who are you reporting? (username or @mention)')
+                        .setRequired(true))
+                .addStringOption(option =>
+                    option.setName('reason')
+                        .setDescription('Why are you reporting them?')
+                        .setRequired(true))
+                .toJSON(),
+            new Discord.SlashCommandBuilder()
+                .setName('jail')
+                .setDescription('Jail a user - hides all text & voice channels from them')
+                .addUserOption(option =>
+                    option.setName('user')
+                        .setDescription('The user to jail')
+                        .setRequired(true))
+                .addStringOption(option =>
+                    option.setName('duration')
+                        .setDescription('How long to jail (default: permanent)')
+                        .setRequired(false)
+                        .addChoices(
+                            { name: '5 minutes', value: '5m' },
+                            { name: '30 minutes', value: '30m' },
+                            { name: '1 hour', value: '1h' },
+                            { name: '6 hours', value: '6h' },
+                            { name: '12 hours', value: '12h' },
+                            { name: '24 hours', value: '24h' },
+                            { name: 'Permanent', value: 'perm' },
+                        ))
+                .addStringOption(option =>
+                    option.setName('reason')
+                        .setDescription('Reason for jailing')
+                        .setRequired(false))
+                .toJSON(),
+            new Discord.SlashCommandBuilder()
+                .setName('unjail')
+                .setDescription('Unjail a user - restores their channel access')
+                .addUserOption(option =>
+                    option.setName('user')
+                        .setDescription('The user to unjail')
+                        .setRequired(true))
+                .toJSON(),
+            new Discord.SlashCommandBuilder()
+                .setName('close')
+                .setDescription('Close a jail channel without unjailing (for bans)')
+                .toJSON(),
+            new Discord.SlashCommandBuilder()
+                .setName('join')
+                .setDescription('Bot joins the music voice channel')
+                .toJSON(),
+            new Discord.SlashCommandBuilder()
+                .setName('leave')
+                .setDescription('Bot leaves the voice channel')
+                .toJSON(),
+            new Discord.SlashCommandBuilder()
+                .setName('play')
+                .setDescription('Play a YouTube video in voice chat')
+                .addStringOption(option =>
+                    option.setName('url')
+                        .setDescription('YouTube URL or search query')
+                        .setRequired(true))
+                .toJSON(),
+            new Discord.SlashCommandBuilder()
+                .setName('skip')
+                .setDescription('Skip the current song')
+                .toJSON(),
+            new Discord.SlashCommandBuilder()
+                .setName('queue')
+                .setDescription('Show the music queue')
+                .toJSON(),
+            new Discord.SlashCommandBuilder()
+                .setName('nowplaying')
+                .setDescription('Show what\'s currently playing')
+                .toJSON(),
+            new Discord.SlashCommandBuilder()
+                .setName('clear')
+                .setDescription('Clear the entire music queue')
+                .toJSON(),
+            goingLive.GOING_LIVE_COMMAND,
+            ...economyCommandData(),
+            ...memberBridgeCommandData(),
+        ];
+
+        // Clear old global commands (removes duplicates)
+        await rest.put(
+            Routes.applicationCommands(client.user.id),
+            { body: [] }
+        );
+        console.log('‚úÖ Cleared old global commands');
+
+        // Register as guild commands (instant) instead of global (up to 1hr delay)
+        const guild = client.guilds.cache.get(goingLive.GUILD_ID) || client.guilds.cache.first();
+        if (guild) {
+            await rest.put(
+                Routes.applicationGuildCommands(client.user.id, guild.id),
+                { body: commands }
+            );
+            console.log(`‚úÖ Slash commands registered for guild: ${guild.name}`);
+        } else {
+            // Fallback to global
+            await rest.put(
+                Routes.applicationCommands(client.user.id),
+                { body: commands }
+            );
+            console.log('‚úÖ Slash commands registered globally');
+        }
+    } catch (error) {
+        console.error('‚ùå Error registering slash commands:', error);
+    }
+
+    // Start birthday checking (every minute)
+    setInterval(checkBirthdays, 60000);
+    checkBirthdays(); // Check immediately on startup
+
+    // Railway exposes one HTTP port. MemberBridge owns it there; the legacy
+    // moderation dashboard remains available only inside the Windows app.
+    if (!RAILWAY_MODE) startKeepAliveServer();
+    await memberBridgeIntegration.start();
+});
+
+// Name history tracking (persisted to disk)
+const NAME_HISTORY_FILE = path.join(DATA_DIR, 'name-history.json');
+let nameHistory = new Map(); // oduserId -> { names: [{ name, timestamp }] }
+
+function loadNameHistory() {
+    try {
+        if (fs.existsSync(NAME_HISTORY_FILE)) {
+            const raw = fs.readFileSync(NAME_HISTORY_FILE, 'utf-8');
+            const data = JSON.parse(raw);
+            nameHistory = new Map(Object.entries(data));
+            console.log(`‚úÖ Loaded name history: ${nameHistory.size} users tracked`);
+        }
+    } catch (e) {
+        console.error('‚ùå Error loading name history:', e);
+    }
+}
+
+function saveNameHistory() {
+    try {
+        fs.writeFileSync(NAME_HISTORY_FILE, JSON.stringify(Object.fromEntries(nameHistory)), 'utf-8');
+    } catch (e) {
+        console.error('‚ùå Error saving name history:', e);
+    }
+}
+
+loadNameHistory();
+
+async function sendPreemptiveBanLog(member, snapshot, success, errorMessage = '') {
+    const channelId = CONFIG.LOG_CHANNEL_ID || CONFIG.MOD_CHANNEL_ID;
+    if (!channelId) return;
+
+    try {
+        const channel = await client.channels.fetch(channelId);
+        if (!channel?.isTextBased()) return;
+
+        const embed = new Discord.EmbedBuilder()
+            .setColor(success ? '#B21F38' : '#D29B4B')
+            .setTitle(success ? 'Preemptive Ban Enforced' : 'Preemptive Ban Failed')
+            .setAuthor({ name: snapshot.tag, iconURL: snapshot.avatarUrl })
+            .setThumbnail(snapshot.avatarUrl)
+            .addFields(
+                { name: 'Username', value: snapshot.username, inline: true },
+                { name: 'Display Name', value: snapshot.displayName, inline: true },
+                { name: 'User ID', value: snapshot.id, inline: true },
+                { name: 'Account Created', value: `<t:${Math.floor(snapshot.createdTimestamp / 1000)}:F>`, inline: false },
+                { name: 'Reason', value: CONFIG.PREEMPTIVE_BAN_REASON.substring(0, 1024), inline: false },
+                { name: 'Result', value: success ? 'Banned immediately on join' : `Ban failed: ${errorMessage.substring(0, 900)}`, inline: false },
+            )
+            .setFooter({ text: 'The Commission ‚Ä¢ Preemptive Ban List' })
+            .setTimestamp();
+
+        await channel.send({ embeds: [embed] });
+    } catch (error) {
+        console.error('Error sending preemptive ban log:', error);
+    }
+}
+
+async function enforcePreemptiveBan(member) {
+    if (!PREEMPTIVE_BAN_USER_IDS.has(member.user.id)) return false;
+
+    const snapshot = {
+        id: member.user.id,
+        username: member.user.username,
+        tag: member.user.tag,
+        displayName: member.displayName || member.user.globalName || member.user.username,
+        avatarUrl: member.user.displayAvatarURL({ extension: 'png', size: 256 }),
+        createdTimestamp: member.user.createdTimestamp,
+    };
+
+    try {
+        await member.ban({
+            deleteMessageSeconds: 0,
+            reason: CONFIG.PREEMPTIVE_BAN_REASON.substring(0, 512),
+        });
+        addAuditLog(
+            'Preemptive Ban Enforced',
+            member.user,
+            `${snapshot.displayName} (${snapshot.id}) was banned on join. Reason: ${CONFIG.PREEMPTIVE_BAN_REASON}`,
+            'error',
+        );
+        console.log(`Preemptive ban enforced for ${snapshot.tag} (${snapshot.id})`);
+        await sendPreemptiveBanLog(member, snapshot, true);
+        return true;
+    } catch (error) {
+        addAuditLog(
+            'Preemptive Ban Failed',
+            member.user,
+            `${snapshot.displayName} (${snapshot.id}): ${error.message}`,
+            'warning',
+        );
+        console.error(`Preemptive ban failed for ${snapshot.tag} (${snapshot.id}):`, error);
+        await sendPreemptiveBanLog(member, snapshot, false, error.message);
+        return false;
+    }
+}
+
+// Alt account detection + name change detection on member join
+client.on('guildMemberAdd', async (member) => {
+    try {
+        if (await enforcePreemptiveBan(member)) return;
+
+        const userId = member.user.id;
+        const currentName = member.user.tag;
+
+        // Check name history for this user
+        const history = nameHistory.get(userId);
+
+        if (history) {
+            // User has joined before - check if name changed
+            const previousNames = history.names.map(n => n.name);
+            const lastName = previousNames[previousNames.length - 1];
+
+            if (lastName && lastName !== currentName) {
+                // Name changed! Alert mod channel
+                if (CONFIG.MOD_CHANNEL_ID) {
+                    try {
+                        const modChannel = await client.channels.fetch(CONFIG.MOD_CHANNEL_ID);
+                        const embed = new Discord.EmbedBuilder()
+                            .setColor('#FF9900')
+                            .setTitle('üîÑ Returning Member ‚Äî Name Changed')
+                            .setThumbnail(member.user.displayAvatarURL())
+                            .addFields(
+                                { name: 'Current Name', value: currentName, inline: true },
+                                { name: 'Previous Name', value: lastName, inline: true },
+                                { name: 'User ID', value: userId, inline: true },
+                                { name: 'All Known Names', value: previousNames.join(', '), inline: false },
+                                { name: 'Times Joined', value: `${history.names.length + 1}`, inline: true },
+                                { name: 'Status', value: 'üîç Review recommended', inline: true }
+                            )
+                            .setFooter({ text: 'Name Change Detection' })
+                            .setTimestamp();
+
+                        await modChannel.send({ embeds: [embed] });
+                        addAuditLog('Name Change Detected', member.user, `Was: ${lastName} ‚Üí Now: ${currentName}`, 'warning');
+                    } catch (e) {
+                        console.error('‚ùå Error sending name change alert:', e);
+                    }
+                }
+            }
+
+            // Add current name to history
+            history.names.push({ name: currentName, timestamp: new Date().toISOString() });
+        } else {
+            // First time seeing this user
+            nameHistory.set(userId, {
+                names: [{ name: currentName, timestamp: new Date().toISOString() }]
+            });
+        }
+
+        saveNameHistory();
+
+        // Alt detection (existing code)
+        if (!CONFIG.ALT_DETECTION_ENABLED) return;
+
+        const accountAge = Date.now() - member.user.createdTimestamp;
+        const accountAgeDays = Math.floor(accountAge / (1000 * 60 * 60 * 24));
+
+        if (accountAgeDays < CONFIG.ALT_ACCOUNT_AGE_DAYS) {
+            const modChannel = await client.channels.fetch(CONFIG.MOD_CHANNEL_ID);
+            if (modChannel) {
+                const embed = new Discord.EmbedBuilder()
+                    .setColor('#FFA500')
+                    .setTitle('‚ö†Ô∏è Potential Alt Account Detected')
+                    .setThumbnail(member.user.displayAvatarURL())
+                    .addFields(
+                        { name: 'User', value: `${member.user.tag} (${member.user.id})`, inline: true },
+                        { name: 'Account Age', value: `${accountAgeDays} days old`, inline: true },
+                        { name: 'Created', value: `<t:${Math.floor(member.user.createdTimestamp / 1000)}:R>`, inline: true },
+                        { name: 'Joined', value: `<t:${Math.floor(member.joinedTimestamp / 1000)}:R>`, inline: true },
+                        { name: 'Default Avatar', value: member.user.avatar ? 'No' : '**Yes** ‚ö†Ô∏è', inline: true },
+                        { name: 'Status', value: 'üîç Review recommended', inline: true }
+                    )
+                    .setFooter({ text: 'Alt Detection System' })
+                    .setTimestamp();
+
+                await modChannel.send({ embeds: [embed] });
+                addAuditLog('Alt Account Detected', member.user, `Account age: ${accountAgeDays} days`, 'warning');
+            }
+        }
+
+        addAuditLog('Member Joined', member.user, `Account age: ${accountAgeDays} days`, 'info');
+    } catch (error) {
+        console.error('Error in member join handler:', error);
+    }
+});
+
+// ======================
+// VOICE CHANNEL TRACKING
+// ======================
+
+// Persistent storage path
+const LOGS_FILE = path.join(DATA_DIR, 'logs.json');
+
+// Organized by date: 'YYYY-MM-DD' -> [entries]
+let voiceLogs = new Map();
+let memberLogs = new Map();
+const voiceJoinTimes = new Map(); // `${userId}-${channelId}` -> joinTimestamp
+
+// Load logs from disk on startup
+function loadLogsFromDisk() {
+    try {
+        if (fs.existsSync(LOGS_FILE)) {
+            const raw = fs.readFileSync(LOGS_FILE, 'utf-8');
+            const data = JSON.parse(raw);
+
+            if (data.voiceLogs) {
+                voiceLogs = new Map(Object.entries(data.voiceLogs));
+            }
+            if (data.memberLogs) {
+                memberLogs = new Map(Object.entries(data.memberLogs));
+            }
+
+            // Prune logs older than 30 days
+            const cutoff = new Date();
+            cutoff.setDate(cutoff.getDate() - 30);
+            const cutoffKey = getDateKey(cutoff);
+
+            for (const key of voiceLogs.keys()) {
+                if (key < cutoffKey) voiceLogs.delete(key);
+            }
+            for (const key of memberLogs.keys()) {
+                if (key < cutoffKey) memberLogs.delete(key);
+            }
+
+            const totalVoice = Array.from(voiceLogs.values()).reduce((sum, arr) => sum + arr.length, 0);
+            const totalMember = Array.from(memberLogs.values()).reduce((sum, arr) => sum + arr.length, 0);
+            console.log(`‚úÖ Loaded logs from disk: ${totalVoice} voice entries, ${totalMember} member entries across ${voiceLogs.size + memberLogs.size} days`);
+        } else {
+            console.log('üìù No existing logs file found, starting fresh');
+        }
+    } catch (error) {
+        console.error('‚ùå Error loading logs from disk:', error);
+    }
+}
+
+// Save logs to disk
+let saveTimer = null;
+function saveLogsToDisk() {
+    // Debounce: only save once per 5 seconds even if multiple events fire
+    if (saveTimer) return;
+    saveTimer = setTimeout(() => {
+        saveTimer = null;
+        try {
+            const data = {
+                voiceLogs: Object.fromEntries(voiceLogs),
+                memberLogs: Object.fromEntries(memberLogs),
+                lastSaved: new Date().toISOString(),
+            };
+            fs.writeFileSync(LOGS_FILE, JSON.stringify(data), 'utf-8');
+        } catch (error) {
+            console.error('‚ùå Error saving logs to disk:', error);
+        }
+    }, 5000);
+}
+
+// Load on startup
+loadLogsFromDisk();
+
+function getDateKey(date) {
+    return date.toISOString().split('T')[0]; // 'YYYY-MM-DD'
+}
+
+function addVoiceLog(entry) {
+    const dateKey = getDateKey(new Date(entry.timestamp));
+    if (!voiceLogs.has(dateKey)) voiceLogs.set(dateKey, []);
+    voiceLogs.get(dateKey).unshift(entry);
+    // Keep max 30 days
+    if (voiceLogs.size > 30) {
+        const oldest = Array.from(voiceLogs.keys()).sort()[0];
+        voiceLogs.delete(oldest);
+    }
+    saveLogsToDisk();
+}
+
+function addMemberLog(entry) {
+    const dateKey = getDateKey(new Date(entry.timestamp));
+    if (!memberLogs.has(dateKey)) memberLogs.set(dateKey, []);
+    memberLogs.get(dateKey).unshift(entry);
+    if (memberLogs.size > 30) {
+        const oldest = Array.from(memberLogs.keys()).sort()[0];
+        memberLogs.delete(oldest);
+    }
+    saveLogsToDisk();
+}
+
+client.on('voiceStateUpdate', (oldState, newState) => {
+    const user = newState.member?.user || oldState.member?.user;
+    if (!user || user.bot) return;
+
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+
+    // User joined a voice channel
+    if (!oldState.channelId && newState.channelId) {
+        const key = `${user.id}-${newState.channelId}`;
+        voiceJoinTimes.set(key, Date.now());
+
+        addVoiceLog({
+            timestamp: now.toISOString(),
+            userId: user.id,
+            username: user.tag,
+            action: 'joined',
+            channelName: newState.channel?.name || 'Unknown',
+            channelId: newState.channelId,
+            duration: null,
+            timeStr: timeStr,
+        });
+        console.log(`üé§ ${user.tag} joined voice: ${newState.channel?.name} at ${timeStr}`);
+    }
+
+    // User left a voice channel
+    else if (oldState.channelId && !newState.channelId) {
+        const key = `${user.id}-${oldState.channelId}`;
+        const joinTime = voiceJoinTimes.get(key);
+        let duration = null;
+
+        if (joinTime) {
+            const durationMs = Date.now() - joinTime;
+            const hours = Math.floor(durationMs / 3600000);
+            const mins = Math.floor((durationMs % 3600000) / 60000);
+            const secs = Math.floor((durationMs % 60000) / 1000);
+            duration = hours > 0 ? `${hours}h ${mins}m ${secs}s` : mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+            voiceJoinTimes.delete(key);
+        }
+
+        addVoiceLog({
+            timestamp: now.toISOString(),
+            userId: user.id,
+            username: user.tag,
+            action: 'left',
+            channelName: oldState.channel?.name || 'Unknown',
+            channelId: oldState.channelId,
+            duration: duration,
+            timeStr: timeStr,
+        });
+        console.log(`üé§ ${user.tag} left voice: ${oldState.channel?.name} at ${timeStr} - Duration: ${duration || 'unknown'}`);
+    }
+
+    // User switched channels
+    else if (oldState.channelId && newState.channelId && oldState.channelId !== newState.channelId) {
+        const oldKey = `${user.id}-${oldState.channelId}`;
+        const joinTime = voiceJoinTimes.get(oldKey);
+        let duration = null;
+
+        if (joinTime) {
+            const durationMs = Date.now() - joinTime;
+            const hours = Math.floor(durationMs / 3600000);
+            const mins = Math.floor((durationMs % 3600000) / 60000);
+            const secs = Math.floor((durationMs % 60000) / 1000);
+            duration = hours > 0 ? `${hours}h ${mins}m ${secs}s` : mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+            voiceJoinTimes.delete(oldKey);
+        }
+
+        addVoiceLog({
+            timestamp: now.toISOString(),
+            userId: user.id,
+            username: user.tag,
+            action: 'switched',
+            channelName: oldState.channel?.name || 'Unknown',
+            toChannel: newState.channel?.name || 'Unknown',
+            channelId: oldState.channelId,
+            duration: duration,
+            timeStr: timeStr,
+        });
+
+        // Start tracking new channel
+        const newKey = `${user.id}-${newState.channelId}`;
+        voiceJoinTimes.set(newKey, Date.now());
+
+        console.log(`üé§ ${user.tag} switched: ${oldState.channel?.name} -> ${newState.channel?.name} at ${timeStr}`);
+    }
+});
+
+// ======================
+// MEMBER JOIN/LEAVE TRACKING
+// ======================
+
+client.on('guildMemberAdd', async (member) => {
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+
+    addMemberLog({
+        timestamp: now.toISOString(),
+        userId: member.user.id,
+        username: member.user.tag,
+        action: 'joined',
+        timeStr: timeStr,
+    });
+    console.log(`üì• ${member.user.tag} joined the server at ${timeStr}`);
+});
+
+client.on('guildMemberRemove', async (member) => {
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+
+    addMemberLog({
+        timestamp: now.toISOString(),
+        userId: member.user.id,
+        username: member.user.tag,
+        action: 'left',
+        timeStr: timeStr,
+    });
+    console.log(`üì§ ${member.user.tag} left the server at ${timeStr}`);
+});
+
+// ======================
+// MESSAGE MONITORING (Address Detection)
+// ======================
+
+client.on('messageCreate', async (message) => {
+    // Debug: log ALL incoming messages so we can see if DMs arrive
+    console.log(`üì© Message received - Author: ${message.author?.tag || 'unknown'} | Guild: ${message.guild?.name || 'DM'} | Content: ${message.content?.substring(0, 50) || '[empty]'} | Channel Type: ${message.channel.type}`);
+
+    // Handle partial messages (needed for DMs in discord.js v14)
+    if (message.partial) {
+        try {
+            await message.fetch();
+        } catch (error) {
+            console.error('‚ùå Could not fetch partial message:', error);
+            return;
+        }
+    }
+
+    // Ignore bots
+    if (message.author.bot) return;
+
+    // DM handling - report system
+    if (!message.guild) {
+        await handleDMReport(message);
+        return;
+    }
+
+    // Music text commands ‚Äî check FIRST before any filters
+    if (message.channel.id === MUSIC_CHANNEL_ID && message.content.startsWith('!')) {
+        const args = message.content.slice(1).trim().split(/ +/);
+        const command = args[0].toLowerCase();
+        if (['play', 'skip', 'queue', 'np', 'nowplaying', 'clear'].includes(command)) {
+            await handleMusicTextCommand(message, command, args.slice(1));
+            return;
+        }
+    }
+
+    // Staff are exempt from word filter
+    const isStaffForFilter = message.member.roles.cache.some(role =>
+        CONFIG.STAFF_ROLE_IDS.includes(role.id)
+    ) || message.member.permissions.has(Discord.PermissionFlagsBits.Administrator);
+
+    // Banned word detection (non-staff only)
+    if (!isStaffForFilter) {
+        const bannedWordResult = checkBannedWords(message.content);
+        if (bannedWordResult) {
+            if (isDoxWord(bannedWordResult)) {
+                await message.delete().catch(() => {});
+                await message.channel.send({
+                    content: `${message.author} knock it off. **${bannedWordResult}** is filtered here. Your message was removed ‚Äî you are not being jailed for using the word.`,
+                    allowedMentions: { users: [message.author.id] },
+                }).catch(() => null);
+                addAuditLog('Dox Word Removed', message.author, `Word: "${bannedWordResult}" | No offense recorded and no jail applied`, 'warning');
+                return;
+            }
+            await handleBannedWord(message, bannedWordResult);
+            return;
+        }
+    }
+
+
+    // Patrol channel enforcement (16hr cooldown + link filtering)
+    if (message.channel.id === CONFIG.PATROL_CHANNEL_ID) {
+        const patrolResult = await enforcePatrolRules(message);
+        if (patrolResult.violated) {
+            return; // Stop processing if rules violated
+        }
+    }
+
+    // Track message for vibe check (only in main chat)
+    if (message.channel.id === CONFIG.MAIN_CHAT_CHANNEL_ID) {
+        recentMessages.push({
+            timestamp: Date.now(),
+            userId: message.author.id,
+            content: message.content
+        });
+
+        // Keep only last 1000 messages
+        if (recentMessages.length > MAX_MESSAGE_HISTORY) {
+            recentMessages.shift();
+        }
+    }
+
+    // Trivia answer checking
+    if (currentTrivia && message.channel.id === CONFIG.MAIN_CHAT_CHANNEL_ID) {
+        const userAnswer = message.content.trim().toLowerCase();
+        const correctAnswer = currentTrivia.answer.toLowerCase();
+
+        if (userAnswer === correctAnswer || userAnswer.includes(correctAnswer)) {
+            // Correct answer!
+            const userId = message.author.id;
+            const currentScore = triviaScores.get(userId) || 0;
+            triviaScores.set(userId, currentScore + 100);
+
+            const embed = new Discord.EmbedBuilder()
+                .setColor('#00FF00')
+                .setTitle('üéâ Correct Answer!')
+                .setDescription(`${message.author} got it right!\n\n**Answer:** ${currentTrivia.answer}\n**Points:** +100 (Total: ${currentScore + 100})`)
+                .setTimestamp();
+
+            await message.channel.send({ embeds: [embed] });
+            addAuditLog('Trivia Answered', message.author, `Correct answer! New score: ${currentScore + 100}`, 'success');
+            currentTrivia = null;
+            return;
+        }
+    }
+
+    // Check if user is staff
+    const isStaff = message.member.roles.cache.some(role => CONFIG.STAFF_ROLE_IDS.includes(role.id));
+
+    // Address detection for non-staff only (API-based)
+    if (!isStaff && !isStaffForFilter) {
+        checkAddressAPI(message);
+    }
+
+    // Commands (work in server channels)
+    if (message.content.startsWith('!')) {
+        const args = message.content.slice(1).trim().split(/ +/);
+        const command = args[0].toLowerCase();
+
+        // Public commands (everyone can use)
+        if (command === 'birthday') {
+            await handleBirthdayCommand(message);
+            return;
+        }
+
+        if (command === 'vibecheck') {
+            await performVibeCheck(message);
+            return;
+        }
+
+        // Staff-only commands
+        await handleStaffCommands(message);
+    }
+});
+
+// Patrol channel enforcement
+async function enforcePatrolRules(message) {
+    // Staff are exempt from patrol rules
+    const isStaff = message.member.roles.cache.some(role => CONFIG.STAFF_ROLE_IDS.includes(role.id));
+    if (isStaff) {
+        return { violated: false };
+    }
+
+    const now = Date.now();
+    const userId = message.author.id;
+    const lastPost = patrolCooldowns.get(userId);
+
+    // Check cooldown (16 hours)
+    if (lastPost) {
+        const timeSince = now - lastPost;
+        const timeRemaining = PATROL_COOLDOWN - timeSince;
+
+        if (timeRemaining > 0) {
+            // Still on cooldown
+            const hoursRemaining = Math.floor(timeRemaining / (60 * 60 * 1000));
+            const minutesRemaining = Math.floor((timeRemaining % (60 * 60 * 1000)) / (60 * 1000));
+
+            try {
+                await message.delete();
+
+                const warningMsg = await message.channel.send(
+                    `${message.author} ‚ö†Ô∏è **Cooldown Active!**\n\n` +
+                    `You can only post once every **16 hours** in this channel.\n` +
+                    `Time remaining: **${hoursRemaining}h ${minutesRemaining}m**\n\n` +
+                    `*Your message has been removed.*`
+                );
+
+                // Delete warning after 10 seconds
+                setTimeout(() => {
+                    warningMsg.delete().catch(() => {});
+                }, 10000);
+
+                addAuditLog('Patrol Violation', message.author, `Cooldown violation - ${hoursRemaining}h ${minutesRemaining}m remaining`, 'warning');
+
+            } catch (error) {
+                console.error('Error enforcing patrol cooldown:', error);
+            }
+
+            return { violated: true };
+        }
+    }
+
+    // Check for valid links (YouTube, Twitch, Kick.com only)
+    const urlRegex = /(https?:\/\/[^\s]+)/gi;
+    const urls = message.content.match(urlRegex);
+
+    if (urls && urls.length > 0) {
+        const allowedDomains = [
+            'youtube.com',
+            'youtu.be',
+            'twitch.tv',
+            'kick.com',
+            'www.youtube.com',
+            'www.twitch.tv',
+            'www.kick.com'
+        ];
+
+        let hasInvalidLink = false;
+
+        for (const url of urls) {
+            const isAllowed = allowedDomains.some(domain => url.toLowerCase().includes(domain));
+            if (!isAllowed) {
+                hasInvalidLink = true;
+                break;
+            }
+        }
+
+        if (hasInvalidLink) {
+            try {
+                await message.delete();
+
+                const warningMsg = await message.channel.send(
+                    `${message.author} ‚ö†Ô∏è **Invalid Link!**\n\n` +
+                    `Only **YouTube**, **Twitch**, and **Kick.com** links are allowed in this channel.\n\n` +
+                    `*Your message has been removed.*`
+                );
+
+                // Delete warning after 10 seconds
+                setTimeout(() => {
+                    warningMsg.delete().catch(() => {});
+                }, 10000);
+
+                addAuditLog('Patrol Violation', message.author, `Invalid link posted`, 'warning');
+
+            } catch (error) {
+                console.error('Error enforcing patrol links:', error);
+            }
+
+            return { violated: true };
+        }
+    }
+
+    // All checks passed - update cooldown
+    patrolCooldowns.set(userId, now);
+    addAuditLog('Patrol Post', message.author, `Post allowed in patrol channel`, 'info');
+
+    return { violated: false };
+}
+
+// ======================
+// BANNED WORD CHECKER + AUTO-JAIL
+// ======================
+
+function checkBannedWords(text) {
+    const lowerText = text.toLowerCase();
+
+    // Check multi-word phrases first (longer matches first)
+    const sortedWords = [...bannedWords].sort((a, b) => b.length - a.length);
+
+    for (const word of sortedWords) {
+        const lowerWord = word.toLowerCase();
+        // Use word boundary check for single words, includes for phrases
+        if (lowerWord.includes(' ')) {
+            // Multi-word phrase
+            if (lowerText.includes(lowerWord)) return word;
+        } else {
+            // Single word - check with basic boundary detection
+            const regex = new RegExp('\\b' + lowerWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i');
+            if (regex.test(text)) return word;
+        }
+    }
+    return null;
+}
+
+async function handleBannedWord(message, triggeredWord) {
+    const userId = message.author.id;
+    const guild = message.guild;
+
+    try {
+        // Delete the message
+        await message.delete();
+        console.log(`üö´ Banned word "${triggeredWord}" detected from ${message.author.tag}`);
+
+        // Track offenses
+        const currentOffenses = (offenseTracker.get(userId) || 0) + 1;
+        offenseTracker.set(userId, currentOffenses);
+        saveBannedWordsToDisk();
+
+        // Determine jail duration based on offense count
+        let jailDuration;
+        let jailLabel;
+        if (currentOffenses === 1) {
+            jailDuration = 5 * 60 * 1000; // 5 minutes
+            jailLabel = '5 minutes (1st offense)';
+        } else if (currentOffenses === 2) {
+            jailDuration = 30 * 60 * 1000; // 30 minutes
+            jailLabel = '30 minutes (2nd offense)';
+        } else {
+            jailDuration = null; // Permanent (until unjailed)
+            jailLabel = 'Permanent (3rd+ offense)';
+        }
+
+        // Apply jail - deny view on both categories
+        const targetMember = message.member;
+
+        // Assign jail role
+        try {
+            await targetMember.roles.add(JAIL_ROLE_ID);
+            console.log(`‚úÖ Jail role added to ${message.author.tag} (auto-jail)`);
+        } catch (err) {
+            console.error('‚ùå Error adding jail role:', err);
+        }
+
+        for (const categoryId of JAIL_CATEGORY_IDS) {
+            try {
+                const category = await guild.channels.fetch(categoryId);
+                if (!category) continue;
+
+                await category.permissionOverwrites.edit(userId, {
+                    ViewChannel: false, SendMessages: false, Connect: false,
+                });
+
+                const children = guild.channels.cache.filter(ch => ch.parentId === categoryId);
+                for (const [, child] of children) {
+                    await child.permissionOverwrites.edit(userId, {
+                        ViewChannel: false, SendMessages: false, Connect: false,
+                    });
+                }
+            } catch (err) {
+                console.error(`‚ùå Error jailing from category ${categoryId}:`, err);
+            }
+        }
+
+        // Create jail channel
+        const ticketNumber = Math.floor(Math.random() * 9999);
+        const channelName = `jail-${message.author.username.substring(0, 15)}-${ticketNumber}`;
+
+        try {
+            const jailChannel = await guild.channels.create({
+                name: channelName,
+                type: Discord.ChannelType.GuildText,
+                parent: JAIL_CATEGORY_ID,
+                permissionOverwrites: [
+                    { id: guild.id, deny: [Discord.PermissionFlagsBits.ViewChannel] },
+                    { id: userId, allow: [Discord.PermissionFlagsBits.ViewChannel, Discord.PermissionFlagsBits.SendMessages, Discord.PermissionFlagsBits.ReadMessageHistory] },
+                    ...staffPermissionOverwrites(),
+                ],
+            });
+
+            jailChannels.set(userId, jailChannel.id);
+
+            const embed = new Discord.EmbedBuilder()
+                .setColor('#FF0000')
+                .setTitle('üö´ Auto-Jailed: Banned Word')
+                .setThumbnail(message.author.displayAvatarURL())
+                .addFields(
+                    { name: 'User', value: `${message.author.tag} (${userId})`, inline: true },
+                    { name: 'Channel', value: `<#${message.channelId}>`, inline: true },
+                    { name: 'Triggered Word', value: `||${triggeredWord}||`, inline: true },
+                    { name: 'Offense #', value: `${currentOffenses}`, inline: true },
+                    { name: 'Jail Duration', value: jailLabel, inline: true },
+                    { name: 'Message Content', value: `||${message.content.substring(0, 200)}||` }
+                )
+                .setFooter({ text: jailDuration ? 'Will auto-unjail when time expires' : 'Use /unjail to release' })
+                .setTimestamp();
+
+            await jailChannel.send({ content: staffMentions(userId), embeds: [embed] });
+            console.log(`‚úÖ Jail channel created: #${jailChannel.name}`);
+
+        } catch (err) {
+            console.error('‚ùå Error creating auto-jail channel:', err);
+        }
+
+        // If timed jail, schedule unjail
+        if (jailDuration) {
+            setTimeout(async () => {
+                try {
+                    for (const categoryId of JAIL_CATEGORY_IDS) {
+                        const category = await guild.channels.fetch(categoryId);
+                        if (!category) continue;
+
+                        await category.permissionOverwrites.delete(userId).catch(() => {});
+
+                        const children = guild.channels.cache.filter(ch => ch.parentId === categoryId);
+                        for (const [, child] of children) {
+                            await child.permissionOverwrites.delete(userId).catch(() => {});
+                        }
+                    }
+                    // Remove jail role
+                    try {
+                        const member = await guild.members.fetch(userId);
+                        await member.roles.remove(JAIL_ROLE_ID);
+                        console.log(`‚úÖ Jail role removed from ${message.author.tag} (auto-unjail)`);
+                    } catch (roleErr) {
+                        console.error('‚ùå Error removing jail role on auto-unjail:', roleErr);
+                    }
+
+                    // Archive jail channel
+                    const jailChanId = jailChannels.get(userId);
+                    if (jailChanId) {
+                        try {
+                            const jailChan = await guild.channels.fetch(jailChanId);
+                            if (jailChan) {
+                                const msgs = await jailChan.messages.fetch({ limit: 100 });
+                                const transcript = msgs.reverse().map(m => `[${m.createdAt.toISOString()}] ${m.author.tag}: ${m.content}`).join('\n');
+
+                                const logChannel = await client.channels.fetch(JAIL_LOG_CHANNEL_ID);
+                                if (logChannel) {
+                                    const buf = Buffer.from(transcript, 'utf-8');
+                                    const att = new Discord.AttachmentBuilder(buf, { name: `${jailChan.name}-transcript.txt` });
+                                    const logEmbed = new Discord.EmbedBuilder()
+                                        .setColor('#00FF00')
+                                        .setTitle(`üîì Auto-Unjailed: ${message.author.tag}`)
+                                        .addFields(
+                                            { name: 'User', value: `${message.author.tag} (${userId})`, inline: true },
+                                            { name: 'Duration', value: jailLabel, inline: true },
+                                        )
+                                        .setFooter({ text: 'Transcript attached below' })
+                                        .setTimestamp();
+                                    await logChannel.send({ embeds: [logEmbed], files: [att] });
+                                }
+
+                                await jailChan.send('üîì Auto-unjail complete. This channel will be deleted in 5 seconds...');
+                                setTimeout(() => jailChan.delete().catch(() => {}), 5000);
+                            }
+                        } catch (e) {
+                            console.error('‚ùå Error archiving auto-jail channel:', e);
+                        }
+                        jailChannels.delete(userId);
+                    }
+
+                    console.log(`‚úÖ Auto-unjailed ${message.author.tag} after ${jailLabel}`);
+                    addAuditLog('Auto-Unjailed', { tag: message.author.tag, id: userId }, `Auto-unjailed after ${jailLabel}`, 'success');
+                } catch (err) {
+                    console.error('‚ùå Error auto-unjailing:', err);
+                }
+            }, jailDuration);
+        }
+
+        addAuditLog('Banned Word Jail', { tag: message.author.tag, id: userId }, `Word: "${triggeredWord}" | Offense #${currentOffenses} | Duration: ${jailLabel}`, 'warning');
+
+    } catch (error) {
+        console.error('‚ùå Error handling banned word:', error);
+    }
+}
+
+// ======================
+// ADDRESS DETECTION (Positionstack API)
+// ======================
+
+const http_address = require('http'); // Positionstack free tier uses HTTP
+
+const POSITIONSTACK_KEY = CONFIG.POSITIONSTACK_API_KEY;
+
+// Pre-filter: could this message contain an address?
+function mightContainAddress(text) {
+    if (text.length < 12) return false;
+
+    // Must contain a number
+    if (!/\d/.test(text)) return false;
+
+    // Skip URLs, code blocks, bot commands, emojis-heavy messages
+    if (/https?:\/\/|discord\.gg|```|!config|!help|!trivia|!birthday/.test(text)) return false;
+
+    const hasStreetWord = /\b(street|st|avenue|ave|road|rd|boulevard|blvd|lane|ln|drive|dr|court|ct|way|place|pl|circle|cir|trail|trl|parkway|pkwy|highway|hwy|terrace|ter|pike|crossing|loop)\b/i.test(text);
+    const hasZip = /\b\d{5}(-\d{4})?\b/.test(text);
+    const hasState = /\b(AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY)\b/.test(text);
+    const hasCommaCity = /,\s*[A-Z][a-z]+/.test(text);
+    const hasNumberStreet = /\d{1,5}\s+[A-Z]\w+/.test(text); // "123 Main" (capitalized word after number)
+
+    // Count how many address components are present
+    let score = 0;
+    if (hasStreetWord) score++;
+    if (hasZip) score++;
+    if (hasState) score++;
+    if (hasCommaCity) score++;
+    if (hasNumberStreet) score++;
+
+    // Need at least 3 address components to be worth checking
+    // This prevents "8 Straight hours drive" (only has street word + number = 2)
+    // But catches "120 Commercial Pkwy, Branford, CT 06405" (street + comma + state + zip + number = 5)
+    if (score >= 3) return true;
+
+    return false;
+}
+
+// Extract potential address chunks from text
+function extractAddressCandidates(text) {
+    const candidates = [];
+
+    // Try the full message (cleaned up)
+    const cleaned = text.replace(/\n/g, ', ').trim();
+    if (cleaned.length >= 8 && cleaned.length <= 200) {
+        candidates.push(cleaned);
+    }
+
+    // Extract segments starting with a number followed by words
+    const segments = text.match(/\d{1,5}\s+[\w\s,.']+/g);
+    if (segments) {
+        for (const seg of segments) {
+            const trimmed = seg.trim().substring(0, 150);
+            if (trimmed.length >= 8) candidates.push(trimmed);
+        }
+    }
+
+    // Try each line separately
+    const lines = text.split('\n').filter(l => l.trim().length >= 8 && /\d/.test(l));
+    candidates.push(...lines.map(l => l.trim()));
+
+    return [...new Set(candidates)].slice(0, 5); // Max 5 candidates
+}
+
+// Verify with Positionstack API
+function verifyAddressWithAPI(text) {
+    return new Promise((resolve) => {
+        try {
+            if (!POSITIONSTACK_KEY) {
+                resolve({ verified: false, reason: 'Positionstack API key not configured' });
+                return;
+            }
+            const encoded = encodeURIComponent(text);
+            const url = `http://api.positionstack.com/v1/forward?access_key=${POSITIONSTACK_KEY}&query=${encoded}&limit=1`;
+
+            http_address.get(url, (res) => {
+                let data = '';
+                res.on('data', chunk => data += chunk);
+                res.on('end', () => {
+                    try {
+                        const result = JSON.parse(data);
+
+                        if (result.data && result.data.length > 0) {
+                            const match = result.data[0];
+
+                            // Only flag if it has BOTH a house number AND a street name
+                            // This prevents "8 Straight Drive" (no house number) false positives
+                            const hasStreet = match.street;
+                            const hasNumber = match.number;
+                            const hasLocality = match.locality || match.county;
+                            const confidence = match.confidence || 0;
+
+                            console.log(`üîç Positionstack result: ${match.label} | confidence: ${confidence} | street: ${match.street} | number: ${match.number} | locality: ${match.locality} | type: ${match.type}`);
+
+                            // Require: street + number + city/locality + high confidence
+                            if (hasStreet && hasNumber && hasLocality && confidence >= 0.8) {
+                                resolve({
+                                    verified: true,
+                                    displayName: match.label || `${match.number || ''} ${match.street || ''}, ${match.locality || ''}, ${match.region || ''}`,
+                                    type: match.type,
+                                    confidence: confidence,
+                                    street: match.street,
+                                    number: match.number,
+                                    city: match.locality || match.county,
+                                    state: match.region,
+                                    zip: match.postal_code,
+                                    country: match.country,
+                                });
+                                return;
+                            }
+                        }
+                        resolve(null);
+                    } catch (e) {
+                        console.error('‚ùå Positionstack parse error:', e.message);
+                        resolve(null);
+                    }
+                });
+            }).on('error', (e) => {
+                console.error('‚ùå Positionstack API error:', e.message);
+                resolve(null);
+            });
+        } catch (error) {
+            console.error('‚ùå Error calling Positionstack:', error);
+            resolve(null);
+        }
+    });
+}
+
+// Main address check function
+async function checkAddressAPI(message) {
+    try {
+        if (!mightContainAddress(message.content)) return;
+
+        const candidates = extractAddressCandidates(message.content);
+        if (candidates.length === 0) return;
+
+        console.log(`üîç Checking ${candidates.length} potential address(es) from ${message.author.tag}: "${message.content.substring(0, 60)}"`);
+
+        for (const candidate of candidates) {
+            const result = await verifyAddressWithAPI(candidate);
+
+            if (result && result.verified) {
+                console.log(`üö® VERIFIED ADDRESS from ${message.author.tag}: ${result.displayName}`);
+                await handleAddressDetection(message, candidate, result);
+                return;
+            }
+        }
+    } catch (error) {
+        console.error('‚ùå Error in address check:', error);
+    }
+}
+
+async function handleAddressDetection(message, addressText, apiResult) {
+    try {
+        const userId = message.author.id;
+        const guild = message.guild;
+
+        // Delete the message immediately
+        await message.delete();
+        console.log('‚úÖ Address message deleted');
+
+        // Jail the user
+        try {
+            const member = await guild.members.fetch(userId);
+            await member.roles.add(JAIL_ROLE_ID);
+
+            // Deny view on categories
+            for (const categoryId of JAIL_CATEGORY_IDS) {
+                try {
+                    const category = await guild.channels.fetch(categoryId);
+                    if (!category) continue;
+                    await category.permissionOverwrites.edit(userId, {
+                        ViewChannel: false, SendMessages: false, Connect: false,
+                    });
+                    const children = guild.channels.cache.filter(ch => ch.parentId === categoryId);
+                    for (const [, child] of children) {
+                        await child.permissionOverwrites.edit(userId, {
+                            ViewChannel: false, SendMessages: false, Connect: false,
+                        });
+                    }
+                } catch (e) {}
+            }
+
+            // Create jail channel
+            const ticketNumber = Math.floor(Math.random() * 9999);
+            const channelName = `jail-doxx-${message.author.username.substring(0, 10)}-${ticketNumber}`;
+
+            const jailChannel = await guild.channels.create({
+                name: channelName,
+                type: Discord.ChannelType.GuildText,
+                parent: JAIL_CATEGORY_ID,
+                permissionOverwrites: [
+                    { id: guild.id, deny: [Discord.PermissionFlagsBits.ViewChannel] },
+                    { id: userId, allow: [Discord.PermissionFlagsBits.ViewChannel, Discord.PermissionFlagsBits.SendMessages, Discord.PermissionFlagsBits.ReadMessageHistory] },
+                    ...staffPermissionOverwrites(),
+                ],
+            });
+
+            jailChannels.set(userId, jailChannel.id);
+
+            const embed = new Discord.EmbedBuilder()
+                .setColor('#FF0000')
+                .setTitle('üö® Address Posted ‚Äî User Jailed')
+                .setThumbnail(message.author.displayAvatarURL())
+                .addFields(
+                    { name: 'User', value: `${message.author.tag} (${userId})`, inline: true },
+                    { name: 'Channel', value: `<#${message.channelId}>`, inline: true },
+                    { name: 'Verified Address', value: `||${apiResult.displayName}||` },
+                    { name: 'Confidence', value: `${Math.round(apiResult.confidence * 100)}%`, inline: true },
+                    { name: 'Original Text', value: `||${addressText.substring(0, 200)}||` },
+                    { name: 'Status', value: 'üîí Permanently jailed ‚Äî use /unjail to release', inline: true }
+                )
+                .setFooter({ text: 'Address verified via Positionstack API' })
+                .setTimestamp();
+
+            await jailChannel.send({ content: staffMentions(userId), embeds: [embed] });
+
+            console.log(`‚úÖ User ${message.author.tag} jailed for posting address`);
+
+        } catch (jailError) {
+            console.error('‚ùå Error jailing address poster:', jailError);
+        }
+
+        addAuditLog('Address Detected', message.author, `Verified address: ${apiResult.displayName.substring(0, 80)} - User jailed`, 'error');
+
+    } catch (error) {
+        console.error('‚ùå Error handling address detection:', error);
+    }
+}
+
+// ======================
+// DM REPORT SYSTEM
+// ======================
+
+const dmReportStates = new Map(); // userId -> { step, who, reason }
+
+async function handleDMReport(message) {
+    const userId = message.author.id;
+    const state = dmReportStates.get(userId);
+
+    try {
+        if (!state) {
+            await message.reply('üë§ **Who are you reporting?** (Username or @mention)');
+            dmReportStates.set(userId, { step: 'who' });
+            console.log(`üìù DM Report started by ${message.author.tag}`);
+            return;
+        }
+
+        if (state.step === 'who') {
+            state.who = message.content;
+            state.step = 'reason';
+            await message.reply('üìÑ **Why are you reporting them?** (Describe what happened)');
+            return;
+        }
+
+        if (state.step === 'reason') {
+            state.reason = message.content;
+            dmReportStates.delete(userId);
+            await createDMReport(message.author, state);
+            return;
+        }
+    } catch (error) {
+        console.error('‚ùå Error in DM report system:', error);
+        dmReportStates.delete(userId);
+        try {
+            await message.reply('‚ùå Something went wrong. Please try again or use `/report` in the server.');
+        } catch (e) {}
+    }
+}
+
+async function createDMReport(user, state) {
+    const guild = client.guilds.cache.first();
+    if (!guild) {
+        await user.send('‚ùå Error creating report. Bot is not connected to a server.');
+        return;
+    }
+
+    const ticketNumber = Math.floor(Math.random() * 9999);
+    const channelName = `report-${ticketNumber}`;
+
+    try {
+        const channel = await guild.channels.create({
+            name: channelName,
+            type: Discord.ChannelType.GuildText,
+            parent: REPORT_CATEGORY_ID,
+            permissionOverwrites: [
+                { id: guild.id, deny: [Discord.PermissionFlagsBits.ViewChannel] },
+                { id: user.id, allow: [Discord.PermissionFlagsBits.ViewChannel, Discord.PermissionFlagsBits.SendMessages, Discord.PermissionFlagsBits.ReadMessageHistory] },
+                ...staffPermissionOverwrites(),
+            ],
+        });
+
+        const embed = new Discord.EmbedBuilder()
+            .setColor('#FF0000')
+            .setTitle('üö® New User Report (via DM)')
+            .setThumbnail(user.displayAvatarURL())
+            .addFields(
+                { name: 'Reported By', value: `${user.tag} (${user.id})`, inline: true },
+                { name: 'Reporting', value: state.who, inline: true },
+                { name: 'Reason', value: state.reason },
+                { name: 'Status', value: 'üîç Awaiting mod review', inline: true }
+            )
+            .setFooter({ text: 'Use !close or /close to archive this report' })
+            .setTimestamp();
+
+        await channel.send({ content: `${staffMentions(user.id)}\n\nMods will be with you shortly. You can chat here.`, embeds: [embed] });
+
+        addAuditLog('DM Report Created', { tag: user.tag, id: user.id }, `Report #${ticketNumber} against ${state.who}`, 'warning');
+
+        await user.send(`‚úÖ Your report has been created! Head to <#${channel.id}> to chat with the mods.`);
+
+    } catch (error) {
+        console.error('‚ùå Error creating DM report:', error);
+        try {
+            await user.send('‚ùå Error creating the report. Please try `/report` in the server.');
+        } catch (e) {}
+    }
+}
+
+// ======================
+// /REPORT SLASH COMMAND
+// ======================
+
+const REPORT_CATEGORY_ID = CONFIG.REPORT_CATEGORY_ID;
+const OLD_REPORTS_CHANNEL_ID = CONFIG.OLD_REPORTS_CHANNEL_ID;
+
+const JAIL_CATEGORY_IDS = CONFIG.JAIL_CATEGORY_IDS;
+
+client.on('interactionCreate', async (interaction) => {
+    try {
+        if (await memberBridgeIntegration.handleButton(interaction)) return;
+        if (await economyIntegration.handleButton(interaction)) return;
+        if (!interaction.isChatInputCommand()) return;
+        if (await memberBridgeIntegration.handleCommand(interaction)) return;
+        if (await economyIntegration.handleCommand(interaction)) return;
+
+        if (interaction.commandName === 'report') {
+            await handleReportCommand(interaction);
+        } else if (interaction.commandName === 'jail') {
+            await handleJailCommand(interaction);
+        } else if (interaction.commandName === 'unjail') {
+            await handleUnjailCommandV2(interaction);
+        } else if (interaction.commandName === 'close') {
+            await handleCloseCommand(interaction);
+        } else if (['join', 'leave', 'play', 'skip', 'queue', 'nowplaying', 'clear'].includes(interaction.commandName)) {
+            await handleMusicCommand(interaction);
+        }
+    } catch (error) {
+        console.error('‚ùå Error in slash command:', error);
+        try {
+            if (interaction.deferred) {
+                await interaction.editReply({ content: '‚ùå Something went wrong. Please try again.' });
+            } else {
+                await interaction.reply({ content: '‚ùå Something went wrong. Please try again.', ephemeral: true });
+            }
+        } catch (e) {
+            console.error('‚ùå Could not send error reply:', e);
+        }
+    }
+});
+
+// ======================
+// /REPORT HANDLER
+// ======================
+
+async function handleReportCommand(interaction) {
+    console.log(`üìù /report interaction received from ${interaction.user?.tag}`);
+
+    await interaction.deferReply({ ephemeral: true });
+
+    const reportedUser = interaction.options.getString('user');
+    const reason = interaction.options.getString('reason');
+    const reporter = interaction.user;
+    const guild = interaction.guild;
+
+    console.log(`üìù /report - Reporting: ${reportedUser} - Reason: ${reason}`);
+    console.log(`   Staff Role IDs: ${CONFIG.STAFF_ROLE_IDS.join(', ') || 'NONE'}`);
+
+    const ticketNumber = Math.floor(Math.random() * 9999);
+    const channelName = `report-${ticketNumber}`;
+
+    // Build permissions: hidden from everyone, visible to reporter + configured staff roles.
+    const permissionOverwrites = [
+        {
+            id: guild.id,
+            deny: [Discord.PermissionFlagsBits.ViewChannel],
+        },
+        {
+            id: reporter.id,
+            allow: [Discord.PermissionFlagsBits.ViewChannel, Discord.PermissionFlagsBits.SendMessages, Discord.PermissionFlagsBits.ReadMessageHistory],
+        },
+        ...staffPermissionOverwrites(),
+    ];
+
+    const channel = await guild.channels.create({
+        name: channelName,
+        type: Discord.ChannelType.GuildText,
+        parent: REPORT_CATEGORY_ID,
+        permissionOverwrites,
+    });
+
+    console.log(`‚úÖ Report channel created: #${channel.name}`);
+
+    const embed = new Discord.EmbedBuilder()
+        .setColor('#FF0000')
+        .setTitle('üö® New User Report')
+        .setThumbnail(reporter.displayAvatarURL())
+        .addFields(
+            { name: 'Reported By', value: `${reporter.tag} (${reporter.id})`, inline: true },
+            { name: 'Reporting', value: reportedUser, inline: true },
+            { name: 'Reason', value: reason },
+            { name: 'Status', value: 'üîç Awaiting mod review', inline: true }
+        )
+        .setFooter({ text: 'Use !close to archive this report' })
+        .setTimestamp();
+
+    // Ping mod roles and the reporter
+    await channel.send({ content: `${staffMentions(reporter.id)}\n\nMods will be with you shortly. You can chat here.`, embeds: [embed] });
+
+    addAuditLog('Report Created', { tag: reporter.tag, id: reporter.id }, `Report #${ticketNumber} against ${reportedUser}`, 'warning');
+
+    await interaction.editReply({ content: `‚úÖ Your report has been created! Head to <#${channel.id}> to chat with the mods.` });
+}
+
+// ======================
+// /JAIL HANDLER
+// ======================
+
+const JAIL_CATEGORY_ID = CONFIG.JAIL_CATEGORY_ID;
+const JAIL_ROLE_ID = CONFIG.JAIL_ROLE_ID;
+const JAIL_LOG_CHANNEL_ID = CONFIG.JAIL_LOG_CHANNEL_ID;
+
+// Track jail channels: userId -> channelId
+const jailChannels = new Map();
+
+async function handleJailCommand(interaction) {
+    const isStaff = interaction.member.roles.cache.some(role =>
+        CONFIG.STAFF_ROLE_IDS.includes(role.id)
+    ) || interaction.member.permissions.has(Discord.PermissionFlagsBits.Administrator);
+
+    if (!isStaff) {
+        await interaction.reply({ content: '‚ùå You do not have permission to use this command.', ephemeral: true });
+        return;
+    }
+
+    await interaction.deferReply({ ephemeral: true });
+
+    const targetUser = interaction.options.getUser('user');
+    const reason = interaction.options.getString('reason') || 'No reason provided';
+    const durationChoice = interaction.options.getString('duration') || 'perm';
+    const guild = interaction.guild;
+    const targetMember = await guild.members.fetch(targetUser.id);
+
+    // Parse duration
+    const DURATION_MAP = {
+        '5m': { ms: 5 * 60 * 1000, label: '5 minutes' },
+        '30m': { ms: 30 * 60 * 1000, label: '30 minutes' },
+        '1h': { ms: 60 * 60 * 1000, label: '1 hour' },
+        '6h': { ms: 6 * 60 * 60 * 1000, label: '6 hours' },
+        '12h': { ms: 12 * 60 * 60 * 1000, label: '12 hours' },
+        '24h': { ms: 24 * 60 * 60 * 1000, label: '24 hours' },
+        'perm': { ms: null, label: 'Permanent' },
+    };
+    const duration = DURATION_MAP[durationChoice] || DURATION_MAP['perm'];
+
+    console.log(`üîí /jail used by ${interaction.user.tag} on ${targetUser.tag} - Duration: ${duration.label}`);
+
+    const jailParent = await guild.channels.fetch(JAIL_CATEGORY_ID).catch(() => null);
+    if (!jailParent || jailParent.type !== Discord.ChannelType.GuildCategory) {
+        await interaction.editReply({
+            content: `‚ùå Jail category <#${JAIL_CATEGORY_ID}> does not exist in this server or is not a category. Update Protection ‚Üí Jail room category ID, save, and restart the bot.`,
+        });
+        return;
+    }
+
+    // Assign jail role
+    try {
+        await targetMember.roles.add(JAIL_ROLE_ID);
+        console.log(`‚úÖ Jail role added to ${targetUser.tag}`);
+    } catch (err) {
+        console.error('‚ùå Error adding jail role:', err);
+    }
+
+    // Deny view on text & voice categories
+    let categoriesUpdated = 0;
+    for (const categoryId of JAIL_CATEGORY_IDS) {
+        try {
+            const category = await guild.channels.fetch(categoryId);
+            if (!category) continue;
+
+            await category.permissionOverwrites.edit(targetUser.id, {
+                ViewChannel: false, SendMessages: false, Connect: false,
+            });
+
+            const children = guild.channels.cache.filter(ch => ch.parentId === categoryId);
+            for (const [, child] of children) {
+                await child.permissionOverwrites.edit(targetUser.id, {
+                    ViewChannel: false, SendMessages: false, Connect: false,
+                });
+            }
+            categoriesUpdated++;
+        } catch (error) {
+            console.error(`‚ùå Error jailing from category ${categoryId}:`, error);
+        }
+    }
+
+    // Create jail channel under jail category
+    const ticketNumber = Math.floor(Math.random() * 9999);
+    const channelName = `jail-${targetUser.username.substring(0, 15)}-${ticketNumber}`;
+
+    try {
+        const jailChannel = await guild.channels.create({
+            name: channelName,
+            type: Discord.ChannelType.GuildText,
+            parent: jailParent.id,
+            topic: `commission-jail-user:${targetUser.id}`,
+            permissionOverwrites: [
+                { id: guild.id, deny: [Discord.PermissionFlagsBits.ViewChannel] },
+                { id: targetUser.id, allow: [Discord.PermissionFlagsBits.ViewChannel, Discord.PermissionFlagsBits.SendMessages, Discord.PermissionFlagsBits.ReadMessageHistory] },
+                ...staffPermissionOverwrites(),
+            ],
+        });
+
+        // Track this jail channel
+        jailChannels.set(targetUser.id, jailChannel.id);
+
+        const embed = new Discord.EmbedBuilder()
+            .setColor('#FF0000')
+            .setTitle('üîí You Have Been Jailed')
+            .setThumbnail(targetUser.displayAvatarURL())
+            .addFields(
+                { name: 'User', value: `${targetUser.tag} (${targetUser.id})`, inline: true },
+                { name: 'Jailed By', value: `${interaction.user.tag}`, inline: true },
+                { name: 'Reason', value: reason },
+                { name: 'Duration', value: duration.label, inline: true },
+                { name: 'Status', value: duration.ms ? '‚è±Ô∏è Timed jail' : 'üîí Permanent ‚Äî use /unjail to release', inline: true }
+            )
+            .setFooter({ text: duration.ms ? 'Will auto-unjail when time expires' : 'Staff can use /unjail to restore access' })
+            .setTimestamp();
+
+        await jailChannel.send({ content: staffMentions(targetUser.id), embeds: [embed] });
+
+        console.log(`‚úÖ Jail channel created: #${jailChannel.name}`);
+
+        await interaction.editReply({ content: `‚úÖ ${targetUser.tag} has been jailed for ${duration.label}. Jail channel: <#${jailChannel.id}>` });
+
+        // Auto-unjail timer for timed jails
+        if (duration.ms) {
+            setTimeout(async () => {
+                try {
+                    // Remove jail role
+                    try {
+                        const member = await guild.members.fetch(targetUser.id);
+                        await member.roles.remove(JAIL_ROLE_ID);
+                    } catch (e) {}
+
+                    // Restore categories
+                    for (const catId of JAIL_CATEGORY_IDS) {
+                        try {
+                            const cat = await guild.channels.fetch(catId);
+                            if (!cat) continue;
+                            await cat.permissionOverwrites.delete(targetUser.id).catch(() => {});
+                            const kids = guild.channels.cache.filter(ch => ch.parentId === catId);
+                            for (const [, kid] of kids) {
+                                await kid.permissionOverwrites.delete(targetUser.id).catch(() => {});
+                            }
+                        } catch (e) {}
+                    }
+
+                    // Archive jail channel
+                    const jChanId = jailChannels.get(targetUser.id);
+                    if (jChanId) {
+                        try {
+                            const jChan = await guild.channels.fetch(jChanId);
+                            if (jChan) {
+                                const msgs = await jChan.messages.fetch({ limit: 100 });
+                                const transcript = msgs.reverse().map(m => `[${m.createdAt.toISOString()}] ${m.author.tag}: ${m.content}`).join('\n');
+
+                                const logCh = await client.channels.fetch(JAIL_LOG_CHANNEL_ID);
+                                if (logCh) {
+                                    const buf = Buffer.from(transcript, 'utf-8');
+                                    const att = new Discord.AttachmentBuilder(buf, { name: `${jChan.name}-transcript.txt` });
+                                    const logEmbed = new Discord.EmbedBuilder()
+                                        .setColor('#00FF00')
+                                        .setTitle(`üîì Auto-Unjailed: ${targetUser.tag}`)
+                                        .addFields(
+                                            { name: 'User', value: `${targetUser.tag} (${targetUser.id})`, inline: true },
+                                            { name: 'Duration', value: duration.label, inline: true },
+                                        )
+                                        .setFooter({ text: 'Transcript attached' })
+                                        .setTimestamp();
+                                    await logCh.send({ embeds: [logEmbed], files: [att] });
+                                }
+
+                                await jChan.send('üîì Jail time expired. This channel will be deleted in 5 seconds...');
+                                setTimeout(() => jChan.delete().catch(() => {}), 5000);
+                            }
+                        } catch (e) {
+                            console.error('‚ùå Error archiving auto-unjail channel:', e);
+                        }
+                        jailChannels.delete(targetUser.id);
+                    }
+
+                    console.log(`‚úÖ Auto-unjailed ${targetUser.tag} after ${duration.label}`);
+                    addAuditLog('Auto-Unjailed', { tag: targetUser.tag, id: targetUser.id }, `Auto-unjailed after ${duration.label}`, 'success');
+                } catch (err) {
+                    console.error('‚ùå Error in auto-unjail timer:', err);
+                }
+            }, duration.ms);
+        }
+
+    } catch (error) {
+        console.error('‚ùå Error creating jail channel:', error);
+        await interaction.editReply({ content: `‚úÖ ${targetUser.tag} has been jailed (but could not create jail channel: ${error.message})` });
+    }
+
+    addAuditLog('User Jailed', interaction.user, `Jailed ${targetUser.tag} - Reason: ${reason}`, 'warning');
+}
+
+// ======================
+// /UNJAIL HANDLER
+// ======================
+
+async function handleUnjailCommand(interaction) {
+    const isStaff = interaction.member.roles.cache.some(role =>
+        CONFIG.STAFF_ROLE_IDS.includes(role.id)
+    ) || interaction.member.permissions.has(Discord.PermissionFlagsBits.Administrator);
+
+    if (!isStaff) {
+        await interaction.reply({ content: '‚ùå You do not have permission to use this command.', ephemeral: true });
+        return;
+    }
+
+    await interaction.deferReply({ ephemeral: true });
+
+    const targetUser = interaction.options.getUser('user');
+    const guild = interaction.guild;
+
+    console.log(`üîì /unjail used by ${interaction.user.tag} on ${targetUser.tag}`);
+
+    // Remove jail role
+    try {
+        const targetMember = await guild.members.fetch(targetUser.id);
+        await targetMember.roles.remove(JAIL_ROLE_ID);
+        console.log(`‚úÖ Jail role removed from ${targetUser.tag}`);
+    } catch (err) {
+        console.error('‚ùå Error removing jail role:', err);
+    }
+
+    // Restore categories
+    for (const categoryId of JAIL_CATEGORY_IDS) {
+        try {
+            const category = await guild.channels.fetch(categoryId);
+            if (!category) continue;
+            await category.permissionOverwrites.delete(targetUser.id).catch(() => {});
+            const children = guild.channels.cache.filter(ch => ch.parentId === categoryId);
+            for (const [, child] of children) {
+                await child.permissionOverwrites.delete(targetUser.id).catch(() => {});
+            }
+        } catch (error) {
+            console.error(`‚ùå Error unjailing from category ${categoryId}:`, error);
+        }
+    }
+
+    // Find and archive the jail channel
+    const jailChannelId = jailChannels.get(targetUser.id);
+    let jailChannel = null;
+
+    if (jailChannelId) {
+        try {
+            jailChannel = await guild.channels.fetch(jailChannelId);
+        } catch (e) {
+            console.warn('‚ö†Ô∏è Could not fetch tracked jail channel, searching by name...');
+        }
+    }
+
+    // Fallback: search for jail channel by name
+    if (!jailChannel) {
+        jailChannel = guild.channels.cache.find(ch =>
+            ch.name.startsWith('jail-') && ch.parentId === JAIL_CATEGORY_ID &&
+            ch.permissionOverwrites.cache.has(targetUser.id)
+        );
+    }
+
+    if (jailChannel) {
+        try {
+            // Create rich transcript including embeds
+            const messages = await jailChannel.messages.fetch({ limit: 100 });
+            const transcriptLines = ['‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê',
+                `JAIL TRANSCRIPT: ${jailChannel.name}`,
+                `User: ${targetUser.tag} (${targetUser.id})`,
+                `Unjailed By: ${interaction.user.tag}`,
+                `Date: ${new Date().toLocaleString()}`,
+                '‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê', ''];
+
+            messages.reverse().forEach(msg => {
+                transcriptLines.push(`[${msg.createdAt.toISOString()}] ${msg.author.tag}: ${msg.content}`);
+                // Include embed data
+                if (msg.embeds && msg.embeds.length > 0) {
+                    msg.embeds.forEach(embed => {
+                        if (embed.title) transcriptLines.push(`  [EMBED] Title: ${embed.title}`);
+                        if (embed.description) transcriptLines.push(`  [EMBED] Description: ${embed.description}`);
+                        if (embed.fields) {
+                            embed.fields.forEach(field => {
+                                transcriptLines.push(`  [EMBED] ${field.name}: ${field.value}`);
+                            });
+                        }
+                        if (embed.footer) transcriptLines.push(`  [EMBED] Footer: ${embed.footer.text}`);
+                    });
+                }
+            });
+
+            const transcript = transcriptLines.join('\n');
+
+            const logChannel = await client.channels.fetch(JAIL_LOG_CHANNEL_ID);
+            if (logChannel) {
+                const transcriptBuffer = Buffer.from(transcript, 'utf-8');
+                const attachment = new Discord.AttachmentBuilder(transcriptBuffer, { name: `${jailChannel.name}-transcript.txt` });
+
+                const logEmbed = new Discord.EmbedBuilder()
+                    .setColor('#00FF00')
+                    .setTitle(`üîì Unjailed: ${targetUser.tag}`)
+                    .addFields(
+                        { name: 'User', value: `${targetUser.tag} (${targetUser.id})`, inline: true },
+                        { name: 'Unjailed By', value: `${interaction.user.tag}`, inline: true },
+                    )
+                    .setFooter({ text: 'Full transcript with embed data attached below' })
+                    .setTimestamp();
+
+                await logChannel.send({ embeds: [logEmbed], files: [attachment] });
+                console.log(`‚úÖ Jail transcript sent to log channel for ${targetUser.tag}`);
+            }
+
+            // Delete the jail channel
+            await jailChannel.send('üîì User has been unjailed. This channel will be deleted in 5 seconds...');
+            setTimeout(async () => {
+                await jailChannel.delete().catch(err => console.error('Error deleting jail channel:', err));
+            }, 5000);
+
+        } catch (error) {
+            console.error('‚ùå Error archiving jail channel:', error);
+        }
+    }
+
+    // Clean up tracking
+    jailChannels.delete(targetUser.id);
+
+    await interaction.editReply({ content: `‚úÖ ${targetUser.tag} has been unjailed. Transcript saved to <#${JAIL_LOG_CHANNEL_ID}>.` });
+
+    addAuditLog('User Unjailed', interaction.user, `Unjailed ${targetUser.tag}`, 'success');
+}
+
+// ======================
+// /CLOSE HANDLER (close jail channel without unjailing - for bans)
+// ======================
+
+async function handleUnjailCommandV2(interaction) {
+    const isStaff = interaction.member.roles.cache.some(role => CONFIG.STAFF_ROLE_IDS.includes(role.id))
+        || interaction.member.permissions.has(Discord.PermissionFlagsBits.Administrator);
+    if (!isStaff) {
+        await interaction.reply({ content: 'You do not have permission to use this command.', ephemeral: true });
+        return;
+    }
+
+    await interaction.deferReply({ ephemeral: true });
+    const targetUser = interaction.options.getUser('user', true);
+    const guild = interaction.guild;
+    const failures = [];
+    let restoredOverwrites = 0;
+    let roleRemoved = false;
+    const targetMember = await guild.members.fetch(targetUser.id).catch(error => {
+        failures.push(`member lookup: ${error.message}`);
+        return null;
+    });
+
+    if (targetMember && JAIL_ROLE_ID) {
+        const jailRole = await guild.roles.fetch(JAIL_ROLE_ID).catch(() => null);
+        if (jailRole && targetMember.roles.cache.has(jailRole.id)) {
+            try {
+                await targetMember.roles.remove(jailRole, `Unjailed by ${interaction.user.tag}`);
+                roleRemoved = true;
+            } catch (error) {
+                failures.push(`jail role: ${error.message}`);
+            }
+        }
+    }
+
+    await guild.channels.fetch().catch(() => {});
+    for (const categoryId of JAIL_CATEGORY_IDS) {
+        const category = guild.channels.cache.get(categoryId);
+        if (!category) {
+            failures.push(`missing category ${categoryId}`);
+            continue;
+        }
+        const scopedChannels = [category, ...guild.channels.cache.filter(channel => channel.parentId === categoryId).values()];
+        for (const channel of scopedChannels) {
+            if (!channel.permissionOverwrites?.cache.has(targetUser.id)) continue;
+            try {
+                await channel.permissionOverwrites.delete(targetUser.id, `Unjailed by ${interaction.user.tag}`);
+                restoredOverwrites += 1;
+            } catch (error) {
+                failures.push(`#${channel.name}: ${error.message}`);
+            }
+        }
+    }
+
+    const trackedId = jailChannels.get(targetUser.id);
+    const jailChannelCandidates = guild.channels.cache.filter(channel =>
+        channel.parentId === JAIL_CATEGORY_ID && channel.isTextBased() && (
+            channel.id === trackedId
+            || channel.topic === `commission-jail-user:${targetUser.id}`
+            || (channel.name.startsWith('jail-') && channel.permissionOverwrites?.cache.has(targetUser.id))
+        )
+    );
+
+    let transcriptsSaved = 0;
+    const logChannel = await client.channels.fetch(JAIL_LOG_CHANNEL_ID).catch(() => null);
+    for (const jailChannel of jailChannelCandidates.values()) {
+        try {
+            const messages = await jailChannel.messages.fetch({ limit: 100 });
+            const transcriptLines = [
+                '===============================================',
+                `JAIL TRANSCRIPT: ${jailChannel.name}`,
+                `User: ${targetUser.tag} (${targetUser.id})`,
+                `Unjailed By: ${interaction.user.tag}`,
+                `Date: ${new Date().toLocaleString()}`,
+                '===============================================',
+                '',
+            ];
+            messages.reverse().forEach(message => {
+                transcriptLines.push(`[${message.createdAt.toISOString()}] ${message.author.tag}: ${message.content}`);
+                for (const embed of message.embeds || []) {
+                    if (embed.title) transcriptLines.push(`  [EMBED] Title: ${embed.title}`);
+                    if (embed.description) transcriptLines.push(`  [EMBED] Description: ${embed.description}`);
+                    for (const field of embed.fields || []) transcriptLines.push(`  [EMBED] ${field.name}: ${field.value}`);
+                }
+            });
+            if (logChannel?.isTextBased()) {
+                const attachment = new Discord.AttachmentBuilder(Buffer.from(transcriptLines.join('\n'), 'utf8'), {
+                    name: `${jailChannel.name}-transcript.txt`,
+                });
+                await logChannel.send({
+                    content: `Unjailed ${targetUser.tag} (${targetUser.id}) by ${interaction.user.tag}.`,
+                    files: [attachment],
+                });
+                transcriptsSaved += 1;
+            } else {
+                failures.push(`archive channel ${JAIL_LOG_CHANNEL_ID} is missing or is not a text channel`);
+            }
+            await jailChannel.send('User has been unjailed. This channel will be deleted in 5 seconds.').catch(() => {});
+            setTimeout(() => jailChannel.delete(`Unjailed by ${interaction.user.tag}`).catch(error => {
+                console.error('Error deleting jail channel:', error);
+            }), 5000);
+        } catch (error) {
+            failures.push(`${jailChannel.name} archive: ${error.message}`);
+        }
+    }
+
+    jailChannels.delete(targetUser.id);
+    const stillHasRole = Boolean(targetMember && JAIL_ROLE_ID && targetMember.roles.cache.has(JAIL_ROLE_ID) && !roleRemoved);
+    const permissionFailures = failures.filter(item => item.startsWith('#'));
+    if (stillHasRole || permissionFailures.length) {
+        await interaction.editReply({
+            content: `Could not fully unjail ${targetUser.tag}. Check that the bot role is above the jail role and has Manage Roles and Manage Channels.\n${failures.slice(0, 4).join('\n')}`,
+        });
+        addAuditLog('Unjail Failed', interaction.user, `Could not fully unjail ${targetUser.tag}: ${failures.join('; ')}`, 'error');
+        return;
+    }
+
+    const archiveNote = jailChannelCandidates.size
+        ? `${transcriptsSaved} transcript(s) saved to <#${JAIL_LOG_CHANNEL_ID}>.`
+        : 'No jail channel was found; permissions were still restored.';
+    await interaction.editReply({
+        content: `${targetUser.tag} has been unjailed. Restored ${restoredOverwrites} channel permission overwrite(s). ${archiveNote}`,
+    });
+    addAuditLog('User Unjailed', interaction.user, `Unjailed ${targetUser.tag}; restored ${restoredOverwrites} overwrites`, 'success');
+}
+
+async function handleCloseCommand(interaction) {
+    const isStaff = interaction.member.roles.cache.some(role =>
+        CONFIG.STAFF_ROLE_IDS.includes(role.id)
+    ) || interaction.member.permissions.has(Discord.PermissionFlagsBits.Administrator);
+
+    if (!isStaff) {
+        await interaction.reply({ content: '‚ùå You do not have permission to use this command.', ephemeral: true });
+        return;
+    }
+
+    const channel = interaction.channel;
+
+    // Check if this is a jail or report channel
+    if (!channel.name.startsWith('jail-') && !channel.name.startsWith('report-')) {
+        await interaction.reply({ content: '‚ùå This command only works in jail or report channels.', ephemeral: true });
+        return;
+    }
+
+    await interaction.reply({ content: 'üóÉÔ∏è Archiving and closing this channel...' });
+
+    try {
+        // Create rich transcript including embeds
+        const messages = await channel.messages.fetch({ limit: 100 });
+        const transcriptLines = ['‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê',
+            `CHANNEL TRANSCRIPT: ${channel.name}`,
+            `Closed By: ${interaction.user.tag}`,
+            `Type: ${channel.name.startsWith('jail-') ? 'Jail Channel' : 'Report Channel'}`,
+            `Date: ${new Date().toLocaleString()}`,
+            '‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê‚ïê', ''];
+
+        messages.reverse().forEach(msg => {
+            transcriptLines.push(`[${msg.createdAt.toISOString()}] ${msg.author.tag}: ${msg.content}`);
+            if (msg.embeds && msg.embeds.length > 0) {
+                msg.embeds.forEach(embed => {
+                    if (embed.title) transcriptLines.push(`  [EMBED] Title: ${embed.title}`);
+                    if (embed.description) transcriptLines.push(`  [EMBED] Description: ${embed.description}`);
+                    if (embed.fields) {
+                        embed.fields.forEach(field => {
+                            transcriptLines.push(`  [EMBED] ${field.name}: ${field.value}`);
+                        });
+                    }
+                    if (embed.footer) transcriptLines.push(`  [EMBED] Footer: ${embed.footer.text}`);
+                });
+            }
+        });
+
+        const transcript = transcriptLines.join('\n');
+
+        // Send transcript to log channel
+        const logChannel = await client.channels.fetch(JAIL_LOG_CHANNEL_ID);
+        if (logChannel) {
+            const transcriptBuffer = Buffer.from(transcript, 'utf-8');
+            const attachment = new Discord.AttachmentBuilder(transcriptBuffer, { name: `${channel.name}-transcript.txt` });
+
+            const logEmbed = new Discord.EmbedBuilder()
+                .setColor('#FFA500')
+                .setTitle(`üóÉÔ∏è Channel Closed: ${channel.name}`)
+                .addFields(
+                    { name: 'Closed By', value: `${interaction.user.tag}`, inline: true },
+                    { name: 'Type', value: channel.name.startsWith('jail-') ? 'Jail Channel' : 'Report Channel', inline: true },
+                )
+                .setFooter({ text: 'Transcript attached below' })
+                .setTimestamp();
+
+            await logChannel.send({ embeds: [logEmbed], files: [attachment] });
+        }
+
+        addAuditLog('Channel Closed', interaction.user, `Closed ${channel.name}`, 'info');
+
+        await channel.send('üóÉÔ∏è This channel will be deleted in 5 seconds...');
+        setTimeout(async () => {
+            await channel.delete().catch(err => console.error('Error deleting channel:', err));
+        }, 5000);
+
+    } catch (error) {
+        console.error('‚ùå Error closing channel:', error);
+    }
+}
+
+// ======================
+// MUSIC SYSTEM
+// ======================
+
+// Music channel IDs are declared at the top of the file
+
+const musicQueue = []; // { title, url, requestedBy }
+let currentSong = null;
+let musicConnection = null;
+let audioPlayer = null;
+let queueMessage = null; // Persistent queue message that gets edited
+let requestsSinceLastPost = 0; // Counter to repost queue every 5 requests
+
+// Build queue embed
+function buildQueueEmbed() {
+    let description = '';
+
+    if (currentSong) {
+        description += `üé∂ **Now Playing:** ${currentSong.title} (${currentSong.duration || '?'}) ‚Äî *${currentSong.requestedBy}*\n\n`;
+    } else {
+        description += 'üîá **Nothing playing**\n\n';
+    }
+
+    if (musicQueue.length > 0) {
+        description += '**Up Next:**\n';
+        musicQueue.slice(0, 15).forEach((song, i) => {
+            description += `\`${i + 1}.\` ${song.title} (${song.duration || '?'}) ‚Äî *${song.requestedBy}*\n`;
+        });
+        if (musicQueue.length > 15) {
+            description += `\n...and ${musicQueue.length - 15} more`;
+        }
+    } else {
+        description += '*Queue is empty. Use `!play <song>` to add songs.*';
+    }
+
+    return new Discord.EmbedBuilder()
+        .setColor('#5865F2')
+        .setTitle('üéµ Music Queue')
+        .setDescription(description)
+        .setFooter({ text: `${musicQueue.length} song(s) in queue | Max song length: 8 min` })
+        .setTimestamp();
+}
+
+// Update or repost the queue message
+async function updateQueueMessage() {
+    try {
+        const musicChannel = await client.channels.fetch(MUSIC_CHANNEL_ID);
+        if (!musicChannel) return;
+
+        const embed = buildQueueEmbed();
+        requestsSinceLastPost++;
+
+        // Try to edit existing message, or post new one every 5 requests
+        if (queueMessage && requestsSinceLastPost < 5) {
+            try {
+                await queueMessage.edit({ embeds: [embed] });
+                return;
+            } catch (e) {
+                // Message was deleted or too old, post a new one
+                queueMessage = null;
+            }
+        }
+
+        // Post a fresh queue message
+        requestsSinceLastPost = 0;
+        queueMessage = await musicChannel.send({ embeds: [embed] });
+
+    } catch (error) {
+        console.error('‚ùå Error updating queue message:', error);
+    }
+}
+
+async function handleMusicCommand(interaction) {
+    const cmd = interaction.commandName;
+
+    // Only allow music commands in the music channel
+    if (interaction.channelId !== MUSIC_CHANNEL_ID) {
+        await interaction.reply({ content: `‚ùå Music commands only work in <#${MUSIC_CHANNEL_ID}>`, ephemeral: true });
+        return;
+    }
+
+    if (!voice || !playDl || !ytdl) {
+        await interaction.reply({ content: '‚ùå Music dependencies not installed. Ask the bot admin to install them.', ephemeral: true });
+        return;
+    }
+
+    if (cmd === 'join') {
+        await musicJoin(interaction);
+    } else if (cmd === 'leave') {
+        await musicLeave(interaction);
+    } else if (cmd === 'play') {
+        await musicPlay(interaction);
+    } else if (cmd === 'skip') {
+        await musicSkip(interaction);
+    } else if (cmd === 'queue') {
+        await musicShowQueue(interaction);
+    } else if (cmd === 'nowplaying') {
+        await musicNowPlaying(interaction);
+    } else if (cmd === 'clear') {
+        await musicClear(interaction);
+    }
+}
+
+async function musicJoin(interaction) {
+    const guild = interaction.guild;
+
+    try {
+        const voiceChannel = await guild.channels.fetch(MUSIC_VOICE_CHANNEL_ID);
+        if (!voiceChannel) {
+            await interaction.reply({ content: '‚ùå Music voice channel not found.', ephemeral: true });
+            return;
+        }
+
+        musicConnection = voice.joinVoiceChannel({
+            channelId: MUSIC_VOICE_CHANNEL_ID,
+            guildId: guild.id,
+            adapterCreator: guild.voiceAdapterCreator,
+            selfDeaf: false,
+        });
+
+        audioPlayer = voice.createAudioPlayer({
+            behaviors: { noSubscriber: voice.NoSubscriberBehavior.Pause },
+        });
+
+        musicConnection.subscribe(audioPlayer);
+
+        audioPlayer.on(voice.AudioPlayerStatus.Idle, () => {
+            currentSong = null;
+            if (musicQueue.length > 0) {
+                playNextSong(guild);
+            } else {
+                updateQueueMessage(); // Show empty queue
+            }
+        });
+
+        audioPlayer.on('error', (error) => {
+            console.error('‚ùå Audio player error:', error);
+            currentSong = null;
+            if (musicQueue.length > 0) {
+                playNextSong(guild);
+            }
+        });
+
+        await interaction.reply({ content: `‚úÖ Joined <#${MUSIC_VOICE_CHANNEL_ID}>! Use \`/play <url>\` to queue a song.` });
+        addAuditLog('Music Join', interaction.user, `Bot joined voice channel`, 'info');
+
+    } catch (error) {
+        console.error('‚ùå Error joining voice:', error);
+        await interaction.reply({ content: '‚ùå Error joining voice channel: ' + error.message, ephemeral: true });
+    }
+}
+
+async function musicLeave(interaction) {
+    if (musicConnection) {
+        musicConnection.destroy();
+        musicConnection = null;
+        audioPlayer = null;
+        currentSong = null;
+        musicQueue.length = 0;
+        await interaction.reply({ content: 'üëã Left the voice channel. Queue cleared.' });
+        addAuditLog('Music Leave', interaction.user, 'Bot left voice channel', 'info');
+    } else {
+        await interaction.reply({ content: '‚ùå Bot is not in a voice channel.', ephemeral: true });
+    }
+}
+
+async function musicPlay(interaction) {
+    if (!musicConnection) {
+        await interaction.reply({ content: '‚ùå Bot is not in a voice channel. Use `/join` first.', ephemeral: true });
+        return;
+    }
+
+    // Check if user is in the same voice channel as the bot
+    const memberVoice = interaction.member.voice;
+    if (!memberVoice || !memberVoice.channelId || memberVoice.channelId !== MUSIC_VOICE_CHANNEL_ID) {
+        await interaction.reply({ content: `‚ùå You must be in <#${MUSIC_VOICE_CHANNEL_ID}> to request music.`, ephemeral: true });
+        return;
+    }
+
+    await interaction.deferReply();
+
+    const input = interaction.options.getString('url');
+
+    try {
+        let songInfo;
+
+        // Check if it's a URL or search query
+        if (playDl.yt_validate(input) === 'video') {
+            songInfo = {
+                title: 'Loading...',
+                url: input,
+                duration: 'Unknown',
+                requestedBy: interaction.user.tag,
+            };
+            // Get title/duration from video info
+            try {
+                const info = await playDl.video_info(input);
+                songInfo.title = info.video_details.title || 'Unknown';
+                songInfo.duration = info.video_details.durationRaw || 'Unknown';
+            } catch (e) {
+                console.warn('‚ö†Ô∏è Could not fetch video info, using URL directly');
+            }
+        } else {
+            // Search YouTube
+            const results = await playDl.search(input, { limit: 1 });
+            if (results.length === 0) {
+                await interaction.editReply({ content: '‚ùå No results found.' });
+                return;
+            }
+
+            const result = results[0];
+            // Log ALL properties to find the right URL field
+            console.log(`üîç Search result keys: ${Object.keys(result).join(', ')}`);
+            console.log(`üîç Search result: title="${result.title}" url="${result.url}" id="${result.id}" videoId="${result.videoId}"`);
+
+            // Try every possible URL property
+            let videoUrl = result.url;
+            if (!videoUrl && result.id) videoUrl = `https://www.youtube.com/watch?v=${result.id}`;
+            if (!videoUrl && result.videoId) videoUrl = `https://www.youtube.com/watch?v=${result.videoId}`;
+            if (!videoUrl && result.video_id) videoUrl = `https://www.youtube.com/watch?v=${result.video_id}`;
+            if (!videoUrl && result.link) videoUrl = result.link;
+            if (!videoUrl && result.shortUrl) videoUrl = result.shortUrl;
+
+            if (!videoUrl) {
+                console.error('‚ùå Could not extract URL from search result:', JSON.stringify(result).substring(0, 500));
+                await interaction.editReply({ content: '‚ùå Could not get URL for this song. Try pasting a YouTube link instead.' });
+                return;
+            }
+
+            songInfo = {
+                title: result.title || 'Unknown',
+                url: videoUrl,
+                duration: result.durationRaw || result.duration || 'Unknown',
+                requestedBy: interaction.user.tag,
+            };
+        }
+
+        console.log(`üéµ Queued: "${songInfo.title}" URL: ${songInfo.url}`);
+
+        // Check max duration (8 minutes = 480 seconds)
+        const durationSecs = parseDurationToSeconds(songInfo.duration);
+        if (durationSecs > 480) {
+            await interaction.editReply({ content: `‚ùå **Song too long!** "${songInfo.title}" is ${songInfo.duration}. Max length is **8 minutes**.` });
+            return;
+        }
+
+        musicQueue.push(songInfo);
+
+        await interaction.editReply({ content: `‚úÖ **Added:** ${songInfo.title} (${songInfo.duration || 'Unknown'}) ‚Äî Position #${musicQueue.length}` });
+
+        // Update the persistent queue message
+        await updateQueueMessage();
+
+        // If nothing is playing, start playing
+        if (!currentSong) {
+            await playNextSong(interaction.guild);
+        }
+
+    } catch (error) {
+        console.error('‚ùå Error adding song:', error);
+        await interaction.editReply({ content: '‚ùå Error: ' + error.message });
+    }
+}
+
+async function playNextSong(guild) {
+    if (musicQueue.length === 0 || !musicConnection || !audioPlayer) return;
+
+    currentSong = musicQueue.shift();
+
+    try {
+        console.log(`üéµ Attempting to play: "${currentSong.title}" URL: ${currentSong.url}`);
+
+        if (!currentSong.url || currentSong.url === 'undefined') {
+            console.error('‚ùå Invalid URL for song:', currentSong.title);
+            currentSong = null;
+            if (musicQueue.length > 0) playNextSong(guild);
+            return;
+        }
+
+        if (!ytdl.validateURL(currentSong.url)) {
+            console.error('‚ùå ytdl rejected URL:', currentSong.url);
+            currentSong = null;
+            if (musicQueue.length > 0) playNextSong(guild);
+            return;
+        }
+
+        // Use @distube/ytdl-core for playback. play-dl search works, but
+        // playDl.stream() was throwing ERR_INVALID_URL with input undefined.
+        const ytStream = ytdl(currentSong.url, {
+            filter: 'audioonly',
+            quality: 'highestaudio',
+            highWaterMark: 1 << 25,
+            dlChunkSize: 0,
+        });
+
+        ytStream.on('error', (streamError) => {
+            console.error('‚ùå YouTube stream error:', streamError);
+        });
+
+        const probed = await voice.demuxProbe(ytStream);
+        const resource = voice.createAudioResource(probed.stream, {
+            inputType: probed.type,
+        });
+
+        audioPlayer.play(resource);
+
+        // Update the queue message to show now playing
+        await updateQueueMessage();
+
+        console.log(`üéµ Now playing: ${currentSong.title}`);
+
+    } catch (error) {
+        console.error('‚ùå Error playing song:', error);
+        // Try next song
+        if (musicQueue.length > 0) {
+            playNextSong(guild);
+        }
+    }
+}
+
+async function musicSkip(interaction) {
+    if (!audioPlayer || !currentSong) {
+        await interaction.reply({ content: '‚ùå Nothing is playing.', ephemeral: true });
+        return;
+    }
+
+    const skipped = currentSong.title;
+    audioPlayer.stop(); // This triggers the Idle event which plays next song
+    await interaction.reply({ content: `‚è≠Ô∏è Skipped: **${skipped}**` });
+}
+
+async function musicShowQueue(interaction) {
+    if (musicQueue.length === 0 && !currentSong) {
+        await interaction.reply({ content: 'üì≠ Queue is empty. Use `/play` to add songs.', ephemeral: true });
+        return;
+    }
+
+    let description = '';
+
+    if (currentSong) {
+        description += `üé∂ **Now Playing:** ${currentSong.title} (${currentSong.duration || '?'})\n\n`;
+    }
+
+    if (musicQueue.length > 0) {
+        description += '**Up Next:**\n';
+        musicQueue.slice(0, 10).forEach((song, i) => {
+            description += `${i + 1}. ${song.title} (${song.duration || '?'}) ‚Äî *${song.requestedBy}*\n`;
+        });
+        if (musicQueue.length > 10) {
+            description += `\n...and ${musicQueue.length - 10} more`;
+        }
+    }
+
+    const embed = new Discord.EmbedBuilder()
+        .setColor('#5865F2')
+        .setTitle('üéµ Music Queue')
+        .setDescription(description)
+        .setFooter({ text: `${musicQueue.length} song(s) in queue` })
+        .setTimestamp();
+
+    await interaction.reply({ embeds: [embed] });
+}
+
+async function musicNowPlaying(interaction) {
+    if (!currentSong) {
+        await interaction.reply({ content: '‚ùå Nothing is playing right now.', ephemeral: true });
+        return;
+    }
+
+    const embed = new Discord.EmbedBuilder()
+        .setColor('#00FF00')
+        .setTitle('üé∂ Now Playing')
+        .setDescription(`**${currentSong.title}**`)
+        .addFields(
+            { name: 'Duration', value: currentSong.duration || 'Unknown', inline: true },
+            { name: 'Requested By', value: currentSong.requestedBy, inline: true },
+            { name: 'URL', value: currentSong.url }
+        )
+        .setTimestamp();
+
+    await interaction.reply({ embeds: [embed] });
+}
+
+async function musicClear(interaction) {
+    const count = musicQueue.length;
+    musicQueue.length = 0;
+    await interaction.reply({ content: `üóëÔ∏è Cleared ${count} song(s) from the queue.` });
+}
+
+// Parse duration string like "6:11" or "1:23:45" to seconds
+function parseDurationToSeconds(duration) {
+    if (!duration || duration === 'Unknown') return 0;
+    const str = String(duration);
+    const parts = str.split(':').map(Number);
+    if (parts.length === 3) return (parts[0] * 3600) + (parts[1] * 60) + parts[2];
+    if (parts.length === 2) return (parts[0] * 60) + parts[1];
+    return parseInt(str) || 0;
+}
+
+// ======================
+// !play TEXT COMMAND (music request channel only)
+// ======================
+
+async function handleMusicTextCommand(message, command, args) {
+    if (!voice || !playDl || !ytdl) {
+        await message.reply('‚ùå Music dependencies not installed.');
+        return;
+    }
+
+    if (command === 'play') {
+        const query = args.join(' ');
+        if (!query) {
+            await message.reply('‚ùå Usage: `!play <song name>` or `!play <artist> - <song>`');
+            return;
+        }
+
+        if (!musicConnection) {
+            await message.reply('‚ùå Bot is not in a voice channel. A staff member needs to use `/join` first.');
+            return;
+        }
+
+        // Check if user is in the same voice channel as the bot
+        const memberVoice = message.member.voice;
+        if (!memberVoice || !memberVoice.channelId || memberVoice.channelId !== MUSIC_VOICE_CHANNEL_ID) {
+            await message.reply(`‚ùå You must be in <#${MUSIC_VOICE_CHANNEL_ID}> to request music.`);
+            return;
+        }
+
+        const loadingMsg = await message.reply('üîç Searching...');
+
+        try {
+            const results = await playDl.search(query, { limit: 1 });
+            if (results.length === 0) {
+                await loadingMsg.edit('‚ùå No results found.');
+                return;
+            }
+
+            const result = results[0];
+            console.log(`üîç Text search keys: ${Object.keys(result).join(', ')}`);
+            console.log(`üîç Text search result: title="${result.title}" url="${result.url}" id="${result.id}" videoId="${result.videoId}"`);
+
+            // Try every possible URL property
+            let videoUrl = result.url;
+            if (!videoUrl && result.id) videoUrl = `https://www.youtube.com/watch?v=${result.id}`;
+            if (!videoUrl && result.videoId) videoUrl = `https://www.youtube.com/watch?v=${result.videoId}`;
+            if (!videoUrl && result.video_id) videoUrl = `https://www.youtube.com/watch?v=${result.video_id}`;
+            if (!videoUrl && result.link) videoUrl = result.link;
+            if (!videoUrl && result.shortUrl) videoUrl = result.shortUrl;
+
+            if (!videoUrl) {
+                console.error('‚ùå Could not extract URL:', JSON.stringify(result).substring(0, 500));
+                await loadingMsg.edit('‚ùå Could not get URL for this song. Try pasting a YouTube link instead.');
+                return;
+            }
+
+            const duration = result.durationRaw || result.duration || 'Unknown';
+
+            // Check max duration (8 minutes = 480 seconds)
+            const durationSecs = parseDurationToSeconds(duration);
+            if (durationSecs > 480) {
+                await loadingMsg.edit(`‚ùå **Song too long!** "${result.title}" is ${duration}. Max length is **8 minutes**.`);
+                return;
+            }
+
+            const songInfo = {
+                title: result.title || 'Unknown',
+                url: videoUrl,
+                duration: duration,
+                requestedBy: message.author.tag,
+            };
+
+            console.log(`üéµ Text queued: "${songInfo.title}" URL: ${songInfo.url}`);
+
+            musicQueue.push(songInfo);
+
+            await loadingMsg.edit(`‚úÖ **Added:** ${songInfo.title} (${songInfo.duration}) ‚Äî Position #${musicQueue.length}`);
+
+            // Delete the confirmation after 5 seconds to keep chat clean
+            setTimeout(() => loadingMsg.delete().catch(() => {}), 5000);
+
+            // Update the persistent queue message
+            await updateQueueMessage();
+
+            if (!currentSong) {
+                await playNextSong(message.guild);
+            }
+
+        } catch (error) {
+            console.error('‚ùå Error in !play:', error);
+            await loadingMsg.edit('‚ùå Error: ' + error.message);
+        }
+
+    } else if (command === 'skip') {
+        if (!audioPlayer || !currentSong) {
+            await message.reply('‚ùå Nothing is playing.');
+            return;
+        }
+        const skipped = currentSong.title;
+        audioPlayer.stop();
+        await message.reply(`‚è≠Ô∏è Skipped: **${skipped}**`);
+
+    } else if (command === 'queue') {
+        if (musicQueue.length === 0 && !currentSong) {
+            await message.reply('üì≠ Queue is empty. Use `!play <song>` to add songs.');
+            return;
+        }
+
+        let description = '';
+        if (currentSong) {
+            description += `üé∂ **Now Playing:** ${currentSong.title} (${currentSong.duration || '?'})\n\n`;
+        }
+        if (musicQueue.length > 0) {
+            description += '**Up Next:**\n';
+            musicQueue.slice(0, 10).forEach((song, i) => {
+                description += `${i + 1}. ${song.title} (${song.duration || '?'}) ‚Äî *${song.requestedBy}*\n`;
+            });
+            if (musicQueue.length > 10) {
+                description += `\n...and ${musicQueue.length - 10} more`;
+            }
+        }
+
+        const embed = new Discord.EmbedBuilder()
+            .setColor('#5865F2')
+            .setTitle('üéµ Music Queue')
+            .setDescription(description)
+            .setFooter({ text: `${musicQueue.length} song(s) in queue` })
+            .setTimestamp();
+
+        await message.reply({ embeds: [embed] });
+
+    } else if (command === 'np' || command === 'nowplaying') {
+        if (!currentSong) {
+            await message.reply('‚ùå Nothing is playing right now.');
+            return;
+        }
+
+        const embed = new Discord.EmbedBuilder()
+            .setColor('#00FF00')
+            .setTitle('üé∂ Now Playing')
+            .setDescription(`**${currentSong.title}**`)
+            .addFields(
+                { name: 'Duration', value: currentSong.duration || 'Unknown', inline: true },
+                { name: 'Requested By', value: currentSong.requestedBy, inline: true }
+            )
+            .setTimestamp();
+
+        await message.reply({ embeds: [embed] });
+
+    } else if (command === 'clear') {
+        const count = musicQueue.length;
+        musicQueue.length = 0;
+        await message.reply(`üóëÔ∏è Cleared ${count} song(s) from the queue.`);
+    }
+}
+
+// ======================
+// STAFF COMMANDS
+// ======================
+
+async function handleStaffCommands(message) {
+    const isStaff = message.member.roles.cache.some(role =>
+        CONFIG.STAFF_ROLE_IDS.includes(role.id)
+    );
+    if (!isStaff && !message.member.permissions.has(Discord.PermissionFlagsBits.Administrator)) return;
+
+    const args = message.content.slice(1).trim().split(/ +/);
+    const command = args[0].toLowerCase();
+
+    if (command === 'config') {
+        const configEmbed = new Discord.EmbedBuilder()
+            .setColor('#5865F2')
+            .setTitle('‚öôÔ∏è Bot Configuration Status')
+            .addFields(
+                { name: 'Main Chat Channel', value: CONFIG.MAIN_CHAT_CHANNEL_ID ? `‚úÖ <#${CONFIG.MAIN_CHAT_CHANNEL_ID}>` : '‚ùå Not set' },
+                { name: 'Announcement Channel', value: CONFIG.ANNOUNCEMENT_CHANNEL_ID ? `‚úÖ <#${CONFIG.ANNOUNCEMENT_CHANNEL_ID}>` : '‚ùå Not set' },
+                { name: 'Mod Channel', value: CONFIG.MOD_CHANNEL_ID ? `‚úÖ <#${CONFIG.MOD_CHANNEL_ID}>` : '‚ùå Not set' },
+                { name: 'Log Channel', value: CONFIG.LOG_CHANNEL_ID ? `‚úÖ <#${CONFIG.LOG_CHANNEL_ID}>` : '‚ùå Not set' },
+                { name: 'Ticket Category', value: CONFIG.TICKET_CATEGORY_ID ? '‚úÖ Set' : '‚ùå Not set' },
+                { name: 'Staff Role IDs', value: CONFIG.STAFF_ROLE_IDS.length > 0 ? `‚úÖ ${CONFIG.STAFF_ROLE_IDS.length} role(s)` : '‚ùå Not set' }
+            );
+        await message.reply({ embeds: [configEmbed] });
+        return;
+    }
+
+
+    if (command === 'close') {
+        // Check if this is a ticket channel
+        if (message.channel.name.startsWith('tech-') || message.channel.name.startsWith('report-')) {
+            await closeTicket(message.channel);
+        } else {
+            await message.reply('‚ùå This command only works in ticket channels.');
+        }
+    }
+
+    // Trivia commands
+    if (command === 'trivia') {
+        const subcommand = args[1]?.toLowerCase();
+
+        if (subcommand === 'on') {
+            if (triviaEnabled) {
+                await message.reply('‚ö†Ô∏è Trivia is already enabled!');
+                return;
+            }
+            triviaEnabled = true;
+            startTriviaSystem();
+            await message.reply('‚úÖ Trivia system enabled! Questions will be posted every 25 minutes.');
+            addAuditLog('Trivia Enabled', message.author, 'Trivia system started', 'success');
+
+        } else if (subcommand === 'off') {
+            if (!triviaEnabled) {
+                await message.reply('‚ö†Ô∏è Trivia is already disabled!');
+                return;
+            }
+            triviaEnabled = false;
+            if (triviaInterval) {
+                clearInterval(triviaInterval);
+                triviaInterval = null;
+            }
+            currentTrivia = null;
+            await message.reply('‚úÖ Trivia system disabled.');
+            addAuditLog('Trivia Disabled', message.author, 'Trivia system stopped', 'info');
+
+        } else if (subcommand === 'scores') {
+            if (triviaScores.size === 0) {
+                await message.reply('üìä No trivia scores yet!');
+                return;
+            }
+
+            const sortedScores = Array.from(triviaScores.entries())
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 10);
+
+            const embed = new Discord.EmbedBuilder()
+                .setColor('#FFD700')
+                .setTitle('üèÜ Trivia Leaderboard')
+                .setDescription(
+                    sortedScores.map((entry, index) => {
+                        const userId = entry[0];
+                        const score = entry[1];
+                        const medal = index === 0 ? 'ü•á' : index === 1 ? 'ü•à' : index === 2 ? 'ü•â' : `${index + 1}.`;
+                        return `${medal} <@${userId}> - **${score}** points`;
+                    }).join('\n')
+                )
+                .setTimestamp();
+
+            await message.reply({ embeds: [embed] });
+
+        } else if (subcommand === 'now') {
+            await postTriviaQuestion();
+
+        } else {
+            await message.reply('**Trivia Commands:**\n`!trivia on` - Enable trivia\n`!trivia off` - Disable trivia\n`!trivia scores` - View leaderboard\n`!trivia now` - Post question now');
+        }
+        return;
+    }
+
+    // Online/Offline commands
+    if (command === 'online') {
+        await client.user.setStatus('online');
+        await message.channel.send('‚úÖ **The Bot Online and ready to work!**');
+        addAuditLog('Bot Status', message.author, 'Set bot status to ONLINE', 'success');
+        return;
+    }
+
+    if (command === 'offline') {
+        await client.user.setStatus('invisible');
+        await message.channel.send('‚ö†Ô∏è **Bot Is Powering down Message staff with issues.**');
+        addAuditLog('Bot Status', message.author, 'Set bot status to OFFLINE', 'warning');
+        return;
+    }
+
+    // Role management commands still work
+    if (command === 'help') {
+        await sendHelpMessage(message);
+    }
+
+    if (command === 'dashboard') {
+        await generateDashboard(message);
+    }
+
+    if (command === 'role') {
+        await startRoleSelection(message);
+    }
+
+    if (command === 'permission') {
+        await handlePermissionCommand(message);
+    }
+}
+
+// Birthday command handler - AVAILABLE TO EVERYONE
+async function handleBirthdayCommand(message) {
+    const args = message.content.slice(1).trim().split(/ +/);
+    const input = args[1];
+
+    if (!input) {
+        // Show user's current birthday
+        const userBirthday = birthdays.get(message.author.id);
+        if (userBirthday) {
+            await message.reply(`üéÇ Your birthday is set to: **${userBirthday.month}/${userBirthday.day}**\n\nTo remove it, use: \`!birthday remove\``);
+        } else {
+            await message.reply(`üéÇ You haven't set your birthday yet!\n\nUse: \`!birthday MM/DD\`\nExample: \`!birthday 12/25\``);
+        }
+        return;
+    }
+
+    if (input.toLowerCase() === 'remove') {
+        birthdays.delete(message.author.id);
+        await message.reply('üéÇ Your birthday has been removed from the system.');
+        addAuditLog('Birthday Removed', message.author, 'Birthday registration removed', 'info');
+        return;
+    }
+
+    // Parse MM/DD format
+    const parts = input.split('/');
+    if (parts.length !== 2) {
+        await message.reply('‚ùå Invalid format! Use: `!birthday MM/DD` (e.g., `!birthday 12/25`)');
+        return;
+    }
+
+    const month = parseInt(parts[0]);
+    const day = parseInt(parts[1]);
+
+    // Validate
+    if (month < 1 || month > 12 || day < 1 || day > 31) {
+        await message.reply('‚ùå Invalid date! Month must be 1-12 and day must be 1-31.');
+        return;
+    }
+
+    // Validate day for month
+    const daysInMonth = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    if (day > daysInMonth[month - 1]) {
+        await message.reply(`‚ùå Invalid day for month ${month}! Max day is ${daysInMonth[month - 1]}.`);
+        return;
+    }
+
+    // Save birthday
+    birthdays.set(message.author.id, {
+        month,
+        day,
+        username: message.author.tag
+    });
+
+    await message.reply(`üéÇ Birthday saved! I'll announce it on **${month}/${day}** at 8am and 8pm!`);
+    addAuditLog('Birthday Set', message.author, `Birthday: ${month}/${day}`, 'success');
+}
+
+// Vibe check function - AVAILABLE TO EVERYONE
+async function performVibeCheck(message) {
+    const now = Date.now();
+    const oneHourAgo = now - (60 * 60 * 1000);
+    const twelveHoursAgo = now - (12 * 60 * 60 * 1000);
+    const twentyFourHoursAgo = now - (24 * 60 * 60 * 1000);
+
+    const last1h = recentMessages.filter(m => m.timestamp > oneHourAgo);
+    const last12h = recentMessages.filter(m => m.timestamp > twelveHoursAgo);
+    const last24h = recentMessages.filter(m => m.timestamp > twentyFourHoursAgo);
+
+    // Sentiment analysis (basic)
+    function analyzeSentiment(messages) {
+        if (messages.length === 0) return { positive: 0, negative: 0, neutral: 0, energy: 0 };
+
+        const positive = ['lol', 'lmao', 'haha', 'gg', 'good', 'great', 'awesome', 'love', 'thanks', 'nice', 'poggers', 'pog', 'üòÇ', 'ü§£', 'üòÑ', '‚ù§Ô∏è', 'üíØ', 'üî•', '!', 'yes', 'yeah', 'yay'];
+        const negative = ['bad', 'hate', 'stupid', 'dumb', 'wtf', 'bruh', 'cringe', 'rip', 'oof', 'sad', 'üò¢', 'üò≠', 'üíÄ', 'no', 'nah', 'nope', 'ugh'];
+
+        let positiveCount = 0;
+        let negativeCount = 0;
+        let energyScore = 0;
+
+        messages.forEach(msg => {
+            const lower = msg.content.toLowerCase();
+
+            // Check positive words
+            positive.forEach(word => {
+                if (lower.includes(word)) positiveCount++;
+            });
+
+            // Check negative words
+            negative.forEach(word => {
+                if (lower.includes(word)) negativeCount++;
+            });
+
+            // Energy from caps and punctuation
+            const caps = (msg.content.match(/[A-Z]/g) || []).length;
+            const exclamation = (msg.content.match(/!/g) || []).length;
+            energyScore += caps + (exclamation * 2);
+        });
+
+        const total = positiveCount + negativeCount;
+        return {
+            positive: total > 0 ? Math.round((positiveCount / total) * 100) : 50,
+            negative: total > 0 ? Math.round((negativeCount / total) * 100) : 50,
+            neutral: total > 0 ? Math.round((1 - (positiveCount + negativeCount) / messages.length) * 100) : 0,
+            energy: Math.min(100, Math.round((energyScore / messages.length) * 10))
+        };
+    }
+
+    const vibe1h = analyzeSentiment(last1h);
+    const vibe12h = analyzeSentiment(last12h);
+    const vibe24h = analyzeSentiment(last24h);
+
+    function getVibeEmoji(positive, negative, energy) {
+        if (positive > 60 && energy > 50) return 'üî• HYPED';
+        if (positive > 60) return 'üòä POSITIVE';
+        if (negative > 60) return 'üò§ SALTY';
+        if (energy > 70) return '‚ö° ENERGETIC';
+        if (energy < 30) return 'üò¥ CHILL';
+        return 'üòê NEUTRAL';
+    }
+
+    const embed = new Discord.EmbedBuilder()
+        .setColor('#5865F2')
+        .setTitle('‚ú® Vibe Check')
+        .setDescription('Current chat atmosphere analysis')
+        .addFields(
+            {
+                name: 'üïê Last Hour',
+                value: `${getVibeEmoji(vibe1h.positive, vibe1h.negative, vibe1h.energy)}\nPositive: ${vibe1h.positive}%\nNegative: ${vibe1h.negative}%\nEnergy: ${vibe1h.energy}%\nMessages: ${last1h.length}`,
+                inline: true
+            },
+            {
+                name: 'üïõ Last 12 Hours',
+                value: `${getVibeEmoji(vibe12h.positive, vibe12h.negative, vibe12h.energy)}\nPositive: ${vibe12h.positive}%\nNegative: ${vibe12h.negative}%\nEnergy: ${vibe12h.energy}%\nMessages: ${last12h.length}`,
+                inline: true
+            },
+            {
+                name: 'üìÖ Last 24 Hours',
+                value: `${getVibeEmoji(vibe24h.positive, vibe24h.negative, vibe24h.energy)}\nPositive: ${vibe24h.positive}%\nNegative: ${vibe24h.negative}%\nEnergy: ${vibe24h.energy}%\nMessages: ${last24h.length}`,
+                inline: true
+            }
+        )
+        .setFooter({ text: 'Vibe analysis based on message content and energy' })
+        .setTimestamp();
+
+    await message.reply({ embeds: [embed] });
+}
+
+// Birthday checking system
+async function checkBirthdays() {
+    if (!CONFIG.ANNOUNCEMENT_CHANNEL_ID) return;
+
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    const currentMonth = now.getMonth() + 1; // 0-indexed
+    const currentDay = now.getDate();
+
+    // Only run at 8am (8:00) or 8pm (20:00)
+    if ((currentHour === 8 || currentHour === 20) && currentMinute === 0) {
+        // Find all birthdays today
+        const birthdayPeople = [];
+
+        for (const [userId, birthday] of birthdays.entries()) {
+            if (birthday.month === currentMonth && birthday.day === currentDay) {
+                birthdayPeople.push({ userId, username: birthday.username });
+            }
+        }
+
+        if (birthdayPeople.length > 0) {
+            try {
+                const announcementChannel = await client.channels.fetch(CONFIG.ANNOUNCEMENT_CHANNEL_ID);
+
+                // Create mentions list
+                const mentions = birthdayPeople.map(p => `<@${p.userId}>`).join(', ');
+                const names = birthdayPeople.map(p => p.username).join(', ');
+
+                const embed = new Discord.EmbedBuilder()
+                    .setColor('#FFD700')
+                    .setTitle('üéÇ Happy Birthday! üéâ')
+                    .setDescription(`Today's the special day for:\n\n${mentions}\n\nWishing you an amazing birthday! üéàüéä`)
+                    .setFooter({ text: `Birthday${birthdayPeople.length > 1 ? 's' : ''} on ${currentMonth}/${currentDay}` })
+                    .setTimestamp();
+
+                await announcementChannel.send({ content: mentions, embeds: [embed] });
+                addAuditLog('Birthday Announced', { tag: 'System', id: 'system' }, `Birthday for: ${names}`, 'success');
+
+            } catch (error) {
+                console.error('Error announcing birthdays:', error);
+            }
+        }
+    }
+}
+
+// Trivia System Functions
+function startTriviaSystem() {
+    // Clear any existing interval
+    if (triviaInterval) {
+        clearInterval(triviaInterval);
+    }
+
+    // Post first question immediately
+    postTriviaQuestion();
+
+    // Then post every 25 minutes
+    triviaInterval = setInterval(() => {
+        if (triviaEnabled) {
+            postTriviaQuestion();
+        }
+    }, 25 * 60 * 1000); // 25 minutes
+}
+
+async function postTriviaQuestion() {
+    if (!CONFIG.MAIN_CHAT_CHANNEL_ID) {
+        console.log('Cannot post trivia: MAIN_CHAT_CHANNEL_ID not configured');
+        return;
+    }
+
+    try {
+        const mainChannel = await client.channels.fetch(CONFIG.MAIN_CHAT_CHANNEL_ID);
+
+        // Select random question
+        const randomIndex = Math.floor(Math.random() * triviaQuestions.length);
+        currentTrivia = triviaQuestions[randomIndex];
+
+        const embed = new Discord.EmbedBuilder()
+            .setColor('#FFD700')
+            .setTitle('üß† Trivia Time!')
+            .setDescription(`**Category:** ${currentTrivia.category}\n\n**Question:**\n${currentTrivia.question}`)
+            .setFooter({ text: 'First correct answer wins 100 points!' })
+            .setTimestamp();
+
+        await mainChannel.send({ embeds: [embed] });
+        addAuditLog('Trivia Posted', { tag: 'System', id: 'system' }, `Question: ${currentTrivia.question}`, 'info');
+
+    } catch (error) {
+        console.error('Error posting trivia:', error);
+    }
+}
+
+async function closeTicket(channel) {
+    try {
+        // Fetch all messages to create transcript
+        const messages = await channel.messages.fetch({ limit: 100 });
+        const transcript = messages.reverse().map(msg =>
+            `[${msg.createdAt.toISOString()}] ${msg.author.tag}: ${msg.content}`
+        ).join('\n');
+
+        // Send transcript to #old-reports channel
+        const oldReportsChannel = await client.channels.fetch(OLD_REPORTS_CHANNEL_ID);
+        if (oldReportsChannel) {
+            const transcriptBuffer = Buffer.from(transcript, 'utf-8');
+            const attachment = new Discord.AttachmentBuilder(transcriptBuffer, { name: `${channel.name}-transcript.txt` });
+
+            const embed = new Discord.EmbedBuilder()
+                .setColor('#FFA500')
+                .setTitle(`üóÉÔ∏è Report Closed: ${channel.name}`)
+                .setDescription('Transcript attached below')
+                .setTimestamp();
+
+            await oldReportsChannel.send({ embeds: [embed], files: [attachment] });
+            console.log(`‚úÖ Transcript sent to #old-reports for ${channel.name}`);
+        } else {
+            console.error('‚ùå Could not find #old-reports channel (ID: ' + OLD_REPORTS_CHANNEL_ID + ')');
+        }
+
+        addAuditLog('Report Closed', { tag: 'Staff', id: 'staff' }, `Closed ${channel.name}`, 'info');
+
+        await channel.send('üóÉÔ∏è This report will be deleted in 5 seconds...');
+        setTimeout(async () => {
+            await channel.delete().catch(err => console.error('Error deleting channel:', err));
+        }, 5000);
+    } catch (error) {
+        console.error('‚ùå Error closing report:', error);
+    }
+}
+
+// ======================
+// ROLE MANAGEMENT (Original functionality)
+// ======================
+
+async function sendHelpMessage(message) {
+    const embed = new Discord.EmbedBuilder()
+        .setColor('#5865F2')
+        .setTitle('ü§ñ Discord Bot Commands')
+        .setDescription('Multi-function bot for role management, tickets, and community features')
+        .addFields(
+            { name: 'üìä Role Management', value: '`!dashboard` - Generate HTML permissions dashboard\n`!role` - Select role to manage\n`!permission` - Modify permissions' },
+            { name: 'üé´ Ticket System', value: 'DM the bot to create a ticket' },
+            { name: 'üéâ Fun Commands', value: '`!trivia on/off/scores/now` - Trivia system\n`!birthday MM/DD` - Set your birthday\n`!vibecheck` - Chat atmosphere analysis' },
+            { name: '‚öôÔ∏è Staff Commands', value: '`!config` - Check bot configuration\n`!online` / `!offline` - Set bot status\n`!close` - Close ticket channel' }
+        );
+
+    await message.reply({ embeds: [embed] });
+}
+
+async function generateDashboard(message) {
+    try {
+        const guild = message.guild;
+        if (!guild) {
+            await message.reply('‚ùå This command must be used in a server!');
+            return;
+        }
+
+        const data = await collectServerData(guild);
+        const html = generateHTML(data);
+
+        const filename = `dashboard_${guild.id}_${Date.now()}.html`;
+        const outputDir = fs.existsSync('/mnt/user-data/outputs') ? '/mnt/user-data/outputs' : __dirname;
+        const filepath = path.join(outputDir, filename);
+
+        fs.writeFileSync(filepath, html);
+
+        await message.reply({
+            content: '‚úÖ Dashboard generated!',
+            files: [filepath]
+        });
+    } catch (error) {
+        console.error(error);
+        await message.reply('‚ùå Error generating dashboard: ' + error.message);
+    }
+}
+
+async function startRoleSelection(message) {
+    try {
+        const guild = message.guild;
+        if (!guild) return;
+
+        const roles = guild.roles.cache
+            .filter(role => role.id !== guild.id)
+            .sort((a, b) => b.position - a.position)
+            .map((role, index) => ({ index: index + 1, role }));
+
+        let roleList = '**üìã Available Roles:**\n\n';
+        roles.forEach(({ index, role }) => {
+            roleList += `${index}. ${role.name} (${role.members.size} members)\n`;
+        });
+        roleList += '\n**Reply with the number of the role:**';
+
+        await message.reply(roleList);
+
+        const filter = m => m.author.id === message.author.id;
+        const collected = await message.channel.awaitMessages({ filter, max: 1, time: 30000 });
+
+        if (collected.size === 0) {
+            await message.reply('‚ùå Timed out.');
+            return;
+        }
+
+        const roleIndex = parseInt(collected.first().content);
+        if (isNaN(roleIndex) || roleIndex < 1 || roleIndex > roles.length) {
+            await message.reply('‚ùå Invalid number.');
+            return;
+        }
+
+        const selectedRole = roles[roleIndex - 1].role;
+        userStates.set(message.author.id, { selectedRole, guild: guild.id });
+
+        await message.reply(`‚úÖ Selected role: **${selectedRole.name}**\n\nUse \`!permission\` to modify permissions.`);
+    } catch (error) {
+        console.error(error);
+        await message.reply('‚ùå Error: ' + error.message);
+    }
+}
+
+async function handlePermissionCommand(message) {
+    const userState = userStates.get(message.author.id);
+    if (!userState || !userState.selectedRole) {
+        await message.reply('‚ùå Please select a role first using `!role`');
+        return;
+    }
+
+    const role = message.guild.roles.cache.get(userState.selectedRole.id);
+    if (!role) {
+        await message.reply('‚ùå Role not found');
+        return;
+    }
+
+    const permissions = [
+        { name: 'Administrator', flag: Discord.PermissionFlagsBits.Administrator },
+        { name: 'Manage Server', flag: Discord.PermissionFlagsBits.ManageGuild },
+        { name: 'Manage Roles', flag: Discord.PermissionFlagsBits.ManageRoles },
+        { name: 'Manage Channels', flag: Discord.PermissionFlagsBits.ManageChannels },
+        { name: 'Kick Members', flag: Discord.PermissionFlagsBits.KickMembers },
+        { name: 'Ban Members', flag: Discord.PermissionFlagsBits.BanMembers },
+        { name: 'Send Messages', flag: Discord.PermissionFlagsBits.SendMessages },
+        { name: 'Manage Messages', flag: Discord.PermissionFlagsBits.ManageMessages },
+    ];
+
+    let permList = `**üîê Permissions for ${role.name}:**\n\n`;
+    permissions.forEach((perm, index) => {
+        const hasPermission = role.permissions.has(perm.flag);
+        const status = hasPermission ? '‚úÖ' : '‚ùå';
+        permList += `${index + 1}. ${status} ${perm.name}\n`;
+    });
+    permList += '\n**Reply with permission number, then `enable` or `disable`**';
+
+    await message.reply(permList);
+}
+
+async function collectServerData(guild) {
+    const roles = guild.roles.cache
+        .filter(role => role.id !== guild.id)
+        .sort((a, b) => b.position - a.position);
+
+    const channels = guild.channels.cache;
+    const roleData = [];
+
+    for (const [roleId, role] of roles) {
+        const channelPermissions = [];
+
+        for (const [channelId, channel] of channels) {
+            if (channel.type === Discord.ChannelType.GuildCategory) continue;
+
+            const permissions = channel.permissionsFor(role);
+            if (!permissions) continue;
+
+            const perms = {
+                channelName: channel.name,
+                channelType: channel.type,
+                canView: permissions.has(Discord.PermissionFlagsBits.ViewChannel),
+                canSend: channel.isTextBased() ? permissions.has(Discord.PermissionFlagsBits.SendMessages) : null,
+                canConnect: channel.isVoiceBased() ? permissions.has(Discord.PermissionFlagsBits.Connect) : null,
+                canSpeak: channel.isVoiceBased() ? permissions.has(Discord.PermissionFlagsBits.Speak) : null,
+            };
+
+            channelPermissions.push(perms);
+        }
+
+        roleData.push({
+            id: role.id,
+            name: role.name,
+            color: role.hexColor,
+            position: role.position,
+            members: role.members.size,
+            permissions: {
+                administrator: role.permissions.has(Discord.PermissionFlagsBits.Administrator),
+                manageGuild: role.permissions.has(Discord.PermissionFlagsBits.ManageGuild),
+                manageRoles: role.permissions.has(Discord.PermissionFlagsBits.ManageRoles),
+                manageChannels: role.permissions.has(Discord.PermissionFlagsBits.ManageChannels),
+                kickMembers: role.permissions.has(Discord.PermissionFlagsBits.KickMembers),
+                banMembers: role.permissions.has(Discord.PermissionFlagsBits.BanMembers),
+                sendMessages: role.permissions.has(Discord.PermissionFlagsBits.SendMessages),
+                manageMessages: role.permissions.has(Discord.PermissionFlagsBits.ManageMessages),
+            },
+            channelPermissions
+        });
+    }
+
+    return {
+        serverName: guild.name,
+        serverIcon: guild.iconURL(),
+        roles: roleData
+    };
+}
+
+function generateHTML(data) {
+    return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${data.serverName} Dashboard</title></head><body><h1>${data.serverName} Role Permissions</h1><p>Dashboard generated on ${new Date().toLocaleString()}</p></body></html>`;
+}
+
+function startKeepAliveServer() {
+    const server = http.createServer(async (req, res) => {
+        // Parse URL and method
+        const url = new URL(req.url, `http://${req.headers.host}`);
+        const pathname = url.pathname;
+
+        // The dashboard is same-origin and local-only in the Windows application.
+        res.setHeader('Access-Control-Allow-Origin', `http://${req.headers.host}`);
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+        if (req.method === 'OPTIONS') {
+            res.writeHead(200);
+            res.end();
+            return;
+        }
+
+        // API: Get audit log
+        if (pathname === '/api/audit-log' && req.method === 'GET') {
+            const password = url.searchParams.get('password');
+            if (password !== CONFIG.WEB_DASHBOARD_PASSWORD) {
+                res.writeHead(401, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Invalid password' }));
+                return;
+            }
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                logs: auditLog.slice(0, 100),
+                botStatus: client.user ? 'online' : 'offline',
+                botTag: client.user?.tag || 'Not connected'
+            }));
+            return;
+        }
+
+        // API: Send message to main chat
+        if (pathname === '/api/send-message' && req.method === 'POST') {
+            let body = '';
+            req.on('data', chunk => { body += chunk; });
+            req.on('end', async () => {
+                try {
+                    const data = JSON.parse(body);
+
+                    if (data.password !== CONFIG.WEB_DASHBOARD_PASSWORD) {
+                        res.writeHead(401, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ error: 'Invalid password' }));
+                        return;
+                    }
+
+                    if (!CONFIG.MAIN_CHAT_CHANNEL_ID) {
+                        res.writeHead(400, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ error: 'MAIN_CHAT_CHANNEL_ID not configured' }));
+                        return;
+                    }
+
+                    const mainChannel = await client.channels.fetch(CONFIG.MAIN_CHAT_CHANNEL_ID);
+                    await mainChannel.send(data.message);
+
+                    addAuditLog('Message Sent', { tag: 'Web Dashboard', id: 'web' }, `Sent to main chat: ${data.message.substring(0, 50)}...`, 'success');
+
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: true, message: 'Message sent!' }));
+                } catch (error) {
+                    res.writeHead(500, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: error.message }));
+                }
+            });
+            return;
+        }
+
+        // API: Get role permissions
+        if (pathname === '/api/roles' && req.method === 'GET') {
+            const password = url.searchParams.get('password');
+            if (password !== CONFIG.WEB_DASHBOARD_PASSWORD) {
+                res.writeHead(401, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Invalid password' }));
+                return;
+            }
+
+            try {
+                const guild = client.guilds.cache.first();
+                if (!guild) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'Bot not in any server' }));
+                    return;
+                }
+
+                const rolesData = await collectServerData(guild);
+
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify(rolesData));
+            } catch (error) {
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: error.message }));
+            }
+            return;
+        }
+
+        // API: Search users
+        if (pathname === '/api/users/search' && req.method === 'GET') {
+            const password = url.searchParams.get('password');
+            const query = url.searchParams.get('query');
+
+            if (password !== CONFIG.WEB_DASHBOARD_PASSWORD) {
+                res.writeHead(401, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Invalid password' }));
+                return;
+            }
+
+            try {
+                const guild = client.guilds.cache.first();
+                if (!guild) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'Bot not in any server' }));
+                    return;
+                }
+
+                await guild.members.fetch();
+
+                let results = [];
+                if (query) {
+                    const lowerQuery = query.toLowerCase();
+                    results = guild.members.cache.filter(member => {
+                        return member.user.tag.toLowerCase().includes(lowerQuery) ||
+                               member.user.id === query ||
+                               member.displayName.toLowerCase().includes(lowerQuery);
+                    }).map(member => ({
+                        id: member.user.id,
+                        tag: member.user.tag,
+                        displayName: member.displayName,
+                        avatar: member.user.displayAvatarURL(),
+                        joinedAt: member.joinedTimestamp,
+                        accountCreatedAt: member.user.createdTimestamp,
+                        roles: member.roles.cache.map(r => ({ id: r.id, name: r.name, color: r.hexColor })),
+                        timedOut: member.communicationDisabledUntilTimestamp ? member.communicationDisabledUntilTimestamp > Date.now() : false,
+                        timeoutUntil: member.communicationDisabledUntilTimestamp
+                    })).slice(0, 20);
+                }
+
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ users: results }));
+            } catch (error) {
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: error.message }));
+            }
+            return;
+        }
+
+        // API: User action (timeout, kick, ban)
+        if (pathname === '/api/users/action' && req.method === 'POST') {
+            let body = '';
+            req.on('data', chunk => { body += chunk; });
+            req.on('end', async () => {
+                try {
+                    const data = JSON.parse(body);
+
+                    if (data.password !== CONFIG.WEB_DASHBOARD_PASSWORD) {
+                        res.writeHead(401, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ error: 'Invalid password' }));
+                        return;
+                    }
+
+                    const guild = client.guilds.cache.first();
+                    const member = await guild.members.fetch(data.userId);
+
+                    let result = '';
+
+                    switch(data.action) {
+                        case 'timeout':
+                            const duration = parseInt(data.duration) || 60;
+                            await member.timeout(duration * 60 * 1000, data.reason || 'Timed out from web dashboard');
+                            result = `Timed out for ${duration} minutes`;
+                            addAuditLog('User Timed Out', { tag: 'Web Dashboard', id: 'web' }, `${member.user.tag} timed out for ${duration} minutes`, 'warning');
+                            break;
+
+                        case 'untimeout':
+                            await member.timeout(null);
+                            result = 'Timeout removed';
+                            addAuditLog('Timeout Removed', { tag: 'Web Dashboard', id: 'web' }, `${member.user.tag} timeout removed`, 'success');
+                            break;
+
+                        case 'kick':
+                            await member.kick(data.reason || 'Kicked from web dashboard');
+                            result = 'User kicked';
+                            addAuditLog('User Kicked', { tag: 'Web Dashboard', id: 'web' }, `${member.user.tag} kicked`, 'warning');
+                            break;
+
+                        case 'ban':
+                            await guild.members.ban(data.userId, { reason: data.reason || 'Banned from web dashboard' });
+                            result = 'User banned';
+                            addAuditLog('User Banned', { tag: 'Web Dashboard', id: 'web' }, `${member.user.tag} banned`, 'error');
+                            break;
+
+                        default:
+                            throw new Error('Invalid action');
+                    }
+
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: true, message: result }));
+                } catch (error) {
+                    res.writeHead(500, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: error.message }));
+                }
+            });
+            return;
+        }
+
+        // API: Quick actions
+        if (pathname === '/api/quick-action' && req.method === 'POST') {
+            let body = '';
+            req.on('data', chunk => { body += chunk; });
+            req.on('end', async () => {
+                try {
+                    const data = JSON.parse(body);
+
+                    if (data.password !== CONFIG.WEB_DASHBOARD_PASSWORD) {
+                        res.writeHead(401, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ error: 'Invalid password' }));
+                        return;
+                    }
+
+                    let result = '';
+
+                    switch(data.action) {
+                        case 'set-online':
+                            await client.user.setStatus('online');
+                            result = 'Bot status set to online';
+                            addAuditLog('Status Changed', { tag: 'Web Dashboard', id: 'web' }, 'Bot status: online', 'info');
+                            break;
+
+                        case 'set-offline':
+                            await client.user.setStatus('invisible');
+                            result = 'Bot status set to offline';
+                            addAuditLog('Status Changed', { tag: 'Web Dashboard', id: 'web' }, 'Bot status: offline', 'info');
+                            break;
+
+                        case 'clear-audit':
+                            const count = auditLog.length;
+                            auditLog.length = 0;
+                            result = `Cleared ${count} audit entries`;
+                            addAuditLog('Audit Log Cleared', { tag: 'Web Dashboard', id: 'web' }, `Cleared ${count} entries`, 'info');
+                            break;
+
+                        case 'get-stats':
+                            const guild = client.guilds.cache.first();
+                            const stats = {
+                                totalMembers: guild.memberCount,
+                                onlineMembers: guild.members.cache.filter(m => m.presence?.status !== 'offline').size,
+                                roles: guild.roles.cache.size,
+                                channels: guild.channels.cache.size,
+                                auditEntries: auditLog.length,
+                                botUptime: Math.floor(process.uptime()),
+                                triviaEnabled: triviaEnabled,
+                            };
+                            res.writeHead(200, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ success: true, stats }));
+                            return;
+
+                        case 'trivia-on':
+                            if (triviaEnabled) {
+                                result = 'Trivia is already enabled';
+                            } else {
+                                triviaEnabled = true;
+                                startTriviaSystem();
+                                result = 'Trivia enabled! Questions every 25 minutes';
+                                addAuditLog('Trivia Enabled', { tag: 'Web Dashboard', id: 'web' }, 'Trivia system started', 'success');
+                            }
+                            break;
+
+                        case 'trivia-off':
+                            if (!triviaEnabled) {
+                                result = 'Trivia is already disabled';
+                            } else {
+                                triviaEnabled = false;
+                                if (triviaInterval) {
+                                    clearInterval(triviaInterval);
+                                    triviaInterval = null;
+                                }
+                                currentTrivia = null;
+                                result = 'Trivia disabled';
+                                addAuditLog('Trivia Disabled', { tag: 'Web Dashboard', id: 'web' }, 'Trivia system stopped', 'info');
+                            }
+                            break;
+
+                        case 'trivia-now':
+                            await postTriviaQuestion();
+                            result = 'Trivia question posted!';
+                            break;
+
+                        case 'trivia-scores':
+                            if (triviaScores.size === 0) {
+                                result = 'No trivia scores yet';
+                            } else {
+                                const sortedScores = Array.from(triviaScores.entries())
+                                    .sort((a, b) => b[1] - a[1])
+                                    .slice(0, 10);
+
+                                const scoresData = await Promise.all(sortedScores.map(async ([userId, score]) => {
+                                    const user = await client.users.fetch(userId).catch(() => null);
+                                    return { userId, tag: user?.tag || 'Unknown', score };
+                                }));
+
+                                res.writeHead(200, { 'Content-Type': 'application/json' });
+                                res.end(JSON.stringify({ success: true, scores: scoresData }));
+                                return;
+                            }
+                            break;
+
+                        default:
+                            throw new Error('Invalid action');
+                    }
+
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: true, message: result }));
+                } catch (error) {
+                    res.writeHead(500, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: error.message }));
+                }
+            });
+            return;
+        }
+
+        // API: Get banned words
+        if (pathname === '/api/banned-words' && req.method === 'GET') {
+            const password = url.searchParams.get('password');
+            if (password !== CONFIG.WEB_DASHBOARD_PASSWORD) {
+                res.writeHead(401, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Invalid password' }));
+                return;
+            }
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ words: bannedWords, offenses: Object.fromEntries(offenseTracker) }));
+            return;
+        }
+
+        // API: Update banned words
+        if (pathname === '/api/banned-words' && req.method === 'POST') {
+            let body = '';
+            req.on('data', chunk => { body += chunk; });
+            req.on('end', async () => {
+                try {
+                    const data = JSON.parse(body);
+                    if (data.password !== CONFIG.WEB_DASHBOARD_PASSWORD) {
+                        res.writeHead(401, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ error: 'Invalid password' }));
+                        return;
+                    }
+
+                    if (data.action === 'add' && data.word) {
+                        const word = data.word.toLowerCase().trim();
+                        if (!bannedWords.includes(word)) {
+                            bannedWords.push(word);
+                            addAuditLog('Banned Word Added', { tag: 'Web Dashboard', id: 'web' }, `Added: "${word}"`, 'info');
+                        }
+                        saveBannedWordsToDisk();
+                        res.writeHead(200, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ success: true, words: bannedWords }));
+                    } else if (data.action === 'remove' && data.word) {
+                        const word = data.word.toLowerCase().trim();
+                        bannedWords = bannedWords.filter(w => w.toLowerCase() !== word);
+                        addAuditLog('Banned Word Removed', { tag: 'Web Dashboard', id: 'web' }, `Removed: "${word}"`, 'info');
+                        saveBannedWordsToDisk();
+                        res.writeHead(200, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ success: true, words: bannedWords }));
+                    } else if (data.action === 'reset-offenses' && data.userId) {
+                        offenseTracker.delete(data.userId);
+                        addAuditLog('Offenses Reset', { tag: 'Web Dashboard', id: 'web' }, `Reset offenses for ${data.userId}`, 'info');
+                        saveBannedWordsToDisk();
+                        res.writeHead(200, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ success: true }));
+                    } else {
+                        res.writeHead(400, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ error: 'Invalid action' }));
+                    }
+                } catch (error) {
+                    res.writeHead(500, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: error.message }));
+                }
+            });
+            return;
+        }
+
+        // API: Get voice log
+        if (pathname === '/api/voice-log' && req.method === 'GET') {
+            const password = url.searchParams.get('password');
+            if (password !== CONFIG.WEB_DASHBOARD_PASSWORD) {
+                res.writeHead(401, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Invalid password' }));
+                return;
+            }
+            const dateFilter = url.searchParams.get('date');
+            const today = getDateKey(new Date());
+            const targetDate = dateFilter || today;
+
+            const voiceDates = Array.from(voiceLogs.keys()).sort().reverse();
+            const memberDates = Array.from(memberLogs.keys()).sort().reverse();
+            const allDates = [...new Set([...voiceDates, ...memberDates])].sort().reverse();
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                dates: allDates,
+                selectedDate: targetDate,
+                voiceLog: voiceLogs.get(targetDate) || [],
+                memberLog: memberLogs.get(targetDate) || [],
+            }));
+            return;
+        }
+
+        // Main dashboard HTML
+        if (pathname === '/' || pathname === '/dashboard') {
+            res.writeHead(200, { 'Content-Type': 'text/html' });
+            res.end(generateDashboardHTML());
+            return;
+        }
+
+        // Default: bot status
+        res.writeHead(200, { 'Content-Type': 'text/plain' });
+        res.end(`Bot Online: ${client.user?.tag || 'Starting...'}\nUptime: ${Math.floor(process.uptime())} seconds\nAudit Entries: ${auditLog.length}`);
+    });
+
+    const PORT = process.env.PORT || 10000;
+    const HOST = process.env.HOST || '127.0.0.1';
+    server.listen(PORT, HOST, () => {
+        console.log(`‚úÖ Web dashboard running on port ${PORT}`);
+        console.log(`üìä Access at: http://${HOST}:${PORT}/dashboard`);
+    });
+}
+
+// Dashboard HTML function
+function generateDashboardHTML() {
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Commission Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-primary: #090a0c;
+            --bg-secondary: #121419;
+            --bg-tertiary: #1a1d23;
+            --bg-hover: #23272f;
+            --accent: #a9172f;
+            --accent-hover: #cc2440;
+            --success: #45a675;
+            --warning: #d39a42;
+            --danger: #c93646;
+            --text-primary: #f1eee7;
+            --text-secondary: #b8b2a7;
+            --text-muted: #79766f;
+            --border: #30343c;
+        }
+
+        body {
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+
+        .login-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+        .login-box { background: var(--bg-secondary); border-radius: 16px; padding: 40px; width: 100%; max-width: 420px; border: 1px solid var(--border); }
+        .login-box h1 { font-size: 28px; margin-bottom: 8px; font-weight: 700; }
+        .login-box p { color: var(--text-secondary); margin-bottom: 24px; }
+
+        .header { background: var(--bg-secondary); border-radius: 12px; padding: 20px 24px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--border); }
+        .header-left { display: flex; align-items: center; gap: 16px; }
+        .bot-status { display: flex; align-items: center; gap: 8px; background: var(--bg-tertiary); padding: 8px 16px; border-radius: 8px; }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--success); animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+        .tabs { display: flex; gap: 8px; margin-bottom: 24px; background: var(--bg-secondary); padding: 8px; border-radius: 12px; border: 1px solid var(--border); overflow-x: auto; }
+        .tab { padding: 12px 24px; background: transparent; border: none; color: var(--text-secondary); cursor: pointer; border-radius: 8px; font-weight: 500; transition: all 0.2s; white-space: nowrap; font-size: 14px; }
+        .tab:hover { background: var(--bg-hover); color: var(--text-primary); }
+        .tab.active { background: var(--accent); color: white; }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .card { background: var(--bg-secondary); border-radius: 12px; padding: 24px; margin-bottom: 20px; border: 1px solid var(--border); }
+        .card h2 { font-size: 18px; margin-bottom: 16px; font-weight: 600; }
+
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; color: var(--text-secondary); font-size: 14px; font-weight: 500; }
+
+        input[type="text"], input[type="password"], input[type="number"], textarea, select {
+            width: 100%; padding: 12px 16px; background: var(--bg-tertiary); border: 1px solid var(--border);
+            border-radius: 8px; color: var(--text-primary); font-family: inherit; font-size: 14px; transition: all 0.2s;
+        }
+        input:focus, textarea:focus, select:focus { outline: none; border-color: var(--accent); background: var(--bg-primary); }
+        textarea { resize: vertical; min-height: 120px; }
+
+        .btn { padding: 12px 24px; border: none; border-radius: 8px; font-weight: 500; cursor: pointer; transition: all 0.2s; font-size: 14px; font-family: inherit; }
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-primary:hover { background: var(--accent-hover); }
+        .btn-success { background: var(--success); color: white; }
+        .btn-warning { background: var(--warning); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-secondary { background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border); }
+        .btn-secondary:hover { background: var(--bg-hover); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .alert { padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; display: none; }
+        .alert.show { display: block; }
+        .alert-success { background: rgba(59, 165, 93, 0.1); border: 1px solid var(--success); color: var(--success); }
+        .alert-error { background: rgba(237, 66, 69, 0.1); border: 1px solid var(--danger); color: var(--danger); }
+
+        .audit-entry { background: var(--bg-tertiary); padding: 16px; border-radius: 8px; margin-bottom: 12px; border-left: 3px solid var(--accent); }
+        .audit-entry.warning { border-left-color: var(--warning); }
+        .audit-entry.error { border-left-color: var(--danger); }
+        .audit-entry.success { border-left-color: var(--success); }
+        .audit-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
+        .audit-time { color: var(--text-muted); font-size: 12px; }
+        .audit-action { font-weight: 600; font-size: 14px; }
+        .audit-user { color: var(--text-secondary); font-size: 13px; }
+        .audit-details { color: var(--text-secondary); font-size: 13px; margin-top: 4px; }
+
+        .user-card { background: var(--bg-tertiary); border-radius: 8px; padding: 16px; margin-bottom: 12px; display: flex; gap: 16px; align-items: flex-start; }
+        .user-avatar { width: 64px; height: 64px; border-radius: 50%; flex-shrink: 0; }
+        .user-info { flex: 1; }
+        .user-tag { font-weight: 600; font-size: 16px; margin-bottom: 4px; }
+        .user-id { color: var(--text-muted); font-size: 12px; margin-bottom: 8px; }
+        .user-meta { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
+        .user-meta-item { font-size: 13px; color: var(--text-secondary); }
+        .user-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+        .user-actions .btn { padding: 8px 16px; font-size: 13px; }
+
+        .quick-actions-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+        .quick-action-btn { background: var(--bg-tertiary); border: 1px solid var(--border); padding: 20px; border-radius: 8px; cursor: pointer; transition: all 0.2s; text-align: center; }
+        .quick-action-btn:hover { background: var(--bg-hover); border-color: var(--accent); }
+        .quick-action-icon { font-size: 32px; margin-bottom: 8px; }
+        .quick-action-label { font-weight: 500; font-size: 14px; }
+
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; margin-top: 20px; }
+        .stat-card { background: var(--bg-tertiary); padding: 20px; border-radius: 8px; text-align: center; }
+        .stat-value { font-size: 28px; font-weight: 700; color: var(--accent); }
+        .stat-label { color: var(--text-secondary); font-size: 13px; margin-top: 4px; }
+
+        .role-item { background: var(--bg-tertiary); padding: 16px; border-radius: 8px; margin-bottom: 12px; }
+        .role-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .role-name { font-weight: 600; display: flex; align-items: center; gap: 8px; }
+        .role-badge { width: 12px; height: 12px; border-radius: 50%; }
+        .role-members { color: var(--text-muted); font-size: 13px; }
+        .permissions-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; margin-top: 12px; }
+        .permission-item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary); }
+
+        .hidden { display: none !important; }
+        .text-success { color: var(--success); }
+        .text-warning { color: var(--warning); }
+        .text-danger { color: var(--danger); }
+        .mt-2 { margin-top: 8px; }
+        .mb-2 { margin-bottom: 8px; }
+
+        .loading { text-align: center; padding: 40px; color: var(--text-muted); }
+
+        @media (max-width: 768px) {
+            .container { padding: 12px; }
+            .header { flex-direction: column; gap: 12px; }
+            .tabs { overflow-x: scroll; }
+            .quick-actions-grid { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div id="loginScreen" class="login-screen">
+        <div class="login-box">
+            <h1>The Commission</h1>
+            <p>Enter password to access dashboard</p>
+            <div id="loginAlert" class="alert"></div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="loginPassword" placeholder="Enter dashboard password">
+            </div>
+            <button class="btn btn-primary" onclick="login()" style="width: 100%;">Login</button>
+        </div>
+    </div>
+
+    <div id="dashboard" class="hidden container">
+        <div class="header">
+            <div class="header-left">
+                <h1>The Commission Dashboard</h1>
+                <div class="bot-status">
+                    <div class="status-dot"></div>
+                    <span id="botStatus">Online</span>
+                </div>
+            </div>
+            <button class="btn btn-secondary" onclick="logout()">Logout</button>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('messages', this)">üì® Messages</button>
+            <button class="tab" onclick="showTab('users', this)">üë• Users</button>
+            <button class="tab" onclick="showTab('actions', this)">‚ö° Quick Actions</button>
+            <button class="tab" onclick="showTab('audit', this)">üìã Audit Log</button>
+            <button class="tab" onclick="showTab('roles', this)">üîê Roles</button>
+            <button class="tab" onclick="showTab('words', this)">üö´ Banned Words</button>
+            <button class="tab" onclick="showTab('activity', this)">üìã Join/Leave Audits</button>
+        </div>
+
+        <div id="tab-messages" class="tab-content active">
+            <div class="card">
+                <h2>Send Message to Main Chat</h2>
+                <div id="messageAlert" class="alert"></div>
+                <div class="form-group">
+                    <label>Message</label>
+                    <textarea id="messageText" placeholder="Type your message here..."></textarea>
+                </div>
+                <button class="btn btn-primary" onclick="sendMessage()">Send to Main Chat</button>
+            </div>
+        </div>
+
+        <div id="tab-users" class="tab-content">
+            <div class="card">
+                <h2>User Management</h2>
+                <div id="userAlert" class="alert"></div>
+                <div class="form-group">
+                    <label>Search Users</label>
+                    <input type="text" id="userSearch" placeholder="Enter username, tag, or ID...">
+                </div>
+                <button class="btn btn-primary" onclick="searchUsers()">Search</button>
+                <div id="userResults" class="mt-2"></div>
+            </div>
+        </div>
+
+        <div id="tab-actions" class="tab-content">
+            <div class="card">
+                <h2>Quick Actions</h2>
+                <div id="actionAlert" class="alert"></div>
+                <div class="quick-actions-grid">
+                    <div class="quick-action-btn" onclick="quickAction('set-online')">
+                        <div class="quick-action-icon">üü¢</div>
+                        <div class="quick-action-label">Set Online</div>
+                    </div>
+                    <div class="quick-action-btn" onclick="quickAction('set-offline')">
+                        <div class="quick-action-icon">‚ö´</div>
+                        <div class="quick-action-label">Set Offline</div>
+                    </div>
+                    <div class="quick-action-btn" onclick="quickAction('clear-audit')">
+                        <div class="quick-action-icon">üóëÔ∏è</div>
+                        <div class="quick-action-label">Clear Audit</div>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <h2>Server Statistics</h2>
+                <button class="btn btn-secondary mb-2" onclick="loadStats()">Refresh Stats</button>
+                <div id="statsContainer" class="stats-grid"></div>
+            </div>
+        </div>
+
+        <div id="tab-audit" class="tab-content">
+            <div class="card">
+                <h2>Audit Log</h2>
+                <button class="btn btn-secondary mb-2" onclick="loadAuditLog()">Refresh</button>
+                <div id="auditLog"></div>
+            </div>
+        </div>
+
+        <div id="tab-roles" class="tab-content">
+            <div class="card">
+                <h2>Server Roles & Permissions</h2>
+                <button class="btn btn-secondary mb-2" onclick="loadRoles()">Refresh</button>
+                <div id="rolesContainer"></div>
+            </div>
+        </div>
+
+        <div id="tab-words" class="tab-content">
+            <div class="card">
+                <h2>üö´ Banned Words (Auto-Jail)</h2>
+                <p style="color: var(--text-secondary); margin-bottom: 16px;">1st offense = 5 min jail | 2nd offense = 30 min jail | 3rd+ = permanent jail</p>
+                <div id="wordsAlert" class="alert"></div>
+                <div class="form-group" style="display: flex; gap: 8px;">
+                    <input type="text" id="newWord" placeholder="Add a new banned word or phrase..." style="flex: 1;">
+                    <button class="btn btn-danger" onclick="addBannedWord()">Add</button>
+                </div>
+                <button class="btn btn-secondary mb-2" onclick="loadBannedWords()">Refresh</button>
+                <div id="bannedWordsList" style="margin-top: 12px;"></div>
+            </div>
+            <div class="card">
+                <h2>Offense Tracker</h2>
+                <p style="color: var(--text-secondary); margin-bottom: 16px;">Users who have triggered banned words</p>
+                <div id="offensesList"></div>
+            </div>
+        </div>
+
+        <div id="tab-activity" class="tab-content">
+            <div class="card">
+                <h2>üìã Join/Leave Audits</h2>
+                <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 16px;">
+                    <label style="color: var(--text-secondary); font-size: 14px;">Select Date:</label>
+                    <select id="activityDate" onchange="loadActivity()" style="padding: 8px 12px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary); font-size: 14px;">
+                        <option value="">Today</option>
+                    </select>
+                    <button class="btn btn-secondary" onclick="loadActivity()" style="padding: 8px 16px;">Refresh</button>
+                    <span id="activityDateLabel" style="color: var(--text-muted); font-size: 13px;"></span>
+                </div>
+            </div>
+            <div class="card">
+                <h2>üé§ Voice Chat Join / Leave Log</h2>
+                <div id="voiceLogContainer" style="max-height: 500px; overflow-y: auto;"></div>
+            </div>
+            <div class="card">
+                <h2>üì• Server Join / Leave Log</h2>
+                <div id="memberLogContainer" style="max-height: 500px; overflow-y: auto;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let password = '';
+
+        function login() {
+            password = document.getElementById('loginPassword').value;
+            if (!password) {
+                showAlert('loginAlert', 'Please enter password', 'error');
+                return;
+            }
+            fetch('/api/audit-log?password=' + encodeURIComponent(password))
+                .then(r => r.json())
+                .then(data => {
+                    if (data.error) {
+                        showAlert('loginAlert', 'Invalid password', 'error');
+                    } else {
+                        document.getElementById('loginScreen').classList.add('hidden');
+                        document.getElementById('dashboard').classList.remove('hidden');
+                        document.getElementById('botStatus').textContent = data.botTag || 'Online';
+                        loadAuditLog();
+                    }
+                })
+                .catch(err => showAlert('loginAlert', 'Error: ' + err.message, 'error'));
+        }
+
+        function logout() {
+            password = '';
+            document.getElementById('loginScreen').classList.remove('hidden');
+            document.getElementById('dashboard').classList.add('hidden');
+            document.getElementById('loginPassword').value = '';
+        }
+
+        function showTab(tabName, el) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.getElementById('tab-' + tabName).classList.add('active');
+            el.classList.add('active');
+            if (tabName === 'audit') loadAuditLog();
+            if (tabName === 'roles') loadRoles();
+            if (tabName === 'actions') loadStats();
+            if (tabName === 'words') loadBannedWords();
+            if (tabName === 'activity') loadActivity();
+        }
+
+        function showAlert(id, message, type) {
+            const alert = document.getElementById(id);
+            alert.textContent = message;
+            alert.className = 'alert alert-' + type + ' show';
+            setTimeout(() => alert.classList.remove('show'), 5000);
+        }
+
+        async function sendMessage() {
+            const message = document.getElementById('messageText').value;
+            if (!message) return showAlert('messageAlert', 'Please enter a message', 'error');
+            try {
+                const res = await fetch('/api/send-message', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password, message })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showAlert('messageAlert', 'Message sent!', 'success');
+                    document.getElementById('messageText').value = '';
+                } else {
+                    showAlert('messageAlert', data.error || 'Error', 'error');
+                }
+            } catch (err) {
+                showAlert('messageAlert', 'Error: ' + err.message, 'error');
+            }
+        }
+
+        async function searchUsers() {
+            const query = document.getElementById('userSearch').value;
+            if (!query) return showAlert('userAlert', 'Enter search term', 'error');
+            try {
+                const res = await fetch('/api/users/search?password=' + encodeURIComponent(password) + '&query=' + encodeURIComponent(query));
+                const data = await res.json();
+                if (data.error) return showAlert('userAlert', data.error, 'error');
+                const container = document.getElementById('userResults');
+                if (data.users.length === 0) {
+                    container.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 20px;">No users found</p>';
+                    return;
+                }
+                container.innerHTML = data.users.map(user =>
+                    '<div class="user-card">' +
+                        '<img src="' + user.avatar + '" class="user-avatar" alt="Avatar">' +
+                        '<div class="user-info">' +
+                            '<div class="user-tag">' + user.tag + '</div>' +
+                            '<div class="user-id">ID: ' + user.id + '</div>' +
+                            '<div class="user-meta">' +
+                                '<span class="user-meta-item">Joined: ' + new Date(user.joinedAt).toLocaleDateString() + '</span>' +
+                                '<span class="user-meta-item">Account: ' + new Date(user.accountCreatedAt).toLocaleDateString() + '</span>' +
+                                '<span class="user-meta-item ' + (user.timedOut ? 'text-warning' : '') + '">' + (user.timedOut ? '‚è±Ô∏è Timed Out' : '‚úÖ Active') + '</span>' +
+                            '</div>' +
+                            '<div class="user-actions">' +
+                                '<button class="btn btn-warning" onclick="timeoutUser(\\'' + user.id + '\\', \\'' + user.tag + '\\')">Timeout</button>' +
+                                (user.timedOut ? '<button class="btn btn-success" onclick="untimeoutUser(\\'' + user.id + '\\', \\'' + user.tag + '\\')">Remove Timeout</button>' : '') +
+                                '<button class="btn btn-danger" onclick="kickUser(\\'' + user.id + '\\', \\'' + user.tag + '\\')">Kick</button>' +
+                                '<button class="btn btn-danger" onclick="banUser(\\'' + user.id + '\\', \\'' + user.tag + '\\')">Ban</button>' +
+                            '</div>' +
+                        '</div>' +
+                    '</div>'
+                ).join('');
+            } catch (err) {
+                showAlert('userAlert', 'Error: ' + err.message, 'error');
+            }
+        }
+
+        async function timeoutUser(userId, tag) {
+            const duration = prompt('Timeout duration in minutes:', '60');
+            if (!duration) return;
+            const reason = prompt('Reason (optional):', '');
+            try {
+                const res = await fetch('/api/users/action', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password, userId, action: 'timeout', duration, reason })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showAlert('userAlert', tag + ' timed out for ' + duration + ' minutes', 'success');
+                    searchUsers();
+                } else {
+                    showAlert('userAlert', data.error, 'error');
+                }
+            } catch (err) {
+                showAlert('userAlert', 'Error: ' + err.message, 'error');
+            }
+        }
+
+        async function untimeoutUser(userId, tag) {
+            try {
+                const res = await fetch('/api/users/action', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password, userId, action: 'untimeout' })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showAlert('userAlert', tag + ' timeout removed', 'success');
+                    searchUsers();
+                } else {
+                    showAlert('userAlert', data.error, 'error');
+                }
+            } catch (err) {
+                showAlert('userAlert', 'Error: ' + err.message, 'error');
+            }
+        }
+
+        async function kickUser(userId, tag) {
+            if (!confirm('Kick ' + tag + '?')) return;
+            const reason = prompt('Reason (optional):', '');
+            try {
+                const res = await fetch('/api/users/action', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password, userId, action: 'kick', reason })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showAlert('userAlert', tag + ' kicked', 'success');
+                    searchUsers();
+                } else {
+                    showAlert('userAlert', data.error, 'error');
+                }
+            } catch (err) {
+                showAlert('userAlert', 'Error: ' + err.message, 'error');
+            }
+        }
+
+        async function banUser(userId, tag) {
+            if (!confirm('Ban ' + tag + '? This is permanent.')) return;
+            const reason = prompt('Reason (optional):', '');
+            try {
+                const res = await fetch('/api/users/action', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password, userId, action: 'ban', reason })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showAlert('userAlert', tag + ' banned', 'success');
+                    searchUsers();
+                } else {
+                    showAlert('userAlert', data.error, 'error');
+                }
+            } catch (err) {
+                showAlert('userAlert', 'Error: ' + err.message, 'error');
+            }
+        }
+
+        async function quickAction(action) {
+            try {
+                const res = await fetch('/api/quick-action', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password, action })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showAlert('actionAlert', data.message || 'Action completed', 'success');
+                    if (action === 'get-stats') displayStats(data.stats);
+                } else {
+                    showAlert('actionAlert', data.error, 'error');
+                }
+            } catch (err) {
+                showAlert('actionAlert', 'Error: ' + err.message, 'error');
+            }
+        }
+
+        async function loadStats() {
+            try {
+                const res = await fetch('/api/quick-action', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password, action: 'get-stats' })
+                });
+                const data = await res.json();
+                if (data.success && data.stats) displayStats(data.stats);
+            } catch (err) {
+                console.error('Error loading stats:', err);
+            }
+        }
+
+        function displayStats(stats) {
+            const container = document.getElementById('statsContainer');
+            const uptimeHours = Math.floor(stats.botUptime / 3600);
+            const uptimeMins = Math.floor((stats.botUptime % 3600) / 60);
+            container.innerHTML =
+                '<div class="stat-card"><div class="stat-value">' + stats.totalMembers + '</div><div class="stat-label">Total Members</div></div>' +
+                '<div class="stat-card"><div class="stat-value">' + stats.onlineMembers + '</div><div class="stat-label">Online Now</div></div>' +
+                '<div class="stat-card"><div class="stat-value">' + stats.roles + '</div><div class="stat-label">Roles</div></div>' +
+                '<div class="stat-card"><div class="stat-value">' + stats.channels + '</div><div class="stat-label">Channels</div></div>' +
+                '<div class="stat-card"><div class="stat-value">' + stats.auditEntries + '</div><div class="stat-label">Audit Entries</div></div>' +
+                '<div class="stat-card"><div class="stat-value">' + uptimeHours + 'h ' + uptimeMins + 'm</div><div class="stat-label">Bot Uptime</div></div>' +
+                '<div class="stat-card"><div class="stat-value">' + (stats.triviaEnabled ? '‚úÖ ON' : '‚ùå OFF') + '</div><div class="stat-label">Trivia System</div></div>';
+        }
+
+        async function loadAuditLog() {
+            try {
+                const res = await fetch('/api/audit-log?password=' + encodeURIComponent(password));
+                const data = await res.json();
+                if (data.error) return;
+                const container = document.getElementById('auditLog');
+                if (data.logs.length === 0) {
+                    container.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 20px;">No audit entries</p>';
+                    return;
+                }
+                container.innerHTML = data.logs.map(function(log) {
+                    const time = new Date(log.timestamp).toLocaleString();
+                    const severity = log.severity || 'info';
+                    return '<div class="audit-entry ' + severity + '">' +
+                        '<div class="audit-header">' +
+                            '<span class="audit-action">' + log.action + '</span>' +
+                            '<span class="audit-time">' + time + '</span>' +
+                        '</div>' +
+                        '<div class="audit-user">By: ' + log.user + '</div>' +
+                        '<div class="audit-details">' + log.details + '</div>' +
+                    '</div>';
+                }).join('');
+            } catch (err) {
+                console.error('Error loading audit log:', err);
+            }
+        }
+
+        async function loadRoles() {
+            try {
+                const res = await fetch('/api/roles?password=' + encodeURIComponent(password));
+                const data = await res.json();
+                if (data.error) {
+                    document.getElementById('rolesContainer').innerHTML = '<p style="color: var(--text-danger);">' + data.error + '</p>';
+                    return;
+                }
+                const container = document.getElementById('rolesContainer');
+                if (!data.roles || data.roles.length === 0) {
+                    container.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 20px;">No roles found</p>';
+                    return;
+                }
+                container.innerHTML = data.roles.map(function(role) {
+                    return '<div class="role-item">' +
+                        '<div class="role-header">' +
+                            '<div class="role-name">' +
+                                '<span class="role-badge" style="background-color: ' + role.color + '"></span>' +
+                                role.name +
+                            '</div>' +
+                            '<div class="role-members">' + role.members + ' members</div>' +
+                        '</div>' +
+                        '<div class="permissions-grid">' +
+                            Object.entries(role.permissions).map(function(entry) {
+                                return '<div class="permission-item">' +
+                                    '<span>' + (entry[1] ? '‚úÖ' : '‚ùå') + '</span>' +
+                                    '<span>' + formatPermissionName(entry[0]) + '</span>' +
+                                '</div>';
+                            }).join('') +
+                        '</div>' +
+                    '</div>';
+                }).join('');
+            } catch (err) {
+                console.error('Error loading roles:', err);
+            }
+        }
+
+        function formatPermissionName(key) {
+            return key.replace(/([A-Z])/g, ' $1').trim().split(' ').map(function(word) { return word.charAt(0).toUpperCase() + word.slice(1); }).join(' ');
+        }
+
+        // Banned Words functions
+        async function loadBannedWords() {
+            try {
+                const res = await fetch('/api/banned-words?password=' + encodeURIComponent(password));
+                const data = await res.json();
+                if (data.error) return;
+
+                var container = document.getElementById('bannedWordsList');
+                if (data.words.length === 0) {
+                    container.innerHTML = '<p style="color: var(--text-muted);">No banned words configured</p>';
+                } else {
+                    container.innerHTML = data.words.map(function(word) {
+                        return '<div style="display: inline-flex; align-items: center; gap: 8px; background: var(--bg-tertiary); padding: 8px 12px; border-radius: 6px; margin: 4px; border: 1px solid var(--border);">' +
+                            '<span>' + word + '</span>' +
+                            '<button onclick="removeBannedWord(\\'' + word.replace(/'/g, "\\\\'") + '\\')" style="background: var(--danger); color: white; border: none; border-radius: 4px; padding: 2px 8px; cursor: pointer; font-size: 12px;">X</button>' +
+                        '</div>';
+                    }).join('');
+                }
+
+                var offContainer = document.getElementById('offensesList');
+                var offEntries = Object.entries(data.offenses || {});
+                if (offEntries.length === 0) {
+                    offContainer.innerHTML = '<p style="color: var(--text-muted);">No offenses recorded</p>';
+                } else {
+                    offContainer.innerHTML = offEntries.map(function(entry) {
+                        var uid = entry[0];
+                        var count = entry[1];
+                        var label = count === 1 ? '5 min jail' : count === 2 ? '30 min jail' : 'Permanent jail';
+                        return '<div style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-tertiary); padding: 12px; border-radius: 8px; margin-bottom: 8px; border-left: 3px solid var(--warning);">' +
+                            '<div><span style="font-weight: 600;">User ID: ' + uid + '</span><br><span style="color: var(--text-secondary); font-size: 13px;">Offenses: ' + count + ' (' + label + ')</span></div>' +
+                            '<button onclick="resetOffenses(\\'' + uid + '\\')" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">Reset</button>' +
+                        '</div>';
+                    }).join('');
+                }
+            } catch (err) {
+                console.error('Error loading banned words:', err);
+            }
+        }
+
+        async function addBannedWord() {
+            var word = document.getElementById('newWord').value.trim();
+            if (!word) return showAlert('wordsAlert', 'Enter a word or phrase', 'error');
+            try {
+                var res = await fetch('/api/banned-words', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password: password, action: 'add', word: word })
+                });
+                var data = await res.json();
+                if (data.success) {
+                    showAlert('wordsAlert', 'Added: ' + word, 'success');
+                    document.getElementById('newWord').value = '';
+                    loadBannedWords();
+                } else {
+                    showAlert('wordsAlert', data.error, 'error');
+                }
+            } catch (err) {
+                showAlert('wordsAlert', 'Error: ' + err.message, 'error');
+            }
+        }
+
+        async function removeBannedWord(word) {
+            try {
+                var res = await fetch('/api/banned-words', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password: password, action: 'remove', word: word })
+                });
+                var data = await res.json();
+                if (data.success) {
+                    showAlert('wordsAlert', 'Removed: ' + word, 'success');
+                    loadBannedWords();
+                }
+            } catch (err) {
+                showAlert('wordsAlert', 'Error: ' + err.message, 'error');
+            }
+        }
+
+        async function resetOffenses(userId) {
+            try {
+                var res = await fetch('/api/banned-words', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password: password, action: 'reset-offenses', userId: userId })
+                });
+                var data = await res.json();
+                if (data.success) {
+                    showAlert('wordsAlert', 'Offenses reset for ' + userId, 'success');
+                    loadBannedWords();
+                }
+            } catch (err) {
+                showAlert('wordsAlert', 'Error: ' + err.message, 'error');
+            }
+        }
+
+        // Activity tab functions
+        async function loadActivity() {
+            try {
+                var dateSelect = document.getElementById('activityDate');
+                var selectedDate = dateSelect.value;
+                var url = '/api/voice-log?password=' + encodeURIComponent(password);
+                if (selectedDate) url += '&date=' + selectedDate;
+
+                var res = await fetch(url);
+                var data = await res.json();
+                if (data.error) return;
+
+                // Update date dropdown
+                var currentVal = dateSelect.value;
+                dateSelect.innerHTML = '';
+
+                // Add today option
+                var todayKey = new Date().toISOString().split('T')[0];
+                var todayOpt = document.createElement('option');
+                todayOpt.value = '';
+                todayOpt.textContent = 'Today (' + todayKey + ')';
+                dateSelect.appendChild(todayOpt);
+
+                // Add available dates
+                if (data.dates) {
+                    data.dates.forEach(function(d) {
+                        if (d !== todayKey) {
+                            var opt = document.createElement('option');
+                            opt.value = d;
+                            var dateObj = new Date(d + 'T12:00:00');
+                            opt.textContent = dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+                            dateSelect.appendChild(opt);
+                        }
+                    });
+                }
+
+                dateSelect.value = currentVal;
+
+                // Show selected date
+                document.getElementById('activityDateLabel').textContent = 'Showing: ' + (data.selectedDate || todayKey) + ' (' + (data.voiceLog.length) + ' voice / ' + (data.memberLog.length) + ' member entries)';
+
+                // Voice log
+                var vContainer = document.getElementById('voiceLogContainer');
+                if (!data.voiceLog || data.voiceLog.length === 0) {
+                    vContainer.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 20px;">No voice activity for this date</p>';
+                } else {
+                    vContainer.innerHTML = data.voiceLog.map(function(entry) {
+                        var color, icon, actionText;
+                        if (entry.action === 'joined') {
+                            color = 'var(--success)'; icon = 'üü¢'; actionText = 'joined';
+                        } else if (entry.action === 'switched') {
+                            color = 'var(--warning)'; icon = 'üîÑ'; actionText = 'switched from';
+                        } else {
+                            color = 'var(--danger)'; icon = 'üî¥'; actionText = 'left';
+                        }
+                        var durText = entry.duration ? ' ‚Äî <strong>' + entry.duration + '</strong>' : '';
+                        var toText = entry.toChannel ? ' ‚Üí <strong>#' + entry.toChannel + '</strong>' : '';
+                        return '<div style="background: var(--bg-tertiary); padding: 10px 14px; border-radius: 6px; margin-bottom: 4px; border-left: 3px solid ' + color + '; font-size: 13px;">' +
+                            '<span style="color: var(--text-muted); font-size: 11px; float: right;">' + entry.timeStr + '</span>' +
+                            icon + ' <strong>' + entry.username + '</strong> ' +
+                            '<span style="color: ' + color + ';">' + actionText + '</span> ' +
+                            '<strong>#' + entry.channelName + '</strong>' + toText + durText +
+                        '</div>';
+                    }).join('');
+                }
+
+                // Member log
+                var mContainer = document.getElementById('memberLogContainer');
+                if (!data.memberLog || data.memberLog.length === 0) {
+                    mContainer.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 20px;">No member activity for this date</p>';
+                } else {
+                    mContainer.innerHTML = data.memberLog.map(function(entry) {
+                        var color = entry.action === 'joined' ? 'var(--success)' : 'var(--danger)';
+                        var icon = entry.action === 'joined' ? 'üì•' : 'üì§';
+                        var actionText = entry.action === 'joined' ? 'joined the server' : 'left the server';
+                        return '<div style="background: var(--bg-tertiary); padding: 10px 14px; border-radius: 6px; margin-bottom: 4px; border-left: 3px solid ' + color + '; font-size: 13px;">' +
+                            '<span style="color: var(--text-muted); font-size: 11px; float: right;">' + entry.timeStr + '</span>' +
+                            icon + ' <strong>' + entry.username + '</strong> ' +
+                            '<span style="color: ' + color + ';">' + actionText + '</span> at ' + entry.timeStr +
+                        '</div>';
+                    }).join('');
+                }
+            } catch (err) {
+                console.error('Error loading activity:', err);
+            }
+        }
+
+        setInterval(function() {
+            if (document.getElementById('tab-audit').classList.contains('active')) loadAuditLog();
+            if (document.getElementById('tab-activity').classList.contains('active')) loadActivity();
+        }, 10000);
+
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('loginPassword').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') login();
+            });
+        });
+    </script>
+</body>
+</html>`;
+}
+
+function sendBlueprintMessage(message) {
+    if (typeof process.send === 'function') process.send(message);
+}
+
+process.on('message', async message => {
+    if (!message) return;
+    if (message.channel === 'commission:memberbridge-request') {
+        const { id, action, payload = {} } = message;
+        try {
+            if (!client.isReady()) throw new Error('Start the bot and wait for Discord to connect first.');
+            const data = await memberBridgeIntegration.admin(action, payload);
+            if (typeof process.send === 'function') process.send({ channel: 'commission:memberbridge-response', id, ok: true, data });
+        } catch (error) {
+            if (typeof process.send === 'function') process.send({ channel: 'commission:memberbridge-response', id, ok: false, error: error.message });
+        }
+        return;
+    }
+    if (message.channel === 'commission:economy-request') {
+        const { id, action, payload = {} } = message;
+        try {
+            if (!client.isReady()) throw new Error('Start the bot and wait for Discord to connect first.');
+            const guildId = payload.guildId || client.guilds.cache.first()?.id;
+            if (!guildId) throw new Error('The bot is not connected to a server.');
+            let data;
+            if (action === 'stats') data = economy.stats(guildId);
+            else if (action === 'leaderboard') data = payload.type === 'rep'
+                ? economy.repLeaderboard(guildId, 10)
+                : economy.leaderboard(guildId, payload.type || 'balance', 10);
+            else if (action === 'push-heist-panel') data = await economyIntegration.pushHeistPanel(guildId, payload.channelId);
+            else if (action === 'reset-preview') data = await economyIntegration.previewReset(guildId, payload.action, payload.userId);
+            else if (action === 'reset-execute') data = await economyIntegration.executeReset(guildId, payload.token);
+            else if (action === 'bulk-grant-preview') data = await economyIntegration.previewBulkGrant(guildId, payload.amount);
+            else if (action === 'bulk-grant-execute') data = await economyIntegration.executeBulkGrant(guildId, payload.token);
+            else throw new Error(`Unknown economy action: ${action}`);
+            if (typeof process.send === 'function') process.send({ channel: 'commission:economy-response', id, ok: true, data });
+        } catch (error) {
+            if (typeof process.send === 'function') process.send({ channel: 'commission:economy-response', id, ok: false, error: error.message });
+        }
+        return;
+    }
+    if (message.channel !== 'commission:blueprint-request') return;
+    const { id, action, payload = {} } = message;
+
+    try {
+        if (!client.isReady()) throw new Error('Start the bot and wait for Discord to connect first.');
+
+        if (action === 'list-guilds') {
+            const guilds = client.guilds.cache
+                .map(guild => ({ id: guild.id, name: guild.name, iconUrl: guild.iconURL({ extension: 'png', size: 128 }) }))
+                .sort((a, b) => a.name.localeCompare(b.name));
+            sendBlueprintMessage({ channel: 'commission:blueprint-response', id, ok: true, data: guilds });
+            return;
+        }
+
+        if (action === 'capture') {
+            const guild = await client.guilds.fetch(payload.guildId);
+            sendBlueprintMessage({ channel: 'commission:blueprint-progress', id, message: `Capturing ${guild.name}` });
+            const blueprint = await captureGuildBlueprint(guild);
+            sendBlueprintMessage({ channel: 'commission:blueprint-response', id, ok: true, data: blueprint });
+            return;
+        }
+
+        if (action === 'apply') {
+            const guild = await client.guilds.fetch(payload.guildId);
+            const result = await applyGuildBlueprint(
+                guild,
+                payload.blueprint,
+                { applyEveryonePermissions: Boolean(payload.applyEveryonePermissions) },
+                progressMessage => sendBlueprintMessage({
+                    channel: 'commission:blueprint-progress',
+                    id,
+                    message: progressMessage,
+                }),
+            );
+            sendBlueprintMessage({ channel: 'commission:blueprint-response', id, ok: true, data: result });
+            return;
+        }
+
+        throw new Error(`Unknown blueprint action: ${action}`);
+    } catch (error) {
+        sendBlueprintMessage({
+            channel: 'commission:blueprint-response',
+            id,
+            ok: false,
+            error: error.message,
+        });
+    }
+});
+
+// Login
+const TOKEN = process.env.DISCORD_TOKEN || '';
+if (!TOKEN) {
+    console.error('Discord token is missing. Add it in The Commission control panel.');
+    process.exitCode = 1;
+} else {
+let shuttingDown = false;
+async function gracefulShutdown(signal) {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    console.log(`[system] ${signal} received; closing MemberBridge and Discord cleanly.`);
+    try { await memberBridgeIntegration.stop(); } catch (error) { console.error('[MemberBridge shutdown]', error.message); }
+    try { economy.close?.(); } catch (error) { console.error('[Economy shutdown]', error.message); }
+    try { client.destroy(); } catch {}
+    process.exit(0);
+}
+process.once('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.once('SIGINT', () => gracefulShutdown('SIGINT'));
+
+client.login(TOKEN).catch(error => {
+        console.error('Discord login failed:', error.message);
+        process.exitCode = 1;
+    });
+}
