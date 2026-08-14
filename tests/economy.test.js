@@ -223,12 +223,18 @@ try {
 
     const limitNow = Date.UTC(2026, 7, 2, 12, 0);
     assert.strictEqual(service.config.gamblingHourlyWagerCap, 25000);
+    assert.strictEqual(service.config.gamblingDailyWagerCap, 150000);
     service.admin('hourly-limit-guild', 'add', 'hourly-gambler', 100000, 'hourly-bankroll', limitNow);
     service.dice('hourly-limit-guild', 'hourly-gambler', 15000, 'hourly-first', limitNow + 1);
     service.dice('hourly-limit-guild', 'hourly-gambler', 10000, 'hourly-second', limitNow + 2);
     assert.throws(() => service.dice('hourly-limit-guild', 'hourly-gambler', 1, 'hourly-over', limitNow + 3), /hourly gambling allowance remaining: 0.*25,000 maximum wagered per hour/i);
     const nextHour = service.dice('hourly-limit-guild', 'hourly-gambler', 1, 'hourly-reset', limitNow + 3600002);
     assert.strictEqual(nextHour.wager, 1);
+    service.admin('daily-limit-guild', 'add', 'daily-gambler', 500000, 'daily-bankroll', limitNow);
+    for (let index = 0; index < 6; index += 1) {
+        service.dice('daily-limit-guild', 'daily-gambler', 25000, `daily-wager-${index}`, limitNow + 1 + (index * 3600001));
+    }
+    assert.throws(() => service.dice('daily-limit-guild', 'daily-gambler', 1, 'daily-over', limitNow + 6 * 3600001), /daily gambling allowance remaining: 0.*150,000 maximum wagered per day/i);
 
     const poker = service.startPoker('guild', 'alice', 5, 'poker-1');
     assert.strictEqual(poker.cards.length, 5);

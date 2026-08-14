@@ -35,7 +35,7 @@ const DEFAULTS = Object.freeze({
     dailyStreakStep: 100,
     dailyStreakMaximum: 700,
     gamblingEnabled: true,
-    gamblingDailyWagerCap: 0,
+    gamblingDailyWagerCap: 150000,
     gamblingMaxActionsPerMinute: 0,
     gamblingMaxActionsPerHour: 0,
     gamblingHourlyWagerCap: 25000,
@@ -276,7 +276,7 @@ class EconomyService {
             ...raw,
             enabled: raw.enabled !== false,
             gamblingEnabled: raw.gamblingEnabled !== false,
-            gamblingDailyWagerCap: boundedInt(raw.gamblingDailyWagerCap, 0, 0),
+            gamblingDailyWagerCap: 150000,
             gamblingMaxActionsPerMinute: boundedInt(raw.gamblingMaxActionsPerMinute, 0, 0, 10000),
             gamblingMaxActionsPerHour: boundedInt(raw.gamblingMaxActionsPerHour, 0, 0, 100000),
             gamblingHourlyWagerCap: 25000,
@@ -712,6 +712,10 @@ class EconomyService {
         if (!this.config.gamblingEnabled) throw new Error('Gambling is currently disabled.');
         if (amount < 1) throw new Error('Wager must be at least 1.');
         if (amount > row.balance) throw new Error(`You only have ${row.balance} ${this.config.currencyName}.`);
+        const dailyRemaining = Math.max(0, this.config.gamblingDailyWagerCap - row.daily_wagered);
+        if (amount > dailyRemaining) {
+            throw new Error(`Daily gambling allowance remaining: ${dailyRemaining} ${this.config.currencyName} (150,000 maximum wagered per day).`);
+        }
         const hourlyWagered = this.db.prepare(`SELECT COALESCE(SUM(-amount),0) AS total FROM economy_transactions
             WHERE guild_id=? AND user_id=? AND type='wager' AND created_at>?`).get(guildId, userId, now - 3600000).total;
         const hourlyRemaining = Math.max(0, this.config.gamblingHourlyWagerCap - hourlyWagered);
