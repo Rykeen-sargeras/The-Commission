@@ -26,11 +26,10 @@ function installDoxWordPolicy() {
         Promise.resolve().then(async () => {
             try {
                 await message.delete().catch(() => {});
-                const warning = await message.channel.send({
+                await message.channel.send({
                     content: `${message.author} knock it off. **${matchedWord}** is filtered here. Your message was removed — you are not being jailed for using the word.`,
                     allowedMentions: { users: [message.author.id] },
                 }).catch(() => null);
-                if (warning) setTimeout(() => warning.delete().catch(() => {}), 10000);
                 console.log(`⚠️ Dox-word message removed without jail: "${matchedWord}" from ${message.author.tag}`);
             } catch (error) {
                 console.error('❌ Error applying dox-word delete-only policy:', error);
