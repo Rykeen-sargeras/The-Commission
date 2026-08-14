@@ -22,6 +22,7 @@ const menu = gambleMenuPayload('Blood Money');
 assert.strictEqual(menu.ephemeral, true);
 assert.strictEqual(menu.components[0].components[0].data.custom_id, 'econ:gamble:menu');
 assert.deepStrictEqual(menu.components[0].components[0].options.map(option => option.data.value), [...oldGames]);
+assert.strictEqual(menu.components[0].components[0].options.find(option => option.data.value === 'blackjack').data.emoji.name, '🃏');
 assert.strictEqual(wagerModal('slots').components.length, 1);
 assert.strictEqual(wagerModal('duel').components.length, 2);
 

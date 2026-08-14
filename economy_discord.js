@@ -84,7 +84,7 @@ function gambleMenuPayload(currencyName) {
             { label: 'Higher / Lower', value: 'higher-lower', description: 'Climb the card multiplier ladder', emoji: '🃏' },
             { label: 'Dragon Tower', value: 'dragon-tower', description: 'Climb eight rows and cash out', emoji: '🐉' },
             { label: 'Poker', value: 'poker', description: 'Play one-draw video poker', emoji: '♠️' },
-            { label: 'Blackjack', value: 'blackjack', description: 'Play public blackjack', emoji: '🂡' },
+            { label: 'Blackjack', value: 'blackjack', description: 'Play public blackjack', emoji: '🃏' },
             { label: 'Duel', value: 'duel', description: 'Challenge another member 50/50', emoji: '⚔️' },
         );
     return {
