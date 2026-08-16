@@ -3,27 +3,62 @@
 const LIVE_RE = /^(.*\bLIVE\s+)(\d+)(\b.*)$/iu;
 const WAITING_RE = /^(.*\bWaiting\s+)(\d+)(\b.*)$/iu;
 const UNNUMBERED_WAITING_RE = /^(.*\bWaiting)(\b.*)$/iu;
+const APPRENTICE_RE = /^(.*\bApprentice\s+)(\d+)(\b.*)$/iu;
+const APPRENTICE_WAITING_RE = /^(.*\bApprentice\s+Waiting\s+)(\d+)(\b.*)$/iu;
+
+const FAMILY_DEFINITIONS = {
+    live: {
+        roomName: 'LIVE 1',
+        waitingName: 'Waiting 1',
+    },
+    apprentice: {
+        roomName: 'Apprentice 1',
+        waitingName: 'Apprentice Waiting 1',
+    },
+};
+
+// Discord permission bitfields. Keeping these local lets this helper stay easy
+// to unit test without constructing a Discord client.
+const VIEW_CHANNEL = 1n << 10n;
+const CONNECT = 1n << 20n;
+const MOVE_MEMBERS = 1n << 24n;
+const MANAGED_ROLE_BITS = VIEW_CHANNEL | CONNECT | MOVE_MEMBERS;
 
 function describeManagedChannel(channel, categoryId) {
     if (!channel || channel.parentId !== categoryId) return null;
-    const liveMatch = String(channel.name || '').match(LIVE_RE);
-    if (liveMatch) return { kind: 'live', number: Number(liveMatch[2]) };
-    const waitingMatch = String(channel.name || '').match(WAITING_RE);
-    if (waitingMatch) return { kind: 'waiting', number: Number(waitingMatch[2]) };
-    if (UNNUMBERED_WAITING_RE.test(String(channel.name || ''))) return { kind: 'waiting', number: 1 };
+    const name = String(channel.name || '');
+
+    const apprenticeWaitingMatch = name.match(APPRENTICE_WAITING_RE);
+    if (apprenticeWaitingMatch) {
+        return { family: 'apprentice', kind: 'waiting', number: Number(apprenticeWaitingMatch[2]) };
+    }
+    const apprenticeMatch = name.match(APPRENTICE_RE);
+    if (apprenticeMatch) {
+        return { family: 'apprentice', kind: 'room', number: Number(apprenticeMatch[2]) };
+    }
+    const liveMatch = name.match(LIVE_RE);
+    if (liveMatch) return { family: 'live', kind: 'room', number: Number(liveMatch[2]) };
+    const waitingMatch = name.match(WAITING_RE);
+    if (waitingMatch) return { family: 'live', kind: 'waiting', number: Number(waitingMatch[2]) };
+    if (UNNUMBERED_WAITING_RE.test(name)) return { family: 'live', kind: 'waiting', number: 1 };
     return null;
 }
 
-function numberedName(templateName, number, kind) {
-    const pattern = kind === 'live' ? LIVE_RE : WAITING_RE;
+function numberedName(templateName, number, kind, family = 'live') {
+    const patterns = family === 'apprentice'
+        ? { room: APPRENTICE_RE, waiting: APPRENTICE_WAITING_RE }
+        : { room: LIVE_RE, live: LIVE_RE, waiting: WAITING_RE };
+    const pattern = patterns[kind];
     const name = String(templateName);
-    if (pattern.test(name)) {
+    if (pattern?.test(name)) {
         return name.replace(pattern, (_, before, _oldNumber, after) => `${before}${number}${after}`);
     }
-    if (kind === 'waiting') {
+    if (family === 'live' && kind === 'waiting' && UNNUMBERED_WAITING_RE.test(name)) {
         return name.replace(UNNUMBERED_WAITING_RE, (_, before, after) => `${before} ${number}${after}`);
     }
-    return name;
+    return family === 'apprentice'
+        ? `${kind === 'waiting' ? 'Apprentice Waiting' : 'Apprentice'} ${number}`
+        : `${kind === 'waiting' ? 'Waiting' : 'LIVE'} ${number}`;
 }
 
 function memberCount(channel) {
@@ -36,29 +71,65 @@ function clonePermissionOverwrites(channel) {
     return Array.from(cache.values()).map(overwrite => ({
         id: overwrite.id,
         type: overwrite.type,
-        allow: overwrite.allow?.bitfield ?? overwrite.allow,
-        deny: overwrite.deny?.bitfield ?? overwrite.deny,
+        allow: overwrite.allow?.bitfield ?? overwrite.allow ?? 0n,
+        deny: overwrite.deny?.bitfield ?? overwrite.deny ?? 0n,
     }));
 }
 
-function cloneChannelOptions(template, name, categoryId) {
+function rolePermissionBits(family, kind) {
+    if (family === 'apprentice') {
+        return { allow: MANAGED_ROLE_BITS, deny: 0n };
+    }
+    if (kind === 'waiting') {
+        return { allow: VIEW_CHANNEL | CONNECT, deny: MOVE_MEMBERS };
+    }
+    return { allow: VIEW_CHANNEL, deny: CONNECT | MOVE_MEMBERS };
+}
+
+function withRolePermissions(overwrites, roleId, family, kind) {
+    if (!roleId) return overwrites;
+    const output = overwrites.map(item => ({ ...item }));
+    const existing = output.find(item => String(item.id) === roleId);
+    const desired = rolePermissionBits(family, kind);
+    const target = existing || { id: roleId, type: 0, allow: 0n, deny: 0n };
+    const currentAllow = BigInt(target.allow?.bitfield ?? target.allow ?? 0n);
+    const currentDeny = BigInt(target.deny?.bitfield ?? target.deny ?? 0n);
+    target.allow = (currentAllow & ~MANAGED_ROLE_BITS) | desired.allow;
+    target.deny = (currentDeny & ~MANAGED_ROLE_BITS) | desired.deny;
+    if (!existing) output.push(target);
+    return output;
+}
+
+function cloneChannelOptions(template, name, categoryId, { apprenticeRoleId = '', family = 'live', kind = 'room' } = {}) {
     const options = {
         name,
-        type: template.type,
+        type: template?.type ?? 2,
         parent: categoryId,
-        permissionOverwrites: clonePermissionOverwrites(template),
-        reason: 'Maintain dynamic LIVE/Waiting voice channel pairs',
+        permissionOverwrites: withRolePermissions(
+            clonePermissionOverwrites(template),
+            apprenticeRoleId,
+            family,
+            kind,
+        ),
+        reason: 'Maintain dynamic LIVE/Waiting and Apprentice voice channel pairs',
     };
     for (const key of ['bitrate', 'userLimit', 'rtcRegion', 'videoQualityMode']) {
-        if (template[key] !== undefined && template[key] !== null) options[key] = template[key];
+        if (template?.[key] !== undefined && template[key] !== null) options[key] = template[key];
     }
     return options;
 }
 
 class LiveVoicePairManager {
-    constructor(client, { categoryId, delayMs = 350, cleanupDelayMs = 60_000, logger = console } = {}) {
+    constructor(client, {
+        categoryId,
+        apprenticeRoleId = process.env.APPRENTICE_VOICE_ROLE_ID || '1538688329451573300',
+        delayMs = 350,
+        cleanupDelayMs = 60_000,
+        logger = console,
+    } = {}) {
         this.client = client;
         this.categoryId = String(categoryId || '');
+        this.apprenticeRoleId = String(apprenticeRoleId || '');
         this.delayMs = delayMs;
         this.cleanupDelayMs = cleanupDelayMs;
         this.logger = logger;
@@ -74,7 +145,7 @@ class LiveVoicePairManager {
         }
 
         this.client.on('ready', () => {
-            for (const guild of this.client.guilds.cache.values()) this.schedule(guild, 0, false);
+            for (const guild of this.client.guilds.cache.values()) this.schedule(guild, 0, null);
         });
 
         this.client.on('voiceStateUpdate', (oldState, newState) => {
@@ -83,21 +154,27 @@ class LiveVoicePairManager {
             const oldManaged = describeManagedChannel(oldState.channel, this.categoryId);
             const newManaged = describeManagedChannel(newState.channel, this.categoryId);
 
-            if (newManaged) this.cancelCleanup(guild.id, newManaged.number);
+            if (newManaged) this.cancelCleanup(guild.id, newManaged.family, newManaged.number);
             if (oldManaged && oldManaged.number > 1 && oldState.channelId !== newState.channelId) {
-                this.scheduleCleanup(guild, oldManaged.number);
+                this.scheduleCleanup(guild, oldManaged.family, oldManaged.number);
             }
 
-            // Only joining a LIVE channel consumes an open LIVE slot. Waiting
-            // channels are deliberately excluded from the availability check.
-            const joinedLive = newManaged?.kind === 'live' && oldState.channelId !== newState.channelId;
-            if (joinedLive) this.schedule(guild, this.delayMs, true);
+            // Waiting channels never consume the open room slot for either family.
+            const joinedRoom = newManaged?.kind === 'room' && oldState.channelId !== newState.channelId;
+            if (joinedRoom) this.schedule(guild, this.delayMs, newManaged.family);
+        });
+
+        this.client.on('channelDelete', channel => {
+            const managed = describeManagedChannel(channel, this.categoryId);
+            if (!managed) return;
+            if (managed.number === 1) this.schedule(channel.guild, 0, null);
+            else this.scheduleCleanup(channel.guild, managed.family, managed.number);
         });
 
         return this;
     }
 
-    schedule(guild, delayMs = this.delayMs, ensureOpen = true) {
+    schedule(guild, delayMs = this.delayMs, ensureFamily = null) {
         if (!guild) return;
         clearTimeout(this.timers.get(guild.id));
         this.timers.set(guild.id, setTimeout(() => {
@@ -105,30 +182,30 @@ class LiveVoicePairManager {
             const previous = this.guildQueues.get(guild.id) || Promise.resolve();
             const next = previous
                 .catch(() => {})
-                .then(() => this.reconcile(guild, ensureOpen))
+                .then(() => this.reconcile(guild, ensureFamily))
                 .catch(error => this.logger.error(`[voice-pairs] ${guild.id}:`, error));
             this.guildQueues.set(guild.id, next);
         }, delayMs));
     }
 
-    cleanupKey(guildId, number) {
-        return `${guildId}:${number}`;
+    cleanupKey(guildId, family, number) {
+        return `${guildId}:${family}:${number}`;
     }
 
-    cancelCleanup(guildId, number) {
-        const key = this.cleanupKey(guildId, number);
+    cancelCleanup(guildId, family, number) {
+        const key = this.cleanupKey(guildId, family, number);
         clearTimeout(this.cleanupTimers.get(key));
         this.cleanupTimers.delete(key);
     }
 
-    scheduleCleanup(guild, number) {
+    scheduleCleanup(guild, family, number) {
         if (!guild || number <= 1) return;
-        const key = this.cleanupKey(guild.id, number);
+        const key = this.cleanupKey(guild.id, family, number);
         clearTimeout(this.cleanupTimers.get(key));
         this.cleanupTimers.set(key, setTimeout(() => {
             this.cleanupTimers.delete(key);
-            this.deletePairIfEmpty(guild, number).catch(error => {
-                this.logger.error(`[voice-pairs] cleanup ${guild.id}:${number}:`, error);
+            this.deletePairIfEmpty(guild, family, number).catch(error => {
+                this.logger.error(`[voice-pairs] cleanup ${guild.id}:${family}:${number}:`, error);
             });
         }, this.cleanupDelayMs));
     }
@@ -136,59 +213,95 @@ class LiveVoicePairManager {
     async collectPairs(guild) {
         await guild.channels.fetch();
 
-        const pairs = new Map();
+        const pairs = { live: new Map(), apprentice: new Map() };
         for (const channel of guild.channels.cache.values()) {
             const managed = describeManagedChannel(channel, this.categoryId);
             if (!managed) continue;
-            const pair = pairs.get(managed.number) || {};
+            const pair = pairs[managed.family].get(managed.number) || {};
             pair[managed.kind] = channel;
-            pairs.set(managed.number, pair);
+            pairs[managed.family].set(managed.number, pair);
         }
         return pairs;
     }
 
-    async reconcile(guild, ensureOpen = true) {
-        const pairs = await this.collectPairs(guild);
+    async ensureRolePermissions(channel, family, kind) {
+        if (!channel || !this.apprenticeRoleId || !channel.permissionOverwrites?.edit) return;
+        const desired = rolePermissionBits(family, kind);
+        const existing = channel.permissionOverwrites.cache?.get(this.apprenticeRoleId);
+        const allow = BigInt(existing?.allow?.bitfield ?? existing?.allow ?? 0n);
+        const deny = BigInt(existing?.deny?.bitfield ?? existing?.deny ?? 0n);
+        const nextAllow = (allow & ~MANAGED_ROLE_BITS) | desired.allow;
+        const nextDeny = (deny & ~MANAGED_ROLE_BITS) | desired.deny;
+        if (allow === nextAllow && deny === nextDeny) return;
+        await channel.permissionOverwrites.edit(this.apprenticeRoleId, {
+            ViewChannel: Boolean(nextAllow & VIEW_CHANNEL),
+            Connect: Boolean(nextAllow & CONNECT),
+            MoveMembers: Boolean(nextAllow & MOVE_MEMBERS),
+        }, { reason: 'Enforce Apprentice voice channel access' });
+    }
 
-        const templates = pairs.get(1);
-        if (!templates?.live || !templates?.waiting) {
-            this.logger.warn(`[voice-pairs] ${guild.name || guild.id}: keep both LIVE 1 and Waiting 1 in category ${this.categoryId}.`);
-            return;
+    async createChannel(guild, template, name, family, kind) {
+        return guild.channels.create(cloneChannelOptions(template, name, this.categoryId, {
+            apprenticeRoleId: this.apprenticeRoleId,
+            family,
+            kind,
+        }));
+    }
+
+    async ensureBasePair(guild, pairs, family) {
+        const definition = FAMILY_DEFINITIONS[family];
+        const pair = pairs[family].get(1) || {};
+        if (!pair.room) {
+            pair.room = await this.createChannel(guild, pair.waiting, definition.roomName, family, 'room');
         }
+        if (!pair.waiting) {
+            pair.waiting = await this.createChannel(guild, pair.room, definition.waitingName, family, 'waiting');
+        }
+        await this.ensureRolePermissions(pair.room, family, 'room');
+        await this.ensureRolePermissions(pair.waiting, family, 'waiting');
+        pairs[family].set(1, pair);
+        return pair;
+    }
 
-        if (ensureOpen) {
-            const occupiedLiveExists = Array.from(pairs.values()).some(pair => memberCount(pair.live) > 0);
-            const openLiveExists = Array.from(pairs.values()).some(pair => pair.live && memberCount(pair.live) === 0);
+    async reconcile(guild, ensureFamily = null) {
+        const pairs = await this.collectPairs(guild);
+        await this.ensureBasePair(guild, pairs, 'live');
+        await this.ensureBasePair(guild, pairs, 'apprentice');
 
-            // Waiting channels do not count here. If every LIVE channel is in
-            // use, create the lowest available numbered pair.
-            if (occupiedLiveExists && !openLiveExists) {
-                let nextNumber = 2;
-                while (pairs.has(nextNumber)) nextNumber += 1;
-                const nextPair = {};
-                nextPair.live = await guild.channels.create(cloneChannelOptions(
-                    templates.live,
-                    numberedName(templates.live.name, nextNumber, 'live'),
-                    this.categoryId,
-                ));
-                nextPair.waiting = await guild.channels.create(cloneChannelOptions(
-                    templates.waiting,
-                    numberedName(templates.waiting.name, nextNumber, 'waiting'),
-                    this.categoryId,
-                ));
-                pairs.set(nextNumber, nextPair);
-            }
+        if (!ensureFamily) return;
+        const familyPairs = pairs[ensureFamily];
+        const templates = familyPairs.get(1);
+        const occupiedRoomExists = Array.from(familyPairs.values()).some(pair => memberCount(pair.room) > 0);
+        const openRoomExists = Array.from(familyPairs.values()).some(pair => pair.room && memberCount(pair.room) === 0);
+
+        if (occupiedRoomExists && !openRoomExists) {
+            let nextNumber = 2;
+            while (familyPairs.has(nextNumber)) nextNumber += 1;
+            const nextPair = {};
+            nextPair.room = await this.createChannel(
+                guild,
+                templates.room,
+                numberedName(templates.room.name, nextNumber, 'room', ensureFamily),
+                ensureFamily,
+                'room',
+            );
+            nextPair.waiting = await this.createChannel(
+                guild,
+                templates.waiting,
+                numberedName(templates.waiting.name, nextNumber, 'waiting', ensureFamily),
+                ensureFamily,
+                'waiting',
+            );
+            familyPairs.set(nextNumber, nextPair);
         }
     }
 
-    async deletePairIfEmpty(guild, number) {
+    async deletePairIfEmpty(guild, family, number) {
         if (number <= 1) return false;
-        const pair = (await this.collectPairs(guild)).get(number) || {};
-        if (memberCount(pair.live) + memberCount(pair.waiting) > 0) return false;
-        for (const channel of [pair.live, pair.waiting]) {
-            if (channel) {
-                await channel.delete('Remove LIVE/Waiting pair after one minute empty');
-            }
+        const pair = (await this.collectPairs(guild))[family].get(number) || {};
+        if (memberCount(pair.room) + memberCount(pair.waiting) > 0) return false;
+        for (const channel of [pair.room, pair.waiting]) {
+            if (channel) await channel.delete('Remove voice pair after one minute empty');
         }
         return true;
     }
@@ -199,10 +312,15 @@ function installLiveVoicePairs(client, options) {
 }
 
 module.exports = {
+    CONNECT,
     LiveVoicePairManager,
+    MOVE_MEMBERS,
+    VIEW_CHANNEL,
     clonePermissionOverwrites,
     describeManagedChannel,
     installLiveVoicePairs,
     numberedName,
+    rolePermissionBits,
+    withRolePermissions,
 };
 
