@@ -92,9 +92,9 @@ function denyBits(item) {
     assert.strictEqual(numberedName('Waiting', 2, 'waiting', 'live'), 'Waiting 2');
     assert.strictEqual(numberedName('Apprentice 1', 2, 'room', 'apprentice'), 'Apprentice 2');
     assert.strictEqual(numberedName('Apprentice Waiting 1', 2, 'waiting', 'apprentice'), 'Apprentice Waiting 2');
-    assert.strictEqual(numberedName('ðŸŸ¡ Apprentice 1 ðŸŸ¡', 2, 'room', 'apprentice'), 'ðŸŸ¡ Apprentice 2 ðŸŸ¡');
-    assert.strictEqual(numberedName('â¬†ï¸ Apprentice Waiting â¬†ï¸', 2, 'waiting', 'apprentice'), 'â¬†ï¸ Apprentice Waiting 2 â¬†ï¸');
-    assert.deepStrictEqual(describeManagedChannel(channel('aw', 'â¬†ï¸ Apprentice Waiting â¬†ï¸'), CATEGORY_ID), {
+    assert.strictEqual(numberedName('💛 Apprentice 1 💛', 2, 'room', 'apprentice'), '💛 Apprentice 2 💛');
+    assert.strictEqual(numberedName('⬆️ Apprentice Waiting ⬆️', 2, 'waiting', 'apprentice'), '⬆️ Apprentice Waiting 2 ⬆️');
+    assert.deepStrictEqual(describeManagedChannel(channel('aw', '⬆️ Apprentice Waiting ⬆️'), CATEGORY_ID), {
         family: 'apprentice', kind: 'waiting', number: 1,
     });
     assert.deepStrictEqual(describeManagedChannel(channel('a', 'Apprentice Waiting 3'), CATEGORY_ID), {
@@ -110,10 +110,10 @@ function denyBits(item) {
     });
     await manager.reconcile(guild);
 
-    const live1 = findChannel(guild, 'ðŸ”´ LIVE 1 ðŸ”´');
-    const waiting1 = findChannel(guild, 'â¬†ï¸ Waiting â¬†ï¸');
-    const apprentice1 = findChannel(guild, 'ðŸŸ¡ Apprentice 1 ðŸŸ¡');
-    const apprenticeWaiting1 = findChannel(guild, 'â¬†ï¸ Apprentice Waiting â¬†ï¸');
+    const live1 = findChannel(guild, '🔴 LIVE 1 🔴');
+    const waiting1 = findChannel(guild, '⬆️ Waiting ⬆️');
+    const apprentice1 = findChannel(guild, '💛 Apprentice 1 💛');
+    const apprenticeWaiting1 = findChannel(guild, '⬆️ Apprentice Waiting ⬆️');
     assert(live1 && waiting1 && apprentice1 && apprenticeWaiting1);
 
     assert.strictEqual(allowBits(live1), VIEW_CHANNEL);
@@ -127,21 +127,21 @@ function denyBits(item) {
     // Occupying the only open LIVE room creates the next LIVE pair.
     live1.members.size = 1;
     await manager.reconcile(guild, 'live');
-    const live2 = findChannel(guild, 'ðŸ”´ LIVE 2 ðŸ”´');
-    const waiting2 = findChannel(guild, 'â¬†ï¸ Waiting 2 â¬†ï¸');
+    const live2 = findChannel(guild, '🔴 LIVE 2 🔴');
+    const waiting2 = findChannel(guild, '⬆️ Waiting 2 ⬆️');
     assert(live2 && waiting2);
 
     // Occupying the only open Apprentice room creates its own next pair.
     apprentice1.members.size = 1;
     await manager.reconcile(guild, 'apprentice');
-    const apprentice2 = findChannel(guild, 'ðŸŸ¡ Apprentice 2 ðŸŸ¡');
-    const apprenticeWaiting2 = findChannel(guild, 'â¬†ï¸ Apprentice Waiting 2 â¬†ï¸');
+    const apprentice2 = findChannel(guild, '💛 Apprentice 2 💛');
+    const apprenticeWaiting2 = findChannel(guild, '⬆️ Apprentice Waiting 2 ⬆️');
     assert(apprentice2 && apprenticeWaiting2);
 
     // A waiting-room occupant does not consume an open room slot.
     apprenticeWaiting2.members.size = 1;
     await manager.reconcile(guild, 'apprentice');
-    assert(!findChannel(guild, 'ðŸŸ¡ Apprentice 3 ðŸŸ¡'));
+    assert(!findChannel(guild, '💛 Apprentice 3 💛'));
 
     // Dynamic pairs are removed after both sides are empty; pair 1 is protected.
     live1.members.size = 0;
@@ -159,4 +159,3 @@ function denyBits(item) {
     console.error(error);
     process.exitCode = 1;
 });
-
