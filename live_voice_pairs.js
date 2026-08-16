@@ -9,12 +9,12 @@ const UNNUMBERED_APPRENTICE_WAITING_RE = /^(.*\bApprentice\s+Waiting)(\b.*)$/iu;
 
 const FAMILY_DEFINITIONS = {
     live: {
-        roomName: 'ðŸ”´ LIVE 1 ðŸ”´',
-        waitingName: 'â¬†ï¸ Waiting â¬†ï¸',
+        roomName: '🔴 LIVE 1 🔴',
+        waitingName: '⬆️ Waiting ⬆️',
     },
     apprentice: {
-        roomName: 'ðŸŸ¡ Apprentice 1 ðŸŸ¡',
-        waitingName: 'â¬†ï¸ Apprentice Waiting â¬†ï¸',
+        roomName: '💛 Apprentice 1 💛',
+        waitingName: '⬆️ Apprentice Waiting ⬆️',
     },
 };
 
@@ -330,4 +330,3 @@ module.exports = {
     rolePermissionBits,
     withRolePermissions,
 };
-
