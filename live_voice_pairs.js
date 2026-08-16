@@ -5,15 +5,16 @@ const WAITING_RE = /^(.*\bWaiting\s+)(\d+)(\b.*)$/iu;
 const UNNUMBERED_WAITING_RE = /^(.*\bWaiting)(\b.*)$/iu;
 const APPRENTICE_RE = /^(.*\bApprentice\s+)(\d+)(\b.*)$/iu;
 const APPRENTICE_WAITING_RE = /^(.*\bApprentice\s+Waiting\s+)(\d+)(\b.*)$/iu;
+const UNNUMBERED_APPRENTICE_WAITING_RE = /^(.*\bApprentice\s+Waiting)(\b.*)$/iu;
 
 const FAMILY_DEFINITIONS = {
     live: {
-        roomName: 'LIVE 1',
-        waitingName: 'Waiting 1',
+        roomName: 'ðŸ”´ LIVE 1 ðŸ”´',
+        waitingName: 'â¬†ï¸ Waiting â¬†ï¸',
     },
     apprentice: {
-        roomName: 'Apprentice 1',
-        waitingName: 'Apprentice Waiting 1',
+        roomName: 'ðŸŸ¡ Apprentice 1 ðŸŸ¡',
+        waitingName: 'â¬†ï¸ Apprentice Waiting â¬†ï¸',
     },
 };
 
@@ -31,6 +32,9 @@ function describeManagedChannel(channel, categoryId) {
     const apprenticeWaitingMatch = name.match(APPRENTICE_WAITING_RE);
     if (apprenticeWaitingMatch) {
         return { family: 'apprentice', kind: 'waiting', number: Number(apprenticeWaitingMatch[2]) };
+    }
+    if (UNNUMBERED_APPRENTICE_WAITING_RE.test(name)) {
+        return { family: 'apprentice', kind: 'waiting', number: 1 };
     }
     const apprenticeMatch = name.match(APPRENTICE_RE);
     if (apprenticeMatch) {
@@ -52,6 +56,9 @@ function numberedName(templateName, number, kind, family = 'live') {
     const name = String(templateName);
     if (pattern?.test(name)) {
         return name.replace(pattern, (_, before, _oldNumber, after) => `${before}${number}${after}`);
+    }
+    if (family === 'apprentice' && kind === 'waiting' && UNNUMBERED_APPRENTICE_WAITING_RE.test(name)) {
+        return name.replace(UNNUMBERED_APPRENTICE_WAITING_RE, (_, before, after) => `${before} ${number}${after}`);
     }
     if (family === 'live' && kind === 'waiting' && UNNUMBERED_WAITING_RE.test(name)) {
         return name.replace(UNNUMBERED_WAITING_RE, (_, before, after) => `${before} ${number}${after}`);
