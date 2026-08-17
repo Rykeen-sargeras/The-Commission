@@ -109,6 +109,7 @@ function denyBits(item) {
         apprenticeRoleId: APPRENTICE_ROLE_ID,
         cleanupDelayMs: 10,
     });
+    assert.strictEqual(new LiveVoicePairManager({}, { categoryId: CATEGORY_ID }).cleanupDelayMs, 10_000);
     await manager.reconcile(guild);
 
     const live1 = findChannel(guild, '🔴 LIVE 1 🔴');
