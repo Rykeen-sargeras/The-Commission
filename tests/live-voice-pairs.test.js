@@ -42,6 +42,7 @@ function channel(id, name, numberOfMembers = 0, permissionOverwrites = []) {
         },
         deleted: false,
         async delete() { this.deleted = true; },
+        async setName(nextName) { this.name = nextName; },
     };
     return value;
 }
@@ -123,6 +124,13 @@ function denyBits(item) {
     assert.strictEqual(allowBits(apprentice1), VIEW_CHANNEL | CONNECT | MOVE_MEMBERS);
     assert.strictEqual(denyBits(apprentice1), 0n);
     assert.strictEqual(allowBits(apprenticeWaiting1), VIEW_CHANNEL | CONNECT | MOVE_MEMBERS);
+
+    // Existing mojibake names from an earlier bad upload are repaired in place.
+    apprentice1.name = 'ðŸ’› Apprentice 1 ðŸ’›';
+    apprenticeWaiting1.name = 'â¬†ï¸ Apprentice Waiting â¬†ï¸';
+    await manager.reconcile(guild);
+    assert.strictEqual(apprentice1.name, '💛 Apprentice 1 💛');
+    assert.strictEqual(apprenticeWaiting1.name, '⬆️ Apprentice Waiting ⬆️');
 
     // Occupying the only open LIVE room creates the next LIVE pair.
     live1.members.size = 1;

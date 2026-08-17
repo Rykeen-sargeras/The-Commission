@@ -68,6 +68,13 @@ function numberedName(templateName, number, kind, family = 'live') {
         : `${kind === 'waiting' ? 'Waiting' : 'LIVE'} ${number}`;
 }
 
+function canonicalName(family, kind, number) {
+    const definition = FAMILY_DEFINITIONS[family];
+    const templateName = kind === 'waiting' ? definition.waitingName : definition.roomName;
+    if (number === 1) return templateName;
+    return numberedName(templateName, number, kind, family);
+}
+
 function memberCount(channel) {
     return Number(channel?.members?.size || 0);
 }
@@ -247,6 +254,13 @@ class LiveVoicePairManager {
         }, { reason: 'Enforce Apprentice voice channel access' });
     }
 
+    async ensureCanonicalName(channel, family, kind, number) {
+        if (!channel?.setName) return;
+        const expected = canonicalName(family, kind, number);
+        if (channel.name === expected) return;
+        await channel.setName(expected, 'Normalize managed voice channel name');
+    }
+
     async createChannel(guild, template, name, family, kind) {
         return guild.channels.create(cloneChannelOptions(template, name, this.categoryId, {
             apprenticeRoleId: this.apprenticeRoleId,
@@ -266,6 +280,8 @@ class LiveVoicePairManager {
         }
         await this.ensureRolePermissions(pair.room, family, 'room');
         await this.ensureRolePermissions(pair.waiting, family, 'waiting');
+        await this.ensureCanonicalName(pair.room, family, 'room', 1);
+        await this.ensureCanonicalName(pair.waiting, family, 'waiting', 1);
         pairs[family].set(1, pair);
         return pair;
     }
@@ -274,6 +290,13 @@ class LiveVoicePairManager {
         const pairs = await this.collectPairs(guild);
         await this.ensureBasePair(guild, pairs, 'live');
         await this.ensureBasePair(guild, pairs, 'apprentice');
+
+        for (const family of Object.keys(FAMILY_DEFINITIONS)) {
+            for (const [number, pair] of pairs[family]) {
+                await this.ensureCanonicalName(pair.room, family, 'room', number);
+                await this.ensureCanonicalName(pair.waiting, family, 'waiting', number);
+            }
+        }
 
         if (!ensureFamily) return;
         const familyPairs = pairs[ensureFamily];
@@ -323,6 +346,7 @@ module.exports = {
     LiveVoicePairManager,
     MOVE_MEMBERS,
     VIEW_CHANNEL,
+    canonicalName,
     clonePermissionOverwrites,
     describeManagedChannel,
     installLiveVoicePairs,
