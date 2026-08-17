@@ -138,7 +138,7 @@ class LiveVoicePairManager {
         categoryId,
         apprenticeRoleId = process.env.APPRENTICE_VOICE_ROLE_ID || '1538688329451573300',
         delayMs = 350,
-        cleanupDelayMs = 60_000,
+        cleanupDelayMs = 10_000,
         logger = console,
     } = {}) {
         this.client = client;
@@ -295,6 +295,9 @@ class LiveVoicePairManager {
             for (const [number, pair] of pairs[family]) {
                 await this.ensureCanonicalName(pair.room, family, 'room', number);
                 await this.ensureCanonicalName(pair.waiting, family, 'waiting', number);
+                if (number > 1 && memberCount(pair.room) + memberCount(pair.waiting) === 0) {
+                    this.scheduleCleanup(guild, family, number);
+                }
             }
         }
 
@@ -331,7 +334,7 @@ class LiveVoicePairManager {
         const pair = (await this.collectPairs(guild))[family].get(number) || {};
         if (memberCount(pair.room) + memberCount(pair.waiting) > 0) return false;
         for (const channel of [pair.room, pair.waiting]) {
-            if (channel) await channel.delete('Remove voice pair after one minute empty');
+            if (channel) await channel.delete('Remove voice pair after ten seconds empty');
         }
         return true;
     }
