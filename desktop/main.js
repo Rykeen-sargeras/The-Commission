@@ -7,11 +7,12 @@ const path = require('path');
 
 const LOGIN_SALT = 'the-commission-v1';
 const DISCORD_ID = /^\d{17,20}$/;
-const SERVER_PROFILE_VERSION = 7;
+const SERVER_PROFILE_VERSION = 8;
 const HEIST_SCHEDULE_VERSION = 1;
 const ECONOMY_REWARD_VERSION = 1;
 const DESTINATION_SERVER_PROFILE = {
-    modChannelId: '1532504080067596381',
+    modChannelId: '1532529016479682774',
+    altAccountAgeDays: 14,
     ticketCategoryId: '1532513762618118308',
     reportCategoryId: '1532513762618118308',
     oldReportsChannelId: '1532513790673813655',
@@ -43,7 +44,7 @@ const DESTINATION_SERVER_PROFILE = {
 const DEFAULT_SETTINGS = {
     mainChatChannelId: '',
     announcementChannelId: '',
-    modChannelId: '',
+    modChannelId: DESTINATION_SERVER_PROFILE.modChannelId,
     logChannelId: '',
     ticketCategoryId: '',
     ownerUserId: '1475473411642884227',
@@ -60,7 +61,7 @@ const DEFAULT_SETTINGS = {
     preemptiveBanUserIds: '',
     preemptiveBanReason: 'Listed in The Commission preemptive ban list',
     altDetectionEnabled: true,
-    altAccountAgeDays: 7,
+    altAccountAgeDays: 14,
     autoStartBot: false,
     launchAtLogin: false,
     closeToTray: true,

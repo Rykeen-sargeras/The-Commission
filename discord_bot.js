@@ -49,14 +49,14 @@ goingLive.install(client);
 const CONFIG = {
     MAIN_CHAT_CHANNEL_ID: process.env.MAIN_CHAT_CHANNEL_ID || '',
     ANNOUNCEMENT_CHANNEL_ID: process.env.ANNOUNCEMENT_CHANNEL_ID || '',
-    MOD_CHANNEL_ID: process.env.MOD_CHANNEL_ID || '',
+    MOD_CHANNEL_ID: process.env.MOD_CHANNEL_ID || '1532529016479682774',
     LOG_CHANNEL_ID: process.env.LOG_CHANNEL_ID || '',
     TICKET_CATEGORY_ID: process.env.TICKET_CATEGORY_ID || '',
     STAFF_ROLE_IDS: (process.env.STAFF_ROLE_IDS || '').split(',').filter(Boolean),
     OWNER_USER_ID: process.env.OWNER_USER_ID || '',
     WEB_DASHBOARD_PASSWORD: process.env.WEB_DASHBOARD_PASSWORD || '',
     ALT_DETECTION_ENABLED: process.env.ALT_DETECTION_ENABLED !== 'false', // Default enabled
-    ALT_ACCOUNT_AGE_DAYS: parseInt(process.env.ALT_ACCOUNT_AGE_DAYS || '7'), // Flag accounts newer than 7 days
+    ALT_ACCOUNT_AGE_DAYS: parseInt(process.env.ALT_ACCOUNT_AGE_DAYS || '14'), // Auto-jail accounts newer than 14 days
     PATROL_CHANNEL_ID: process.env.PATROL_CHANNEL_ID || '',
     LOCATIONIQ_API_KEY: process.env.LOCATIONIQ_API_KEY || '',
     POSITIONSTACK_API_KEY: process.env.POSITIONSTACK_API_KEY || '',
@@ -822,14 +822,39 @@ client.on('guildMemberAdd', async (member) => {
 
         saveNameHistory();
 
-        // Alt detection (existing code)
+        // Alt detection and automatic jail for newly created accounts.
         if (!CONFIG.ALT_DETECTION_ENABLED) return;
 
         const accountAge = Date.now() - member.user.createdTimestamp;
         const accountAgeDays = Math.floor(accountAge / (1000 * 60 * 60 * 24));
 
         if (accountAgeDays < CONFIG.ALT_ACCOUNT_AGE_DAYS) {
-            const modChannel = await client.channels.fetch(CONFIG.MOD_CHANNEL_ID);
+            let jailApplied = false;
+            let jailStatus = 'Auto-jail failed: jail role is not configured';
+
+            if (CONFIG.JAIL_ROLE_ID) {
+                try {
+                    await member.roles.add(
+                        CONFIG.JAIL_ROLE_ID,
+                        `Account is ${accountAgeDays} days old (under ${CONFIG.ALT_ACCOUNT_AGE_DAYS}-day minimum)`,
+                    );
+                    jailApplied = true;
+                    jailStatus = 'Auto-jailed pending moderator review';
+                    console.log(`Auto-jailed young account ${member.user.tag} (${member.user.id})`);
+                } catch (jailError) {
+                    jailStatus = `Auto-jail failed: ${jailError.message}`;
+                    console.error(`Error auto-jailing ${member.user.tag} (${member.user.id}):`, jailError);
+                }
+            } else {
+                console.error(`Cannot auto-jail ${member.user.tag}: JAIL_ROLE_ID is not configured`);
+            }
+
+            const modChannel = CONFIG.MOD_CHANNEL_ID
+                ? await client.channels.fetch(CONFIG.MOD_CHANNEL_ID).catch(error => {
+                    console.error(`Error fetching alt-alert channel ${CONFIG.MOD_CHANNEL_ID}:`, error);
+                    return null;
+                })
+                : null;
             if (modChannel) {
                 const embed = new Discord.EmbedBuilder()
                     .setColor('#FFA500')
@@ -841,14 +866,20 @@ client.on('guildMemberAdd', async (member) => {
                         { name: 'Created', value: `<t:${Math.floor(member.user.createdTimestamp / 1000)}:R>`, inline: true },
                         { name: 'Joined', value: `<t:${Math.floor(member.joinedTimestamp / 1000)}:R>`, inline: true },
                         { name: 'Default Avatar', value: member.user.avatar ? 'No' : '**Yes** ⚠️', inline: true },
-                        { name: 'Status', value: '🔍 Review recommended', inline: true }
+                        { name: 'Status', value: jailStatus, inline: false }
                     )
                     .setFooter({ text: 'Alt Detection System' })
                     .setTimestamp();
 
                 await modChannel.send({ embeds: [embed] });
-                addAuditLog('Alt Account Detected', member.user, `Account age: ${accountAgeDays} days`, 'warning');
             }
+
+            addAuditLog(
+                jailApplied ? 'Young Account Auto-Jailed' : 'Young Account Auto-Jail Failed',
+                member.user,
+                `Account age: ${accountAgeDays} days | ${jailStatus}`,
+                jailApplied ? 'warning' : 'error',
+            );
         }
 
         addAuditLog('Member Joined', member.user, `Account age: ${accountAgeDays} days`, 'info');
