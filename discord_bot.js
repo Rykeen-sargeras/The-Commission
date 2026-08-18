@@ -6,6 +6,7 @@ const { applyGuildBlueprint, captureGuildBlueprint } = require('./blueprint');
 const { EconomyService } = require('./economy');
 const { economyCommandData, createEconomyIntegration } = require('./economy_discord');
 const { isDoxWord } = require('./moderation_word_policy');
+const { verifyAddressWithGoogle } = require('./address_verification');
 const { MemberBridgeIntegration, memberBridgeCommandData } = require('./memberbridge/integration');
 const goingLive = require('./going_live');
 const { installLiveVoicePairs } = require('./live_voice_pairs');
@@ -19,9 +20,9 @@ try {
     voice = require('@discordjs/voice');
     playDl = require('play-dl');
     ytdl = require('@distube/ytdl-core');
-    console.log('✅ Music dependencies loaded');
+    console.log('âœ… Music dependencies loaded');
 } catch (e) {
-    console.warn('⚠️ Music dependencies not installed. Run: npm install @discordjs/voice play-dl @distube/ytdl-core libsodium-wrappers ffmpeg-static');
+    console.warn('âš ï¸ Music dependencies not installed. Run: npm install @discordjs/voice play-dl @distube/ytdl-core libsodium-wrappers ffmpeg-static');
     console.warn(e.message);
 }
 
@@ -60,6 +61,7 @@ const CONFIG = {
     PATROL_CHANNEL_ID: process.env.PATROL_CHANNEL_ID || '',
     LOCATIONIQ_API_KEY: process.env.LOCATIONIQ_API_KEY || '',
     POSITIONSTACK_API_KEY: process.env.POSITIONSTACK_API_KEY || '',
+    GOOGLE_MAPS_API_KEY: process.env.GOOGLE_MAPS_API_KEY || '',
     MUSIC_CHANNEL_ID: process.env.MUSIC_CHANNEL_ID || '',
     MUSIC_VOICE_CHANNEL_ID: process.env.MUSIC_VOICE_CHANNEL_ID || '',
     REPORT_CATEGORY_ID: process.env.REPORT_CATEGORY_ID || '',
@@ -203,10 +205,10 @@ function loadBannedWordsFromDisk() {
             if (data.offenses) {
                 offenseTracker = new Map(Object.entries(data.offenses));
             }
-            console.log(`✅ Loaded banned words from disk: ${bannedWords.length} words, ${offenseTracker.size} offenders`);
+            console.log(`âœ… Loaded banned words from disk: ${bannedWords.length} words, ${offenseTracker.size} offenders`);
         }
     } catch (error) {
-        console.error('❌ Error loading banned words from disk:', error);
+        console.error('âŒ Error loading banned words from disk:', error);
     }
 }
 
@@ -223,7 +225,7 @@ function saveBannedWordsToDisk() {
             };
             fs.writeFileSync(BANNED_WORDS_FILE, JSON.stringify(data), 'utf-8');
         } catch (error) {
-            console.error('❌ Error saving banned words to disk:', error);
+            console.error('âŒ Error saving banned words to disk:', error);
         }
     }, 2000);
 }
@@ -535,13 +537,13 @@ function addAuditLog(action, user, details, severity = 'info') {
 
 
 client.on('ready', async () => {
-    console.log(`✅ Bot logged in as ${client.user.tag}`);
+    console.log(`âœ… Bot logged in as ${client.user.tag}`);
     console.log(`Dashboard available at: http://localhost:${process.env.PORT || 10000}`);
     addAuditLog('Bot Started', client.user, `Bot logged in as ${client.user.tag}`, 'success');
 
     // Register slash commands using REST API
     try {
-        console.log('📝 Registering slash commands...');
+        console.log('ðŸ“ Registering slash commands...');
         console.log(`   Application ID: ${client.user.id}`);
 
         const { REST, Routes } = require('discord.js');
@@ -639,7 +641,7 @@ client.on('ready', async () => {
             Routes.applicationCommands(client.user.id),
             { body: [] }
         );
-        console.log('✅ Cleared old global commands');
+        console.log('âœ… Cleared old global commands');
 
         // Register as guild commands (instant) instead of global (up to 1hr delay)
         const guild = client.guilds.cache.get(goingLive.GUILD_ID) || client.guilds.cache.first();
@@ -648,17 +650,17 @@ client.on('ready', async () => {
                 Routes.applicationGuildCommands(client.user.id, guild.id),
                 { body: commands }
             );
-            console.log(`✅ Slash commands registered for guild: ${guild.name}`);
+            console.log(`âœ… Slash commands registered for guild: ${guild.name}`);
         } else {
             // Fallback to global
             await rest.put(
                 Routes.applicationCommands(client.user.id),
                 { body: commands }
             );
-            console.log('✅ Slash commands registered globally');
+            console.log('âœ… Slash commands registered globally');
         }
     } catch (error) {
-        console.error('❌ Error registering slash commands:', error);
+        console.error('âŒ Error registering slash commands:', error);
     }
 
     // Start birthday checking (every minute)
@@ -681,10 +683,10 @@ function loadNameHistory() {
             const raw = fs.readFileSync(NAME_HISTORY_FILE, 'utf-8');
             const data = JSON.parse(raw);
             nameHistory = new Map(Object.entries(data));
-            console.log(`✅ Loaded name history: ${nameHistory.size} users tracked`);
+            console.log(`âœ… Loaded name history: ${nameHistory.size} users tracked`);
         }
     } catch (e) {
-        console.error('❌ Error loading name history:', e);
+        console.error('âŒ Error loading name history:', e);
     }
 }
 
@@ -692,7 +694,7 @@ function saveNameHistory() {
     try {
         fs.writeFileSync(NAME_HISTORY_FILE, JSON.stringify(Object.fromEntries(nameHistory)), 'utf-8');
     } catch (e) {
-        console.error('❌ Error saving name history:', e);
+        console.error('âŒ Error saving name history:', e);
     }
 }
 
@@ -719,7 +721,7 @@ async function sendPreemptiveBanLog(member, snapshot, success, errorMessage = ''
                 { name: 'Reason', value: CONFIG.PREEMPTIVE_BAN_REASON.substring(0, 1024), inline: false },
                 { name: 'Result', value: success ? 'Banned immediately on join' : `Ban failed: ${errorMessage.substring(0, 900)}`, inline: false },
             )
-            .setFooter({ text: 'The Commission • Preemptive Ban List' })
+            .setFooter({ text: 'The Commission â€¢ Preemptive Ban List' })
             .setTimestamp();
 
         await channel.send({ embeds: [embed] });
@@ -790,7 +792,7 @@ client.on('guildMemberAdd', async (member) => {
                         const modChannel = await client.channels.fetch(CONFIG.MOD_CHANNEL_ID);
                         const embed = new Discord.EmbedBuilder()
                             .setColor('#FF9900')
-                            .setTitle('🔄 Returning Member — Name Changed')
+                            .setTitle('ðŸ”„ Returning Member â€” Name Changed')
                             .setThumbnail(member.user.displayAvatarURL())
                             .addFields(
                                 { name: 'Current Name', value: currentName, inline: true },
@@ -798,15 +800,15 @@ client.on('guildMemberAdd', async (member) => {
                                 { name: 'User ID', value: userId, inline: true },
                                 { name: 'All Known Names', value: previousNames.join(', '), inline: false },
                                 { name: 'Times Joined', value: `${history.names.length + 1}`, inline: true },
-                                { name: 'Status', value: '🔍 Review recommended', inline: true }
+                                { name: 'Status', value: 'ðŸ” Review recommended', inline: true }
                             )
                             .setFooter({ text: 'Name Change Detection' })
                             .setTimestamp();
 
                         await modChannel.send({ embeds: [embed] });
-                        addAuditLog('Name Change Detected', member.user, `Was: ${lastName} → Now: ${currentName}`, 'warning');
+                        addAuditLog('Name Change Detected', member.user, `Was: ${lastName} â†’ Now: ${currentName}`, 'warning');
                     } catch (e) {
-                        console.error('❌ Error sending name change alert:', e);
+                        console.error('âŒ Error sending name change alert:', e);
                     }
                 }
             }
@@ -858,14 +860,14 @@ client.on('guildMemberAdd', async (member) => {
             if (modChannel) {
                 const embed = new Discord.EmbedBuilder()
                     .setColor('#FFA500')
-                    .setTitle('⚠️ Potential Alt Account Detected')
+                    .setTitle('âš ï¸ Potential Alt Account Detected')
                     .setThumbnail(member.user.displayAvatarURL())
                     .addFields(
                         { name: 'User', value: `${member.user.tag} (${member.user.id})`, inline: true },
                         { name: 'Account Age', value: `${accountAgeDays} days old`, inline: true },
                         { name: 'Created', value: `<t:${Math.floor(member.user.createdTimestamp / 1000)}:R>`, inline: true },
                         { name: 'Joined', value: `<t:${Math.floor(member.joinedTimestamp / 1000)}:R>`, inline: true },
-                        { name: 'Default Avatar', value: member.user.avatar ? 'No' : '**Yes** ⚠️', inline: true },
+                        { name: 'Default Avatar', value: member.user.avatar ? 'No' : '**Yes** âš ï¸', inline: true },
                         { name: 'Status', value: jailStatus, inline: false }
                     )
                     .setFooter({ text: 'Alt Detection System' })
@@ -928,12 +930,12 @@ function loadLogsFromDisk() {
 
             const totalVoice = Array.from(voiceLogs.values()).reduce((sum, arr) => sum + arr.length, 0);
             const totalMember = Array.from(memberLogs.values()).reduce((sum, arr) => sum + arr.length, 0);
-            console.log(`✅ Loaded logs from disk: ${totalVoice} voice entries, ${totalMember} member entries across ${voiceLogs.size + memberLogs.size} days`);
+            console.log(`âœ… Loaded logs from disk: ${totalVoice} voice entries, ${totalMember} member entries across ${voiceLogs.size + memberLogs.size} days`);
         } else {
-            console.log('📝 No existing logs file found, starting fresh');
+            console.log('ðŸ“ No existing logs file found, starting fresh');
         }
     } catch (error) {
-        console.error('❌ Error loading logs from disk:', error);
+        console.error('âŒ Error loading logs from disk:', error);
     }
 }
 
@@ -952,7 +954,7 @@ function saveLogsToDisk() {
             };
             fs.writeFileSync(LOGS_FILE, JSON.stringify(data), 'utf-8');
         } catch (error) {
-            console.error('❌ Error saving logs to disk:', error);
+            console.error('âŒ Error saving logs to disk:', error);
         }
     }, 5000);
 }
@@ -1009,7 +1011,7 @@ client.on('voiceStateUpdate', (oldState, newState) => {
             duration: null,
             timeStr: timeStr,
         });
-        console.log(`🎤 ${user.tag} joined voice: ${newState.channel?.name} at ${timeStr}`);
+        console.log(`ðŸŽ¤ ${user.tag} joined voice: ${newState.channel?.name} at ${timeStr}`);
     }
 
     // User left a voice channel
@@ -1037,7 +1039,7 @@ client.on('voiceStateUpdate', (oldState, newState) => {
             duration: duration,
             timeStr: timeStr,
         });
-        console.log(`🎤 ${user.tag} left voice: ${oldState.channel?.name} at ${timeStr} - Duration: ${duration || 'unknown'}`);
+        console.log(`ðŸŽ¤ ${user.tag} left voice: ${oldState.channel?.name} at ${timeStr} - Duration: ${duration || 'unknown'}`);
     }
 
     // User switched channels
@@ -1071,7 +1073,7 @@ client.on('voiceStateUpdate', (oldState, newState) => {
         const newKey = `${user.id}-${newState.channelId}`;
         voiceJoinTimes.set(newKey, Date.now());
 
-        console.log(`🎤 ${user.tag} switched: ${oldState.channel?.name} -> ${newState.channel?.name} at ${timeStr}`);
+        console.log(`ðŸŽ¤ ${user.tag} switched: ${oldState.channel?.name} -> ${newState.channel?.name} at ${timeStr}`);
     }
 });
 
@@ -1090,7 +1092,7 @@ client.on('guildMemberAdd', async (member) => {
         action: 'joined',
         timeStr: timeStr,
     });
-    console.log(`📥 ${member.user.tag} joined the server at ${timeStr}`);
+    console.log(`ðŸ“¥ ${member.user.tag} joined the server at ${timeStr}`);
 });
 
 client.on('guildMemberRemove', async (member) => {
@@ -1104,7 +1106,7 @@ client.on('guildMemberRemove', async (member) => {
         action: 'left',
         timeStr: timeStr,
     });
-    console.log(`📤 ${member.user.tag} left the server at ${timeStr}`);
+    console.log(`ðŸ“¤ ${member.user.tag} left the server at ${timeStr}`);
 });
 
 // ======================
@@ -1113,14 +1115,14 @@ client.on('guildMemberRemove', async (member) => {
 
 client.on('messageCreate', async (message) => {
     // Debug: log ALL incoming messages so we can see if DMs arrive
-    console.log(`📩 Message received - Author: ${message.author?.tag || 'unknown'} | Guild: ${message.guild?.name || 'DM'} | Content: ${message.content?.substring(0, 50) || '[empty]'} | Channel Type: ${message.channel.type}`);
+    console.log(`ðŸ“© Message received - Author: ${message.author?.tag || 'unknown'} | Guild: ${message.guild?.name || 'DM'} | Content: ${message.content?.substring(0, 50) || '[empty]'} | Channel Type: ${message.channel.type}`);
 
     // Handle partial messages (needed for DMs in discord.js v14)
     if (message.partial) {
         try {
             await message.fetch();
         } catch (error) {
-            console.error('❌ Could not fetch partial message:', error);
+            console.error('âŒ Could not fetch partial message:', error);
             return;
         }
     }
@@ -1134,7 +1136,7 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    // Music text commands — check FIRST before any filters
+    // Music text commands â€” check FIRST before any filters
     if (message.channel.id === MUSIC_CHANNEL_ID && message.content.startsWith('!')) {
         const args = message.content.slice(1).trim().split(/ +/);
         const command = args[0].toLowerCase();
@@ -1156,7 +1158,7 @@ client.on('messageCreate', async (message) => {
             if (isDoxWord(bannedWordResult)) {
                 await message.delete().catch(() => {});
                 await message.channel.send({
-                    content: `${message.author} knock it off. **${bannedWordResult}** is filtered here. Your message was removed — you are not being jailed for using the word.`,
+                    content: `${message.author} knock it off. **${bannedWordResult}** is filtered here. Your message was removed â€” you are not being jailed for using the word.`,
                     allowedMentions: { users: [message.author.id] },
                 }).catch(() => null);
                 addAuditLog('Dox Word Removed', message.author, `Word: "${bannedWordResult}" | No offense recorded and no jail applied`, 'warning');
@@ -1203,7 +1205,7 @@ client.on('messageCreate', async (message) => {
 
             const embed = new Discord.EmbedBuilder()
                 .setColor('#00FF00')
-                .setTitle('🎉 Correct Answer!')
+                .setTitle('ðŸŽ‰ Correct Answer!')
                 .setDescription(`${message.author} got it right!\n\n**Answer:** ${currentTrivia.answer}\n**Points:** +100 (Total: ${currentScore + 100})`)
                 .setTimestamp();
 
@@ -1217,9 +1219,9 @@ client.on('messageCreate', async (message) => {
     // Check if user is staff
     const isStaff = message.member.roles.cache.some(role => CONFIG.STAFF_ROLE_IDS.includes(role.id));
 
-    // Address detection for non-staff only (API-based)
+    // Address detection for non-staff only (Google-verified)
     if (!isStaff && !isStaffForFilter) {
-        checkAddressAPI(message);
+        if (await checkAddressAPI(message)) return;
     }
 
     // Commands (work in server channels)
@@ -1269,7 +1271,7 @@ async function enforcePatrolRules(message) {
                 await message.delete();
 
                 const warningMsg = await message.channel.send(
-                    `${message.author} ⚠️ **Cooldown Active!**\n\n` +
+                    `${message.author} âš ï¸ **Cooldown Active!**\n\n` +
                     `You can only post once every **16 hours** in this channel.\n` +
                     `Time remaining: **${hoursRemaining}h ${minutesRemaining}m**\n\n` +
                     `*Your message has been removed.*`
@@ -1320,7 +1322,7 @@ async function enforcePatrolRules(message) {
                 await message.delete();
 
                 const warningMsg = await message.channel.send(
-                    `${message.author} ⚠️ **Invalid Link!**\n\n` +
+                    `${message.author} âš ï¸ **Invalid Link!**\n\n` +
                     `Only **YouTube**, **Twitch**, and **Kick.com** links are allowed in this channel.\n\n` +
                     `*Your message has been removed.*`
                 );
@@ -1379,7 +1381,7 @@ async function handleBannedWord(message, triggeredWord) {
     try {
         // Delete the message
         await message.delete();
-        console.log(`🚫 Banned word "${triggeredWord}" detected from ${message.author.tag}`);
+        console.log(`ðŸš« Banned word "${triggeredWord}" detected from ${message.author.tag}`);
 
         // Track offenses
         const currentOffenses = (offenseTracker.get(userId) || 0) + 1;
@@ -1406,9 +1408,9 @@ async function handleBannedWord(message, triggeredWord) {
         // Assign jail role
         try {
             await targetMember.roles.add(JAIL_ROLE_ID);
-            console.log(`✅ Jail role added to ${message.author.tag} (auto-jail)`);
+            console.log(`âœ… Jail role added to ${message.author.tag} (auto-jail)`);
         } catch (err) {
-            console.error('❌ Error adding jail role:', err);
+            console.error('âŒ Error adding jail role:', err);
         }
 
         for (const categoryId of JAIL_CATEGORY_IDS) {
@@ -1427,7 +1429,7 @@ async function handleBannedWord(message, triggeredWord) {
                     });
                 }
             } catch (err) {
-                console.error(`❌ Error jailing from category ${categoryId}:`, err);
+                console.error(`âŒ Error jailing from category ${categoryId}:`, err);
             }
         }
 
@@ -1451,7 +1453,7 @@ async function handleBannedWord(message, triggeredWord) {
 
             const embed = new Discord.EmbedBuilder()
                 .setColor('#FF0000')
-                .setTitle('🚫 Auto-Jailed: Banned Word')
+                .setTitle('ðŸš« Auto-Jailed: Banned Word')
                 .setThumbnail(message.author.displayAvatarURL())
                 .addFields(
                     { name: 'User', value: `${message.author.tag} (${userId})`, inline: true },
@@ -1465,10 +1467,10 @@ async function handleBannedWord(message, triggeredWord) {
                 .setTimestamp();
 
             await jailChannel.send({ content: staffMentions(userId), embeds: [embed] });
-            console.log(`✅ Jail channel created: #${jailChannel.name}`);
+            console.log(`âœ… Jail channel created: #${jailChannel.name}`);
 
         } catch (err) {
-            console.error('❌ Error creating auto-jail channel:', err);
+            console.error('âŒ Error creating auto-jail channel:', err);
         }
 
         // If timed jail, schedule unjail
@@ -1490,9 +1492,9 @@ async function handleBannedWord(message, triggeredWord) {
                     try {
                         const member = await guild.members.fetch(userId);
                         await member.roles.remove(JAIL_ROLE_ID);
-                        console.log(`✅ Jail role removed from ${message.author.tag} (auto-unjail)`);
+                        console.log(`âœ… Jail role removed from ${message.author.tag} (auto-unjail)`);
                     } catch (roleErr) {
-                        console.error('❌ Error removing jail role on auto-unjail:', roleErr);
+                        console.error('âŒ Error removing jail role on auto-unjail:', roleErr);
                     }
 
                     // Archive jail channel
@@ -1510,7 +1512,7 @@ async function handleBannedWord(message, triggeredWord) {
                                     const att = new Discord.AttachmentBuilder(buf, { name: `${jailChan.name}-transcript.txt` });
                                     const logEmbed = new Discord.EmbedBuilder()
                                         .setColor('#00FF00')
-                                        .setTitle(`🔓 Auto-Unjailed: ${message.author.tag}`)
+                                        .setTitle(`ðŸ”“ Auto-Unjailed: ${message.author.tag}`)
                                         .addFields(
                                             { name: 'User', value: `${message.author.tag} (${userId})`, inline: true },
                                             { name: 'Duration', value: jailLabel, inline: true },
@@ -1520,19 +1522,19 @@ async function handleBannedWord(message, triggeredWord) {
                                     await logChannel.send({ embeds: [logEmbed], files: [att] });
                                 }
 
-                                await jailChan.send('🔓 Auto-unjail complete. This channel will be deleted in 5 seconds...');
+                                await jailChan.send('ðŸ”“ Auto-unjail complete. This channel will be deleted in 5 seconds...');
                                 setTimeout(() => jailChan.delete().catch(() => {}), 5000);
                             }
                         } catch (e) {
-                            console.error('❌ Error archiving auto-jail channel:', e);
+                            console.error('âŒ Error archiving auto-jail channel:', e);
                         }
                         jailChannels.delete(userId);
                     }
 
-                    console.log(`✅ Auto-unjailed ${message.author.tag} after ${jailLabel}`);
+                    console.log(`âœ… Auto-unjailed ${message.author.tag} after ${jailLabel}`);
                     addAuditLog('Auto-Unjailed', { tag: message.author.tag, id: userId }, `Auto-unjailed after ${jailLabel}`, 'success');
                 } catch (err) {
-                    console.error('❌ Error auto-unjailing:', err);
+                    console.error('âŒ Error auto-unjailing:', err);
                 }
             }, jailDuration);
         }
@@ -1540,17 +1542,13 @@ async function handleBannedWord(message, triggeredWord) {
         addAuditLog('Banned Word Jail', { tag: message.author.tag, id: userId }, `Word: "${triggeredWord}" | Offense #${currentOffenses} | Duration: ${jailLabel}`, 'warning');
 
     } catch (error) {
-        console.error('❌ Error handling banned word:', error);
+        console.error('âŒ Error handling banned word:', error);
     }
 }
 
 // ======================
-// ADDRESS DETECTION (Positionstack API)
+// ADDRESS DETECTION (Google Maps Geocoding API)
 // ======================
-
-const http_address = require('http'); // Positionstack free tier uses HTTP
-
-const POSITIONSTACK_KEY = CONFIG.POSITIONSTACK_API_KEY;
 
 // Pre-filter: could this message contain an address?
 function mightContainAddress(text) {
@@ -1610,91 +1608,29 @@ function extractAddressCandidates(text) {
     return [...new Set(candidates)].slice(0, 5); // Max 5 candidates
 }
 
-// Verify with Positionstack API
-function verifyAddressWithAPI(text) {
-    return new Promise((resolve) => {
-        try {
-            if (!POSITIONSTACK_KEY) {
-                resolve({ verified: false, reason: 'Positionstack API key not configured' });
-                return;
-            }
-            const encoded = encodeURIComponent(text);
-            const url = `http://api.positionstack.com/v1/forward?access_key=${POSITIONSTACK_KEY}&query=${encoded}&limit=1`;
-
-            http_address.get(url, (res) => {
-                let data = '';
-                res.on('data', chunk => data += chunk);
-                res.on('end', () => {
-                    try {
-                        const result = JSON.parse(data);
-
-                        if (result.data && result.data.length > 0) {
-                            const match = result.data[0];
-
-                            // Only flag if it has BOTH a house number AND a street name
-                            // This prevents "8 Straight Drive" (no house number) false positives
-                            const hasStreet = match.street;
-                            const hasNumber = match.number;
-                            const hasLocality = match.locality || match.county;
-                            const confidence = match.confidence || 0;
-
-                            console.log(`🔍 Positionstack result: ${match.label} | confidence: ${confidence} | street: ${match.street} | number: ${match.number} | locality: ${match.locality} | type: ${match.type}`);
-
-                            // Require: street + number + city/locality + high confidence
-                            if (hasStreet && hasNumber && hasLocality && confidence >= 0.8) {
-                                resolve({
-                                    verified: true,
-                                    displayName: match.label || `${match.number || ''} ${match.street || ''}, ${match.locality || ''}, ${match.region || ''}`,
-                                    type: match.type,
-                                    confidence: confidence,
-                                    street: match.street,
-                                    number: match.number,
-                                    city: match.locality || match.county,
-                                    state: match.region,
-                                    zip: match.postal_code,
-                                    country: match.country,
-                                });
-                                return;
-                            }
-                        }
-                        resolve(null);
-                    } catch (e) {
-                        console.error('❌ Positionstack parse error:', e.message);
-                        resolve(null);
-                    }
-                });
-            }).on('error', (e) => {
-                console.error('❌ Positionstack API error:', e.message);
-                resolve(null);
-            });
-        } catch (error) {
-            console.error('❌ Error calling Positionstack:', error);
-            resolve(null);
-        }
-    });
-}
-
 // Main address check function
 async function checkAddressAPI(message) {
     try {
-        if (!mightContainAddress(message.content)) return;
+        if (!mightContainAddress(message.content)) return false;
 
         const candidates = extractAddressCandidates(message.content);
-        if (candidates.length === 0) return;
+        if (candidates.length === 0) return false;
 
-        console.log(`🔍 Checking ${candidates.length} potential address(es) from ${message.author.tag}: "${message.content.substring(0, 60)}"`);
+        console.log(`Checking ${candidates.length} potential address candidate(s) from ${message.author.tag}`);
 
         for (const candidate of candidates) {
-            const result = await verifyAddressWithAPI(candidate);
+            const result = await verifyAddressWithGoogle(candidate, CONFIG.GOOGLE_MAPS_API_KEY);
 
             if (result && result.verified) {
-                console.log(`🚨 VERIFIED ADDRESS from ${message.author.tag}: ${result.displayName}`);
+                console.log(`Verified precise street address from ${message.author.tag} via Google Maps`);
                 await handleAddressDetection(message, candidate, result);
-                return;
+                return true;
             }
         }
+        return false;
     } catch (error) {
-        console.error('❌ Error in address check:', error);
+        console.error('Error in Google address check:', error);
+        return false;
     }
 }
 
@@ -1705,7 +1641,7 @@ async function handleAddressDetection(message, addressText, apiResult) {
 
         // Delete the message immediately
         await message.delete();
-        console.log('✅ Address message deleted');
+        console.log('âœ… Address message deleted');
 
         // Jail the user
         try {
@@ -1748,7 +1684,7 @@ async function handleAddressDetection(message, addressText, apiResult) {
 
             const embed = new Discord.EmbedBuilder()
                 .setColor('#FF0000')
-                .setTitle('🚨 Address Posted — User Jailed')
+                .setTitle('ðŸš¨ Address Posted â€” User Jailed')
                 .setThumbnail(message.author.displayAvatarURL())
                 .addFields(
                     { name: 'User', value: `${message.author.tag} (${userId})`, inline: true },
@@ -1756,23 +1692,23 @@ async function handleAddressDetection(message, addressText, apiResult) {
                     { name: 'Verified Address', value: `||${apiResult.displayName}||` },
                     { name: 'Confidence', value: `${Math.round(apiResult.confidence * 100)}%`, inline: true },
                     { name: 'Original Text', value: `||${addressText.substring(0, 200)}||` },
-                    { name: 'Status', value: '🔒 Permanently jailed — use /unjail to release', inline: true }
+                    { name: 'Status', value: 'ðŸ”’ Permanently jailed â€” use /unjail to release', inline: true }
                 )
-                .setFooter({ text: 'Address verified via Positionstack API' })
+                .setFooter({ text: `Address verified via ${apiResult.provider || 'Google Maps Geocoding API'}` })
                 .setTimestamp();
 
             await jailChannel.send({ content: staffMentions(userId), embeds: [embed] });
 
-            console.log(`✅ User ${message.author.tag} jailed for posting address`);
+            console.log(`âœ… User ${message.author.tag} jailed for posting address`);
 
         } catch (jailError) {
-            console.error('❌ Error jailing address poster:', jailError);
+            console.error('âŒ Error jailing address poster:', jailError);
         }
 
         addAuditLog('Address Detected', message.author, `Verified address: ${apiResult.displayName.substring(0, 80)} - User jailed`, 'error');
 
     } catch (error) {
-        console.error('❌ Error handling address detection:', error);
+        console.error('âŒ Error handling address detection:', error);
     }
 }
 
@@ -1788,16 +1724,16 @@ async function handleDMReport(message) {
 
     try {
         if (!state) {
-            await message.reply('👤 **Who are you reporting?** (Username or @mention)');
+            await message.reply('ðŸ‘¤ **Who are you reporting?** (Username or @mention)');
             dmReportStates.set(userId, { step: 'who' });
-            console.log(`📝 DM Report started by ${message.author.tag}`);
+            console.log(`ðŸ“ DM Report started by ${message.author.tag}`);
             return;
         }
 
         if (state.step === 'who') {
             state.who = message.content;
             state.step = 'reason';
-            await message.reply('📄 **Why are you reporting them?** (Describe what happened)');
+            await message.reply('ðŸ“„ **Why are you reporting them?** (Describe what happened)');
             return;
         }
 
@@ -1808,10 +1744,10 @@ async function handleDMReport(message) {
             return;
         }
     } catch (error) {
-        console.error('❌ Error in DM report system:', error);
+        console.error('âŒ Error in DM report system:', error);
         dmReportStates.delete(userId);
         try {
-            await message.reply('❌ Something went wrong. Please try again or use `/report` in the server.');
+            await message.reply('âŒ Something went wrong. Please try again or use `/report` in the server.');
         } catch (e) {}
     }
 }
@@ -1819,7 +1755,7 @@ async function handleDMReport(message) {
 async function createDMReport(user, state) {
     const guild = client.guilds.cache.first();
     if (!guild) {
-        await user.send('❌ Error creating report. Bot is not connected to a server.');
+        await user.send('âŒ Error creating report. Bot is not connected to a server.');
         return;
     }
 
@@ -1840,13 +1776,13 @@ async function createDMReport(user, state) {
 
         const embed = new Discord.EmbedBuilder()
             .setColor('#FF0000')
-            .setTitle('🚨 New User Report (via DM)')
+            .setTitle('ðŸš¨ New User Report (via DM)')
             .setThumbnail(user.displayAvatarURL())
             .addFields(
                 { name: 'Reported By', value: `${user.tag} (${user.id})`, inline: true },
                 { name: 'Reporting', value: state.who, inline: true },
                 { name: 'Reason', value: state.reason },
-                { name: 'Status', value: '🔍 Awaiting mod review', inline: true }
+                { name: 'Status', value: 'ðŸ” Awaiting mod review', inline: true }
             )
             .setFooter({ text: 'Use !close or /close to archive this report' })
             .setTimestamp();
@@ -1855,12 +1791,12 @@ async function createDMReport(user, state) {
 
         addAuditLog('DM Report Created', { tag: user.tag, id: user.id }, `Report #${ticketNumber} against ${state.who}`, 'warning');
 
-        await user.send(`✅ Your report has been created! Head to <#${channel.id}> to chat with the mods.`);
+        await user.send(`âœ… Your report has been created! Head to <#${channel.id}> to chat with the mods.`);
 
     } catch (error) {
-        console.error('❌ Error creating DM report:', error);
+        console.error('âŒ Error creating DM report:', error);
         try {
-            await user.send('❌ Error creating the report. Please try `/report` in the server.');
+            await user.send('âŒ Error creating the report. Please try `/report` in the server.');
         } catch (e) {}
     }
 }
@@ -1894,15 +1830,15 @@ client.on('interactionCreate', async (interaction) => {
             await handleMusicCommand(interaction);
         }
     } catch (error) {
-        console.error('❌ Error in slash command:', error);
+        console.error('âŒ Error in slash command:', error);
         try {
             if (interaction.deferred) {
-                await interaction.editReply({ content: '❌ Something went wrong. Please try again.' });
+                await interaction.editReply({ content: 'âŒ Something went wrong. Please try again.' });
             } else {
-                await interaction.reply({ content: '❌ Something went wrong. Please try again.', ephemeral: true });
+                await interaction.reply({ content: 'âŒ Something went wrong. Please try again.', ephemeral: true });
             }
         } catch (e) {
-            console.error('❌ Could not send error reply:', e);
+            console.error('âŒ Could not send error reply:', e);
         }
     }
 });
@@ -1912,7 +1848,7 @@ client.on('interactionCreate', async (interaction) => {
 // ======================
 
 async function handleReportCommand(interaction) {
-    console.log(`📝 /report interaction received from ${interaction.user?.tag}`);
+    console.log(`ðŸ“ /report interaction received from ${interaction.user?.tag}`);
 
     await interaction.deferReply({ ephemeral: true });
 
@@ -1921,7 +1857,7 @@ async function handleReportCommand(interaction) {
     const reporter = interaction.user;
     const guild = interaction.guild;
 
-    console.log(`📝 /report - Reporting: ${reportedUser} - Reason: ${reason}`);
+    console.log(`ðŸ“ /report - Reporting: ${reportedUser} - Reason: ${reason}`);
     console.log(`   Staff Role IDs: ${CONFIG.STAFF_ROLE_IDS.join(', ') || 'NONE'}`);
 
     const ticketNumber = Math.floor(Math.random() * 9999);
@@ -1947,17 +1883,17 @@ async function handleReportCommand(interaction) {
         permissionOverwrites,
     });
 
-    console.log(`✅ Report channel created: #${channel.name}`);
+    console.log(`âœ… Report channel created: #${channel.name}`);
 
     const embed = new Discord.EmbedBuilder()
         .setColor('#FF0000')
-        .setTitle('🚨 New User Report')
+        .setTitle('ðŸš¨ New User Report')
         .setThumbnail(reporter.displayAvatarURL())
         .addFields(
             { name: 'Reported By', value: `${reporter.tag} (${reporter.id})`, inline: true },
             { name: 'Reporting', value: reportedUser, inline: true },
             { name: 'Reason', value: reason },
-            { name: 'Status', value: '🔍 Awaiting mod review', inline: true }
+            { name: 'Status', value: 'ðŸ” Awaiting mod review', inline: true }
         )
         .setFooter({ text: 'Use !close to archive this report' })
         .setTimestamp();
@@ -1967,7 +1903,7 @@ async function handleReportCommand(interaction) {
 
     addAuditLog('Report Created', { tag: reporter.tag, id: reporter.id }, `Report #${ticketNumber} against ${reportedUser}`, 'warning');
 
-    await interaction.editReply({ content: `✅ Your report has been created! Head to <#${channel.id}> to chat with the mods.` });
+    await interaction.editReply({ content: `âœ… Your report has been created! Head to <#${channel.id}> to chat with the mods.` });
 }
 
 // ======================
@@ -1987,7 +1923,7 @@ async function handleJailCommand(interaction) {
     ) || interaction.member.permissions.has(Discord.PermissionFlagsBits.Administrator);
 
     if (!isStaff) {
-        await interaction.reply({ content: '❌ You do not have permission to use this command.', ephemeral: true });
+        await interaction.reply({ content: 'âŒ You do not have permission to use this command.', ephemeral: true });
         return;
     }
 
@@ -2011,12 +1947,12 @@ async function handleJailCommand(interaction) {
     };
     const duration = DURATION_MAP[durationChoice] || DURATION_MAP['perm'];
 
-    console.log(`🔒 /jail used by ${interaction.user.tag} on ${targetUser.tag} - Duration: ${duration.label}`);
+    console.log(`ðŸ”’ /jail used by ${interaction.user.tag} on ${targetUser.tag} - Duration: ${duration.label}`);
 
     const jailParent = await guild.channels.fetch(JAIL_CATEGORY_ID).catch(() => null);
     if (!jailParent || jailParent.type !== Discord.ChannelType.GuildCategory) {
         await interaction.editReply({
-            content: `❌ Jail category <#${JAIL_CATEGORY_ID}> does not exist in this server or is not a category. Update Protection → Jail room category ID, save, and restart the bot.`,
+            content: `âŒ Jail category <#${JAIL_CATEGORY_ID}> does not exist in this server or is not a category. Update Protection â†’ Jail room category ID, save, and restart the bot.`,
         });
         return;
     }
@@ -2024,9 +1960,9 @@ async function handleJailCommand(interaction) {
     // Assign jail role
     try {
         await targetMember.roles.add(JAIL_ROLE_ID);
-        console.log(`✅ Jail role added to ${targetUser.tag}`);
+        console.log(`âœ… Jail role added to ${targetUser.tag}`);
     } catch (err) {
-        console.error('❌ Error adding jail role:', err);
+        console.error('âŒ Error adding jail role:', err);
     }
 
     // Deny view on text & voice categories
@@ -2048,7 +1984,7 @@ async function handleJailCommand(interaction) {
             }
             categoriesUpdated++;
         } catch (error) {
-            console.error(`❌ Error jailing from category ${categoryId}:`, error);
+            console.error(`âŒ Error jailing from category ${categoryId}:`, error);
         }
     }
 
@@ -2074,23 +2010,23 @@ async function handleJailCommand(interaction) {
 
         const embed = new Discord.EmbedBuilder()
             .setColor('#FF0000')
-            .setTitle('🔒 You Have Been Jailed')
+            .setTitle('ðŸ”’ You Have Been Jailed')
             .setThumbnail(targetUser.displayAvatarURL())
             .addFields(
                 { name: 'User', value: `${targetUser.tag} (${targetUser.id})`, inline: true },
                 { name: 'Jailed By', value: `${interaction.user.tag}`, inline: true },
                 { name: 'Reason', value: reason },
                 { name: 'Duration', value: duration.label, inline: true },
-                { name: 'Status', value: duration.ms ? '⏱️ Timed jail' : '🔒 Permanent — use /unjail to release', inline: true }
+                { name: 'Status', value: duration.ms ? 'â±ï¸ Timed jail' : 'ðŸ”’ Permanent â€” use /unjail to release', inline: true }
             )
             .setFooter({ text: duration.ms ? 'Will auto-unjail when time expires' : 'Staff can use /unjail to restore access' })
             .setTimestamp();
 
         await jailChannel.send({ content: staffMentions(targetUser.id), embeds: [embed] });
 
-        console.log(`✅ Jail channel created: #${jailChannel.name}`);
+        console.log(`âœ… Jail channel created: #${jailChannel.name}`);
 
-        await interaction.editReply({ content: `✅ ${targetUser.tag} has been jailed for ${duration.label}. Jail channel: <#${jailChannel.id}>` });
+        await interaction.editReply({ content: `âœ… ${targetUser.tag} has been jailed for ${duration.label}. Jail channel: <#${jailChannel.id}>` });
 
         // Auto-unjail timer for timed jails
         if (duration.ms) {
@@ -2130,7 +2066,7 @@ async function handleJailCommand(interaction) {
                                     const att = new Discord.AttachmentBuilder(buf, { name: `${jChan.name}-transcript.txt` });
                                     const logEmbed = new Discord.EmbedBuilder()
                                         .setColor('#00FF00')
-                                        .setTitle(`🔓 Auto-Unjailed: ${targetUser.tag}`)
+                                        .setTitle(`ðŸ”“ Auto-Unjailed: ${targetUser.tag}`)
                                         .addFields(
                                             { name: 'User', value: `${targetUser.tag} (${targetUser.id})`, inline: true },
                                             { name: 'Duration', value: duration.label, inline: true },
@@ -2140,26 +2076,26 @@ async function handleJailCommand(interaction) {
                                     await logCh.send({ embeds: [logEmbed], files: [att] });
                                 }
 
-                                await jChan.send('🔓 Jail time expired. This channel will be deleted in 5 seconds...');
+                                await jChan.send('ðŸ”“ Jail time expired. This channel will be deleted in 5 seconds...');
                                 setTimeout(() => jChan.delete().catch(() => {}), 5000);
                             }
                         } catch (e) {
-                            console.error('❌ Error archiving auto-unjail channel:', e);
+                            console.error('âŒ Error archiving auto-unjail channel:', e);
                         }
                         jailChannels.delete(targetUser.id);
                     }
 
-                    console.log(`✅ Auto-unjailed ${targetUser.tag} after ${duration.label}`);
+                    console.log(`âœ… Auto-unjailed ${targetUser.tag} after ${duration.label}`);
                     addAuditLog('Auto-Unjailed', { tag: targetUser.tag, id: targetUser.id }, `Auto-unjailed after ${duration.label}`, 'success');
                 } catch (err) {
-                    console.error('❌ Error in auto-unjail timer:', err);
+                    console.error('âŒ Error in auto-unjail timer:', err);
                 }
             }, duration.ms);
         }
 
     } catch (error) {
-        console.error('❌ Error creating jail channel:', error);
-        await interaction.editReply({ content: `✅ ${targetUser.tag} has been jailed (but could not create jail channel: ${error.message})` });
+        console.error('âŒ Error creating jail channel:', error);
+        await interaction.editReply({ content: `âœ… ${targetUser.tag} has been jailed (but could not create jail channel: ${error.message})` });
     }
 
     addAuditLog('User Jailed', interaction.user, `Jailed ${targetUser.tag} - Reason: ${reason}`, 'warning');
@@ -2175,7 +2111,7 @@ async function handleUnjailCommand(interaction) {
     ) || interaction.member.permissions.has(Discord.PermissionFlagsBits.Administrator);
 
     if (!isStaff) {
-        await interaction.reply({ content: '❌ You do not have permission to use this command.', ephemeral: true });
+        await interaction.reply({ content: 'âŒ You do not have permission to use this command.', ephemeral: true });
         return;
     }
 
@@ -2184,15 +2120,15 @@ async function handleUnjailCommand(interaction) {
     const targetUser = interaction.options.getUser('user');
     const guild = interaction.guild;
 
-    console.log(`🔓 /unjail used by ${interaction.user.tag} on ${targetUser.tag}`);
+    console.log(`ðŸ”“ /unjail used by ${interaction.user.tag} on ${targetUser.tag}`);
 
     // Remove jail role
     try {
         const targetMember = await guild.members.fetch(targetUser.id);
         await targetMember.roles.remove(JAIL_ROLE_ID);
-        console.log(`✅ Jail role removed from ${targetUser.tag}`);
+        console.log(`âœ… Jail role removed from ${targetUser.tag}`);
     } catch (err) {
-        console.error('❌ Error removing jail role:', err);
+        console.error('âŒ Error removing jail role:', err);
     }
 
     // Restore categories
@@ -2206,7 +2142,7 @@ async function handleUnjailCommand(interaction) {
                 await child.permissionOverwrites.delete(targetUser.id).catch(() => {});
             }
         } catch (error) {
-            console.error(`❌ Error unjailing from category ${categoryId}:`, error);
+            console.error(`âŒ Error unjailing from category ${categoryId}:`, error);
         }
     }
 
@@ -2218,7 +2154,7 @@ async function handleUnjailCommand(interaction) {
         try {
             jailChannel = await guild.channels.fetch(jailChannelId);
         } catch (e) {
-            console.warn('⚠️ Could not fetch tracked jail channel, searching by name...');
+            console.warn('âš ï¸ Could not fetch tracked jail channel, searching by name...');
         }
     }
 
@@ -2234,12 +2170,12 @@ async function handleUnjailCommand(interaction) {
         try {
             // Create rich transcript including embeds
             const messages = await jailChannel.messages.fetch({ limit: 100 });
-            const transcriptLines = ['═══════════════════════════════════════════════',
+            const transcriptLines = ['â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•',
                 `JAIL TRANSCRIPT: ${jailChannel.name}`,
                 `User: ${targetUser.tag} (${targetUser.id})`,
                 `Unjailed By: ${interaction.user.tag}`,
                 `Date: ${new Date().toLocaleString()}`,
-                '═══════════════════════════════════════════════', ''];
+                'â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•', ''];
 
             messages.reverse().forEach(msg => {
                 transcriptLines.push(`[${msg.createdAt.toISOString()}] ${msg.author.tag}: ${msg.content}`);
@@ -2267,7 +2203,7 @@ async function handleUnjailCommand(interaction) {
 
                 const logEmbed = new Discord.EmbedBuilder()
                     .setColor('#00FF00')
-                    .setTitle(`🔓 Unjailed: ${targetUser.tag}`)
+                    .setTitle(`ðŸ”“ Unjailed: ${targetUser.tag}`)
                     .addFields(
                         { name: 'User', value: `${targetUser.tag} (${targetUser.id})`, inline: true },
                         { name: 'Unjailed By', value: `${interaction.user.tag}`, inline: true },
@@ -2276,24 +2212,24 @@ async function handleUnjailCommand(interaction) {
                     .setTimestamp();
 
                 await logChannel.send({ embeds: [logEmbed], files: [attachment] });
-                console.log(`✅ Jail transcript sent to log channel for ${targetUser.tag}`);
+                console.log(`âœ… Jail transcript sent to log channel for ${targetUser.tag}`);
             }
 
             // Delete the jail channel
-            await jailChannel.send('🔓 User has been unjailed. This channel will be deleted in 5 seconds...');
+            await jailChannel.send('ðŸ”“ User has been unjailed. This channel will be deleted in 5 seconds...');
             setTimeout(async () => {
                 await jailChannel.delete().catch(err => console.error('Error deleting jail channel:', err));
             }, 5000);
 
         } catch (error) {
-            console.error('❌ Error archiving jail channel:', error);
+            console.error('âŒ Error archiving jail channel:', error);
         }
     }
 
     // Clean up tracking
     jailChannels.delete(targetUser.id);
 
-    await interaction.editReply({ content: `✅ ${targetUser.tag} has been unjailed. Transcript saved to <#${JAIL_LOG_CHANNEL_ID}>.` });
+    await interaction.editReply({ content: `âœ… ${targetUser.tag} has been unjailed. Transcript saved to <#${JAIL_LOG_CHANNEL_ID}>.` });
 
     addAuditLog('User Unjailed', interaction.user, `Unjailed ${targetUser.tag}`, 'success');
 }
@@ -2430,7 +2366,7 @@ async function handleCloseCommand(interaction) {
     ) || interaction.member.permissions.has(Discord.PermissionFlagsBits.Administrator);
 
     if (!isStaff) {
-        await interaction.reply({ content: '❌ You do not have permission to use this command.', ephemeral: true });
+        await interaction.reply({ content: 'âŒ You do not have permission to use this command.', ephemeral: true });
         return;
     }
 
@@ -2438,21 +2374,21 @@ async function handleCloseCommand(interaction) {
 
     // Check if this is a jail or report channel
     if (!channel.name.startsWith('jail-') && !channel.name.startsWith('report-')) {
-        await interaction.reply({ content: '❌ This command only works in jail or report channels.', ephemeral: true });
+        await interaction.reply({ content: 'âŒ This command only works in jail or report channels.', ephemeral: true });
         return;
     }
 
-    await interaction.reply({ content: '🗃️ Archiving and closing this channel...' });
+    await interaction.reply({ content: 'ðŸ—ƒï¸ Archiving and closing this channel...' });
 
     try {
         // Create rich transcript including embeds
         const messages = await channel.messages.fetch({ limit: 100 });
-        const transcriptLines = ['═══════════════════════════════════════════════',
+        const transcriptLines = ['â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•',
             `CHANNEL TRANSCRIPT: ${channel.name}`,
             `Closed By: ${interaction.user.tag}`,
             `Type: ${channel.name.startsWith('jail-') ? 'Jail Channel' : 'Report Channel'}`,
             `Date: ${new Date().toLocaleString()}`,
-            '═══════════════════════════════════════════════', ''];
+            'â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•', ''];
 
         messages.reverse().forEach(msg => {
             transcriptLines.push(`[${msg.createdAt.toISOString()}] ${msg.author.tag}: ${msg.content}`);
@@ -2480,7 +2416,7 @@ async function handleCloseCommand(interaction) {
 
             const logEmbed = new Discord.EmbedBuilder()
                 .setColor('#FFA500')
-                .setTitle(`🗃️ Channel Closed: ${channel.name}`)
+                .setTitle(`ðŸ—ƒï¸ Channel Closed: ${channel.name}`)
                 .addFields(
                     { name: 'Closed By', value: `${interaction.user.tag}`, inline: true },
                     { name: 'Type', value: channel.name.startsWith('jail-') ? 'Jail Channel' : 'Report Channel', inline: true },
@@ -2493,13 +2429,13 @@ async function handleCloseCommand(interaction) {
 
         addAuditLog('Channel Closed', interaction.user, `Closed ${channel.name}`, 'info');
 
-        await channel.send('🗃️ This channel will be deleted in 5 seconds...');
+        await channel.send('ðŸ—ƒï¸ This channel will be deleted in 5 seconds...');
         setTimeout(async () => {
             await channel.delete().catch(err => console.error('Error deleting channel:', err));
         }, 5000);
 
     } catch (error) {
-        console.error('❌ Error closing channel:', error);
+        console.error('âŒ Error closing channel:', error);
     }
 }
 
@@ -2521,15 +2457,15 @@ function buildQueueEmbed() {
     let description = '';
 
     if (currentSong) {
-        description += `🎶 **Now Playing:** ${currentSong.title} (${currentSong.duration || '?'}) — *${currentSong.requestedBy}*\n\n`;
+        description += `ðŸŽ¶ **Now Playing:** ${currentSong.title} (${currentSong.duration || '?'}) â€” *${currentSong.requestedBy}*\n\n`;
     } else {
-        description += '🔇 **Nothing playing**\n\n';
+        description += 'ðŸ”‡ **Nothing playing**\n\n';
     }
 
     if (musicQueue.length > 0) {
         description += '**Up Next:**\n';
         musicQueue.slice(0, 15).forEach((song, i) => {
-            description += `\`${i + 1}.\` ${song.title} (${song.duration || '?'}) — *${song.requestedBy}*\n`;
+            description += `\`${i + 1}.\` ${song.title} (${song.duration || '?'}) â€” *${song.requestedBy}*\n`;
         });
         if (musicQueue.length > 15) {
             description += `\n...and ${musicQueue.length - 15} more`;
@@ -2540,7 +2476,7 @@ function buildQueueEmbed() {
 
     return new Discord.EmbedBuilder()
         .setColor('#5865F2')
-        .setTitle('🎵 Music Queue')
+        .setTitle('ðŸŽµ Music Queue')
         .setDescription(description)
         .setFooter({ text: `${musicQueue.length} song(s) in queue | Max song length: 8 min` })
         .setTimestamp();
@@ -2571,7 +2507,7 @@ async function updateQueueMessage() {
         queueMessage = await musicChannel.send({ embeds: [embed] });
 
     } catch (error) {
-        console.error('❌ Error updating queue message:', error);
+        console.error('âŒ Error updating queue message:', error);
     }
 }
 
@@ -2580,12 +2516,12 @@ async function handleMusicCommand(interaction) {
 
     // Only allow music commands in the music channel
     if (interaction.channelId !== MUSIC_CHANNEL_ID) {
-        await interaction.reply({ content: `❌ Music commands only work in <#${MUSIC_CHANNEL_ID}>`, ephemeral: true });
+        await interaction.reply({ content: `âŒ Music commands only work in <#${MUSIC_CHANNEL_ID}>`, ephemeral: true });
         return;
     }
 
     if (!voice || !playDl || !ytdl) {
-        await interaction.reply({ content: '❌ Music dependencies not installed. Ask the bot admin to install them.', ephemeral: true });
+        await interaction.reply({ content: 'âŒ Music dependencies not installed. Ask the bot admin to install them.', ephemeral: true });
         return;
     }
 
@@ -2612,7 +2548,7 @@ async function musicJoin(interaction) {
     try {
         const voiceChannel = await guild.channels.fetch(MUSIC_VOICE_CHANNEL_ID);
         if (!voiceChannel) {
-            await interaction.reply({ content: '❌ Music voice channel not found.', ephemeral: true });
+            await interaction.reply({ content: 'âŒ Music voice channel not found.', ephemeral: true });
             return;
         }
 
@@ -2639,19 +2575,19 @@ async function musicJoin(interaction) {
         });
 
         audioPlayer.on('error', (error) => {
-            console.error('❌ Audio player error:', error);
+            console.error('âŒ Audio player error:', error);
             currentSong = null;
             if (musicQueue.length > 0) {
                 playNextSong(guild);
             }
         });
 
-        await interaction.reply({ content: `✅ Joined <#${MUSIC_VOICE_CHANNEL_ID}>! Use \`/play <url>\` to queue a song.` });
+        await interaction.reply({ content: `âœ… Joined <#${MUSIC_VOICE_CHANNEL_ID}>! Use \`/play <url>\` to queue a song.` });
         addAuditLog('Music Join', interaction.user, `Bot joined voice channel`, 'info');
 
     } catch (error) {
-        console.error('❌ Error joining voice:', error);
-        await interaction.reply({ content: '❌ Error joining voice channel: ' + error.message, ephemeral: true });
+        console.error('âŒ Error joining voice:', error);
+        await interaction.reply({ content: 'âŒ Error joining voice channel: ' + error.message, ephemeral: true });
     }
 }
 
@@ -2662,23 +2598,23 @@ async function musicLeave(interaction) {
         audioPlayer = null;
         currentSong = null;
         musicQueue.length = 0;
-        await interaction.reply({ content: '👋 Left the voice channel. Queue cleared.' });
+        await interaction.reply({ content: 'ðŸ‘‹ Left the voice channel. Queue cleared.' });
         addAuditLog('Music Leave', interaction.user, 'Bot left voice channel', 'info');
     } else {
-        await interaction.reply({ content: '❌ Bot is not in a voice channel.', ephemeral: true });
+        await interaction.reply({ content: 'âŒ Bot is not in a voice channel.', ephemeral: true });
     }
 }
 
 async function musicPlay(interaction) {
     if (!musicConnection) {
-        await interaction.reply({ content: '❌ Bot is not in a voice channel. Use `/join` first.', ephemeral: true });
+        await interaction.reply({ content: 'âŒ Bot is not in a voice channel. Use `/join` first.', ephemeral: true });
         return;
     }
 
     // Check if user is in the same voice channel as the bot
     const memberVoice = interaction.member.voice;
     if (!memberVoice || !memberVoice.channelId || memberVoice.channelId !== MUSIC_VOICE_CHANNEL_ID) {
-        await interaction.reply({ content: `❌ You must be in <#${MUSIC_VOICE_CHANNEL_ID}> to request music.`, ephemeral: true });
+        await interaction.reply({ content: `âŒ You must be in <#${MUSIC_VOICE_CHANNEL_ID}> to request music.`, ephemeral: true });
         return;
     }
 
@@ -2703,20 +2639,20 @@ async function musicPlay(interaction) {
                 songInfo.title = info.video_details.title || 'Unknown';
                 songInfo.duration = info.video_details.durationRaw || 'Unknown';
             } catch (e) {
-                console.warn('⚠️ Could not fetch video info, using URL directly');
+                console.warn('âš ï¸ Could not fetch video info, using URL directly');
             }
         } else {
             // Search YouTube
             const results = await playDl.search(input, { limit: 1 });
             if (results.length === 0) {
-                await interaction.editReply({ content: '❌ No results found.' });
+                await interaction.editReply({ content: 'âŒ No results found.' });
                 return;
             }
 
             const result = results[0];
             // Log ALL properties to find the right URL field
-            console.log(`🔍 Search result keys: ${Object.keys(result).join(', ')}`);
-            console.log(`🔍 Search result: title="${result.title}" url="${result.url}" id="${result.id}" videoId="${result.videoId}"`);
+            console.log(`ðŸ” Search result keys: ${Object.keys(result).join(', ')}`);
+            console.log(`ðŸ” Search result: title="${result.title}" url="${result.url}" id="${result.id}" videoId="${result.videoId}"`);
 
             // Try every possible URL property
             let videoUrl = result.url;
@@ -2727,8 +2663,8 @@ async function musicPlay(interaction) {
             if (!videoUrl && result.shortUrl) videoUrl = result.shortUrl;
 
             if (!videoUrl) {
-                console.error('❌ Could not extract URL from search result:', JSON.stringify(result).substring(0, 500));
-                await interaction.editReply({ content: '❌ Could not get URL for this song. Try pasting a YouTube link instead.' });
+                console.error('âŒ Could not extract URL from search result:', JSON.stringify(result).substring(0, 500));
+                await interaction.editReply({ content: 'âŒ Could not get URL for this song. Try pasting a YouTube link instead.' });
                 return;
             }
 
@@ -2740,18 +2676,18 @@ async function musicPlay(interaction) {
             };
         }
 
-        console.log(`🎵 Queued: "${songInfo.title}" URL: ${songInfo.url}`);
+        console.log(`ðŸŽµ Queued: "${songInfo.title}" URL: ${songInfo.url}`);
 
         // Check max duration (8 minutes = 480 seconds)
         const durationSecs = parseDurationToSeconds(songInfo.duration);
         if (durationSecs > 480) {
-            await interaction.editReply({ content: `❌ **Song too long!** "${songInfo.title}" is ${songInfo.duration}. Max length is **8 minutes**.` });
+            await interaction.editReply({ content: `âŒ **Song too long!** "${songInfo.title}" is ${songInfo.duration}. Max length is **8 minutes**.` });
             return;
         }
 
         musicQueue.push(songInfo);
 
-        await interaction.editReply({ content: `✅ **Added:** ${songInfo.title} (${songInfo.duration || 'Unknown'}) — Position #${musicQueue.length}` });
+        await interaction.editReply({ content: `âœ… **Added:** ${songInfo.title} (${songInfo.duration || 'Unknown'}) â€” Position #${musicQueue.length}` });
 
         // Update the persistent queue message
         await updateQueueMessage();
@@ -2762,8 +2698,8 @@ async function musicPlay(interaction) {
         }
 
     } catch (error) {
-        console.error('❌ Error adding song:', error);
-        await interaction.editReply({ content: '❌ Error: ' + error.message });
+        console.error('âŒ Error adding song:', error);
+        await interaction.editReply({ content: 'âŒ Error: ' + error.message });
     }
 }
 
@@ -2773,17 +2709,17 @@ async function playNextSong(guild) {
     currentSong = musicQueue.shift();
 
     try {
-        console.log(`🎵 Attempting to play: "${currentSong.title}" URL: ${currentSong.url}`);
+        console.log(`ðŸŽµ Attempting to play: "${currentSong.title}" URL: ${currentSong.url}`);
 
         if (!currentSong.url || currentSong.url === 'undefined') {
-            console.error('❌ Invalid URL for song:', currentSong.title);
+            console.error('âŒ Invalid URL for song:', currentSong.title);
             currentSong = null;
             if (musicQueue.length > 0) playNextSong(guild);
             return;
         }
 
         if (!ytdl.validateURL(currentSong.url)) {
-            console.error('❌ ytdl rejected URL:', currentSong.url);
+            console.error('âŒ ytdl rejected URL:', currentSong.url);
             currentSong = null;
             if (musicQueue.length > 0) playNextSong(guild);
             return;
@@ -2799,7 +2735,7 @@ async function playNextSong(guild) {
         });
 
         ytStream.on('error', (streamError) => {
-            console.error('❌ YouTube stream error:', streamError);
+            console.error('âŒ YouTube stream error:', streamError);
         });
 
         const probed = await voice.demuxProbe(ytStream);
@@ -2812,10 +2748,10 @@ async function playNextSong(guild) {
         // Update the queue message to show now playing
         await updateQueueMessage();
 
-        console.log(`🎵 Now playing: ${currentSong.title}`);
+        console.log(`ðŸŽµ Now playing: ${currentSong.title}`);
 
     } catch (error) {
-        console.error('❌ Error playing song:', error);
+        console.error('âŒ Error playing song:', error);
         // Try next song
         if (musicQueue.length > 0) {
             playNextSong(guild);
@@ -2825,31 +2761,31 @@ async function playNextSong(guild) {
 
 async function musicSkip(interaction) {
     if (!audioPlayer || !currentSong) {
-        await interaction.reply({ content: '❌ Nothing is playing.', ephemeral: true });
+        await interaction.reply({ content: 'âŒ Nothing is playing.', ephemeral: true });
         return;
     }
 
     const skipped = currentSong.title;
     audioPlayer.stop(); // This triggers the Idle event which plays next song
-    await interaction.reply({ content: `⏭️ Skipped: **${skipped}**` });
+    await interaction.reply({ content: `â­ï¸ Skipped: **${skipped}**` });
 }
 
 async function musicShowQueue(interaction) {
     if (musicQueue.length === 0 && !currentSong) {
-        await interaction.reply({ content: '📭 Queue is empty. Use `/play` to add songs.', ephemeral: true });
+        await interaction.reply({ content: 'ðŸ“­ Queue is empty. Use `/play` to add songs.', ephemeral: true });
         return;
     }
 
     let description = '';
 
     if (currentSong) {
-        description += `🎶 **Now Playing:** ${currentSong.title} (${currentSong.duration || '?'})\n\n`;
+        description += `ðŸŽ¶ **Now Playing:** ${currentSong.title} (${currentSong.duration || '?'})\n\n`;
     }
 
     if (musicQueue.length > 0) {
         description += '**Up Next:**\n';
         musicQueue.slice(0, 10).forEach((song, i) => {
-            description += `${i + 1}. ${song.title} (${song.duration || '?'}) — *${song.requestedBy}*\n`;
+            description += `${i + 1}. ${song.title} (${song.duration || '?'}) â€” *${song.requestedBy}*\n`;
         });
         if (musicQueue.length > 10) {
             description += `\n...and ${musicQueue.length - 10} more`;
@@ -2858,7 +2794,7 @@ async function musicShowQueue(interaction) {
 
     const embed = new Discord.EmbedBuilder()
         .setColor('#5865F2')
-        .setTitle('🎵 Music Queue')
+        .setTitle('ðŸŽµ Music Queue')
         .setDescription(description)
         .setFooter({ text: `${musicQueue.length} song(s) in queue` })
         .setTimestamp();
@@ -2868,13 +2804,13 @@ async function musicShowQueue(interaction) {
 
 async function musicNowPlaying(interaction) {
     if (!currentSong) {
-        await interaction.reply({ content: '❌ Nothing is playing right now.', ephemeral: true });
+        await interaction.reply({ content: 'âŒ Nothing is playing right now.', ephemeral: true });
         return;
     }
 
     const embed = new Discord.EmbedBuilder()
         .setColor('#00FF00')
-        .setTitle('🎶 Now Playing')
+        .setTitle('ðŸŽ¶ Now Playing')
         .setDescription(`**${currentSong.title}**`)
         .addFields(
             { name: 'Duration', value: currentSong.duration || 'Unknown', inline: true },
@@ -2889,7 +2825,7 @@ async function musicNowPlaying(interaction) {
 async function musicClear(interaction) {
     const count = musicQueue.length;
     musicQueue.length = 0;
-    await interaction.reply({ content: `🗑️ Cleared ${count} song(s) from the queue.` });
+    await interaction.reply({ content: `ðŸ—‘ï¸ Cleared ${count} song(s) from the queue.` });
 }
 
 // Parse duration string like "6:11" or "1:23:45" to seconds
@@ -2908,41 +2844,41 @@ function parseDurationToSeconds(duration) {
 
 async function handleMusicTextCommand(message, command, args) {
     if (!voice || !playDl || !ytdl) {
-        await message.reply('❌ Music dependencies not installed.');
+        await message.reply('âŒ Music dependencies not installed.');
         return;
     }
 
     if (command === 'play') {
         const query = args.join(' ');
         if (!query) {
-            await message.reply('❌ Usage: `!play <song name>` or `!play <artist> - <song>`');
+            await message.reply('âŒ Usage: `!play <song name>` or `!play <artist> - <song>`');
             return;
         }
 
         if (!musicConnection) {
-            await message.reply('❌ Bot is not in a voice channel. A staff member needs to use `/join` first.');
+            await message.reply('âŒ Bot is not in a voice channel. A staff member needs to use `/join` first.');
             return;
         }
 
         // Check if user is in the same voice channel as the bot
         const memberVoice = message.member.voice;
         if (!memberVoice || !memberVoice.channelId || memberVoice.channelId !== MUSIC_VOICE_CHANNEL_ID) {
-            await message.reply(`❌ You must be in <#${MUSIC_VOICE_CHANNEL_ID}> to request music.`);
+            await message.reply(`âŒ You must be in <#${MUSIC_VOICE_CHANNEL_ID}> to request music.`);
             return;
         }
 
-        const loadingMsg = await message.reply('🔍 Searching...');
+        const loadingMsg = await message.reply('ðŸ” Searching...');
 
         try {
             const results = await playDl.search(query, { limit: 1 });
             if (results.length === 0) {
-                await loadingMsg.edit('❌ No results found.');
+                await loadingMsg.edit('âŒ No results found.');
                 return;
             }
 
             const result = results[0];
-            console.log(`🔍 Text search keys: ${Object.keys(result).join(', ')}`);
-            console.log(`🔍 Text search result: title="${result.title}" url="${result.url}" id="${result.id}" videoId="${result.videoId}"`);
+            console.log(`ðŸ” Text search keys: ${Object.keys(result).join(', ')}`);
+            console.log(`ðŸ” Text search result: title="${result.title}" url="${result.url}" id="${result.id}" videoId="${result.videoId}"`);
 
             // Try every possible URL property
             let videoUrl = result.url;
@@ -2953,8 +2889,8 @@ async function handleMusicTextCommand(message, command, args) {
             if (!videoUrl && result.shortUrl) videoUrl = result.shortUrl;
 
             if (!videoUrl) {
-                console.error('❌ Could not extract URL:', JSON.stringify(result).substring(0, 500));
-                await loadingMsg.edit('❌ Could not get URL for this song. Try pasting a YouTube link instead.');
+                console.error('âŒ Could not extract URL:', JSON.stringify(result).substring(0, 500));
+                await loadingMsg.edit('âŒ Could not get URL for this song. Try pasting a YouTube link instead.');
                 return;
             }
 
@@ -2963,7 +2899,7 @@ async function handleMusicTextCommand(message, command, args) {
             // Check max duration (8 minutes = 480 seconds)
             const durationSecs = parseDurationToSeconds(duration);
             if (durationSecs > 480) {
-                await loadingMsg.edit(`❌ **Song too long!** "${result.title}" is ${duration}. Max length is **8 minutes**.`);
+                await loadingMsg.edit(`âŒ **Song too long!** "${result.title}" is ${duration}. Max length is **8 minutes**.`);
                 return;
             }
 
@@ -2974,11 +2910,11 @@ async function handleMusicTextCommand(message, command, args) {
                 requestedBy: message.author.tag,
             };
 
-            console.log(`🎵 Text queued: "${songInfo.title}" URL: ${songInfo.url}`);
+            console.log(`ðŸŽµ Text queued: "${songInfo.title}" URL: ${songInfo.url}`);
 
             musicQueue.push(songInfo);
 
-            await loadingMsg.edit(`✅ **Added:** ${songInfo.title} (${songInfo.duration}) — Position #${musicQueue.length}`);
+            await loadingMsg.edit(`âœ… **Added:** ${songInfo.title} (${songInfo.duration}) â€” Position #${musicQueue.length}`);
 
             // Delete the confirmation after 5 seconds to keep chat clean
             setTimeout(() => loadingMsg.delete().catch(() => {}), 5000);
@@ -2991,33 +2927,33 @@ async function handleMusicTextCommand(message, command, args) {
             }
 
         } catch (error) {
-            console.error('❌ Error in !play:', error);
-            await loadingMsg.edit('❌ Error: ' + error.message);
+            console.error('âŒ Error in !play:', error);
+            await loadingMsg.edit('âŒ Error: ' + error.message);
         }
 
     } else if (command === 'skip') {
         if (!audioPlayer || !currentSong) {
-            await message.reply('❌ Nothing is playing.');
+            await message.reply('âŒ Nothing is playing.');
             return;
         }
         const skipped = currentSong.title;
         audioPlayer.stop();
-        await message.reply(`⏭️ Skipped: **${skipped}**`);
+        await message.reply(`â­ï¸ Skipped: **${skipped}**`);
 
     } else if (command === 'queue') {
         if (musicQueue.length === 0 && !currentSong) {
-            await message.reply('📭 Queue is empty. Use `!play <song>` to add songs.');
+            await message.reply('ðŸ“­ Queue is empty. Use `!play <song>` to add songs.');
             return;
         }
 
         let description = '';
         if (currentSong) {
-            description += `🎶 **Now Playing:** ${currentSong.title} (${currentSong.duration || '?'})\n\n`;
+            description += `ðŸŽ¶ **Now Playing:** ${currentSong.title} (${currentSong.duration || '?'})\n\n`;
         }
         if (musicQueue.length > 0) {
             description += '**Up Next:**\n';
             musicQueue.slice(0, 10).forEach((song, i) => {
-                description += `${i + 1}. ${song.title} (${song.duration || '?'}) — *${song.requestedBy}*\n`;
+                description += `${i + 1}. ${song.title} (${song.duration || '?'}) â€” *${song.requestedBy}*\n`;
             });
             if (musicQueue.length > 10) {
                 description += `\n...and ${musicQueue.length - 10} more`;
@@ -3026,7 +2962,7 @@ async function handleMusicTextCommand(message, command, args) {
 
         const embed = new Discord.EmbedBuilder()
             .setColor('#5865F2')
-            .setTitle('🎵 Music Queue')
+            .setTitle('ðŸŽµ Music Queue')
             .setDescription(description)
             .setFooter({ text: `${musicQueue.length} song(s) in queue` })
             .setTimestamp();
@@ -3035,13 +2971,13 @@ async function handleMusicTextCommand(message, command, args) {
 
     } else if (command === 'np' || command === 'nowplaying') {
         if (!currentSong) {
-            await message.reply('❌ Nothing is playing right now.');
+            await message.reply('âŒ Nothing is playing right now.');
             return;
         }
 
         const embed = new Discord.EmbedBuilder()
             .setColor('#00FF00')
-            .setTitle('🎶 Now Playing')
+            .setTitle('ðŸŽ¶ Now Playing')
             .setDescription(`**${currentSong.title}**`)
             .addFields(
                 { name: 'Duration', value: currentSong.duration || 'Unknown', inline: true },
@@ -3054,7 +2990,7 @@ async function handleMusicTextCommand(message, command, args) {
     } else if (command === 'clear') {
         const count = musicQueue.length;
         musicQueue.length = 0;
-        await message.reply(`🗑️ Cleared ${count} song(s) from the queue.`);
+        await message.reply(`ðŸ—‘ï¸ Cleared ${count} song(s) from the queue.`);
     }
 }
 
@@ -3074,14 +3010,14 @@ async function handleStaffCommands(message) {
     if (command === 'config') {
         const configEmbed = new Discord.EmbedBuilder()
             .setColor('#5865F2')
-            .setTitle('⚙️ Bot Configuration Status')
+            .setTitle('âš™ï¸ Bot Configuration Status')
             .addFields(
-                { name: 'Main Chat Channel', value: CONFIG.MAIN_CHAT_CHANNEL_ID ? `✅ <#${CONFIG.MAIN_CHAT_CHANNEL_ID}>` : '❌ Not set' },
-                { name: 'Announcement Channel', value: CONFIG.ANNOUNCEMENT_CHANNEL_ID ? `✅ <#${CONFIG.ANNOUNCEMENT_CHANNEL_ID}>` : '❌ Not set' },
-                { name: 'Mod Channel', value: CONFIG.MOD_CHANNEL_ID ? `✅ <#${CONFIG.MOD_CHANNEL_ID}>` : '❌ Not set' },
-                { name: 'Log Channel', value: CONFIG.LOG_CHANNEL_ID ? `✅ <#${CONFIG.LOG_CHANNEL_ID}>` : '❌ Not set' },
-                { name: 'Ticket Category', value: CONFIG.TICKET_CATEGORY_ID ? '✅ Set' : '❌ Not set' },
-                { name: 'Staff Role IDs', value: CONFIG.STAFF_ROLE_IDS.length > 0 ? `✅ ${CONFIG.STAFF_ROLE_IDS.length} role(s)` : '❌ Not set' }
+                { name: 'Main Chat Channel', value: CONFIG.MAIN_CHAT_CHANNEL_ID ? `âœ… <#${CONFIG.MAIN_CHAT_CHANNEL_ID}>` : 'âŒ Not set' },
+                { name: 'Announcement Channel', value: CONFIG.ANNOUNCEMENT_CHANNEL_ID ? `âœ… <#${CONFIG.ANNOUNCEMENT_CHANNEL_ID}>` : 'âŒ Not set' },
+                { name: 'Mod Channel', value: CONFIG.MOD_CHANNEL_ID ? `âœ… <#${CONFIG.MOD_CHANNEL_ID}>` : 'âŒ Not set' },
+                { name: 'Log Channel', value: CONFIG.LOG_CHANNEL_ID ? `âœ… <#${CONFIG.LOG_CHANNEL_ID}>` : 'âŒ Not set' },
+                { name: 'Ticket Category', value: CONFIG.TICKET_CATEGORY_ID ? 'âœ… Set' : 'âŒ Not set' },
+                { name: 'Staff Role IDs', value: CONFIG.STAFF_ROLE_IDS.length > 0 ? `âœ… ${CONFIG.STAFF_ROLE_IDS.length} role(s)` : 'âŒ Not set' }
             );
         await message.reply({ embeds: [configEmbed] });
         return;
@@ -3093,7 +3029,7 @@ async function handleStaffCommands(message) {
         if (message.channel.name.startsWith('tech-') || message.channel.name.startsWith('report-')) {
             await closeTicket(message.channel);
         } else {
-            await message.reply('❌ This command only works in ticket channels.');
+            await message.reply('âŒ This command only works in ticket channels.');
         }
     }
 
@@ -3103,17 +3039,17 @@ async function handleStaffCommands(message) {
 
         if (subcommand === 'on') {
             if (triviaEnabled) {
-                await message.reply('⚠️ Trivia is already enabled!');
+                await message.reply('âš ï¸ Trivia is already enabled!');
                 return;
             }
             triviaEnabled = true;
             startTriviaSystem();
-            await message.reply('✅ Trivia system enabled! Questions will be posted every 25 minutes.');
+            await message.reply('âœ… Trivia system enabled! Questions will be posted every 25 minutes.');
             addAuditLog('Trivia Enabled', message.author, 'Trivia system started', 'success');
 
         } else if (subcommand === 'off') {
             if (!triviaEnabled) {
-                await message.reply('⚠️ Trivia is already disabled!');
+                await message.reply('âš ï¸ Trivia is already disabled!');
                 return;
             }
             triviaEnabled = false;
@@ -3122,12 +3058,12 @@ async function handleStaffCommands(message) {
                 triviaInterval = null;
             }
             currentTrivia = null;
-            await message.reply('✅ Trivia system disabled.');
+            await message.reply('âœ… Trivia system disabled.');
             addAuditLog('Trivia Disabled', message.author, 'Trivia system stopped', 'info');
 
         } else if (subcommand === 'scores') {
             if (triviaScores.size === 0) {
-                await message.reply('📊 No trivia scores yet!');
+                await message.reply('ðŸ“Š No trivia scores yet!');
                 return;
             }
 
@@ -3137,12 +3073,12 @@ async function handleStaffCommands(message) {
 
             const embed = new Discord.EmbedBuilder()
                 .setColor('#FFD700')
-                .setTitle('🏆 Trivia Leaderboard')
+                .setTitle('ðŸ† Trivia Leaderboard')
                 .setDescription(
                     sortedScores.map((entry, index) => {
                         const userId = entry[0];
                         const score = entry[1];
-                        const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`;
+                        const medal = index === 0 ? 'ðŸ¥‡' : index === 1 ? 'ðŸ¥ˆ' : index === 2 ? 'ðŸ¥‰' : `${index + 1}.`;
                         return `${medal} <@${userId}> - **${score}** points`;
                     }).join('\n')
                 )
@@ -3162,14 +3098,14 @@ async function handleStaffCommands(message) {
     // Online/Offline commands
     if (command === 'online') {
         await client.user.setStatus('online');
-        await message.channel.send('✅ **The Bot Online and ready to work!**');
+        await message.channel.send('âœ… **The Bot Online and ready to work!**');
         addAuditLog('Bot Status', message.author, 'Set bot status to ONLINE', 'success');
         return;
     }
 
     if (command === 'offline') {
         await client.user.setStatus('invisible');
-        await message.channel.send('⚠️ **Bot Is Powering down Message staff with issues.**');
+        await message.channel.send('âš ï¸ **Bot Is Powering down Message staff with issues.**');
         addAuditLog('Bot Status', message.author, 'Set bot status to OFFLINE', 'warning');
         return;
     }
@@ -3201,16 +3137,16 @@ async function handleBirthdayCommand(message) {
         // Show user's current birthday
         const userBirthday = birthdays.get(message.author.id);
         if (userBirthday) {
-            await message.reply(`🎂 Your birthday is set to: **${userBirthday.month}/${userBirthday.day}**\n\nTo remove it, use: \`!birthday remove\``);
+            await message.reply(`ðŸŽ‚ Your birthday is set to: **${userBirthday.month}/${userBirthday.day}**\n\nTo remove it, use: \`!birthday remove\``);
         } else {
-            await message.reply(`🎂 You haven't set your birthday yet!\n\nUse: \`!birthday MM/DD\`\nExample: \`!birthday 12/25\``);
+            await message.reply(`ðŸŽ‚ You haven't set your birthday yet!\n\nUse: \`!birthday MM/DD\`\nExample: \`!birthday 12/25\``);
         }
         return;
     }
 
     if (input.toLowerCase() === 'remove') {
         birthdays.delete(message.author.id);
-        await message.reply('🎂 Your birthday has been removed from the system.');
+        await message.reply('ðŸŽ‚ Your birthday has been removed from the system.');
         addAuditLog('Birthday Removed', message.author, 'Birthday registration removed', 'info');
         return;
     }
@@ -3218,7 +3154,7 @@ async function handleBirthdayCommand(message) {
     // Parse MM/DD format
     const parts = input.split('/');
     if (parts.length !== 2) {
-        await message.reply('❌ Invalid format! Use: `!birthday MM/DD` (e.g., `!birthday 12/25`)');
+        await message.reply('âŒ Invalid format! Use: `!birthday MM/DD` (e.g., `!birthday 12/25`)');
         return;
     }
 
@@ -3227,14 +3163,14 @@ async function handleBirthdayCommand(message) {
 
     // Validate
     if (month < 1 || month > 12 || day < 1 || day > 31) {
-        await message.reply('❌ Invalid date! Month must be 1-12 and day must be 1-31.');
+        await message.reply('âŒ Invalid date! Month must be 1-12 and day must be 1-31.');
         return;
     }
 
     // Validate day for month
     const daysInMonth = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
     if (day > daysInMonth[month - 1]) {
-        await message.reply(`❌ Invalid day for month ${month}! Max day is ${daysInMonth[month - 1]}.`);
+        await message.reply(`âŒ Invalid day for month ${month}! Max day is ${daysInMonth[month - 1]}.`);
         return;
     }
 
@@ -3245,7 +3181,7 @@ async function handleBirthdayCommand(message) {
         username: message.author.tag
     });
 
-    await message.reply(`🎂 Birthday saved! I'll announce it on **${month}/${day}** at 8am and 8pm!`);
+    await message.reply(`ðŸŽ‚ Birthday saved! I'll announce it on **${month}/${day}** at 8am and 8pm!`);
     addAuditLog('Birthday Set', message.author, `Birthday: ${month}/${day}`, 'success');
 }
 
@@ -3264,8 +3200,8 @@ async function performVibeCheck(message) {
     function analyzeSentiment(messages) {
         if (messages.length === 0) return { positive: 0, negative: 0, neutral: 0, energy: 0 };
 
-        const positive = ['lol', 'lmao', 'haha', 'gg', 'good', 'great', 'awesome', 'love', 'thanks', 'nice', 'poggers', 'pog', '😂', '🤣', '😄', '❤️', '💯', '🔥', '!', 'yes', 'yeah', 'yay'];
-        const negative = ['bad', 'hate', 'stupid', 'dumb', 'wtf', 'bruh', 'cringe', 'rip', 'oof', 'sad', '😢', '😭', '💀', 'no', 'nah', 'nope', 'ugh'];
+        const positive = ['lol', 'lmao', 'haha', 'gg', 'good', 'great', 'awesome', 'love', 'thanks', 'nice', 'poggers', 'pog', 'ðŸ˜‚', 'ðŸ¤£', 'ðŸ˜„', 'â¤ï¸', 'ðŸ’¯', 'ðŸ”¥', '!', 'yes', 'yeah', 'yay'];
+        const negative = ['bad', 'hate', 'stupid', 'dumb', 'wtf', 'bruh', 'cringe', 'rip', 'oof', 'sad', 'ðŸ˜¢', 'ðŸ˜­', 'ðŸ’€', 'no', 'nah', 'nope', 'ugh'];
 
         let positiveCount = 0;
         let negativeCount = 0;
@@ -3304,31 +3240,31 @@ async function performVibeCheck(message) {
     const vibe24h = analyzeSentiment(last24h);
 
     function getVibeEmoji(positive, negative, energy) {
-        if (positive > 60 && energy > 50) return '🔥 HYPED';
-        if (positive > 60) return '😊 POSITIVE';
-        if (negative > 60) return '😤 SALTY';
-        if (energy > 70) return '⚡ ENERGETIC';
-        if (energy < 30) return '😴 CHILL';
-        return '😐 NEUTRAL';
+        if (positive > 60 && energy > 50) return 'ðŸ”¥ HYPED';
+        if (positive > 60) return 'ðŸ˜Š POSITIVE';
+        if (negative > 60) return 'ðŸ˜¤ SALTY';
+        if (energy > 70) return 'âš¡ ENERGETIC';
+        if (energy < 30) return 'ðŸ˜´ CHILL';
+        return 'ðŸ˜ NEUTRAL';
     }
 
     const embed = new Discord.EmbedBuilder()
         .setColor('#5865F2')
-        .setTitle('✨ Vibe Check')
+        .setTitle('âœ¨ Vibe Check')
         .setDescription('Current chat atmosphere analysis')
         .addFields(
             {
-                name: '🕐 Last Hour',
+                name: 'ðŸ• Last Hour',
                 value: `${getVibeEmoji(vibe1h.positive, vibe1h.negative, vibe1h.energy)}\nPositive: ${vibe1h.positive}%\nNegative: ${vibe1h.negative}%\nEnergy: ${vibe1h.energy}%\nMessages: ${last1h.length}`,
                 inline: true
             },
             {
-                name: '🕛 Last 12 Hours',
+                name: 'ðŸ•› Last 12 Hours',
                 value: `${getVibeEmoji(vibe12h.positive, vibe12h.negative, vibe12h.energy)}\nPositive: ${vibe12h.positive}%\nNegative: ${vibe12h.negative}%\nEnergy: ${vibe12h.energy}%\nMessages: ${last12h.length}`,
                 inline: true
             },
             {
-                name: '📅 Last 24 Hours',
+                name: 'ðŸ“… Last 24 Hours',
                 value: `${getVibeEmoji(vibe24h.positive, vibe24h.negative, vibe24h.energy)}\nPositive: ${vibe24h.positive}%\nNegative: ${vibe24h.negative}%\nEnergy: ${vibe24h.energy}%\nMessages: ${last24h.length}`,
                 inline: true
             }
@@ -3370,8 +3306,8 @@ async function checkBirthdays() {
 
                 const embed = new Discord.EmbedBuilder()
                     .setColor('#FFD700')
-                    .setTitle('🎂 Happy Birthday! 🎉')
-                    .setDescription(`Today's the special day for:\n\n${mentions}\n\nWishing you an amazing birthday! 🎈🎊`)
+                    .setTitle('ðŸŽ‚ Happy Birthday! ðŸŽ‰')
+                    .setDescription(`Today's the special day for:\n\n${mentions}\n\nWishing you an amazing birthday! ðŸŽˆðŸŽŠ`)
                     .setFooter({ text: `Birthday${birthdayPeople.length > 1 ? 's' : ''} on ${currentMonth}/${currentDay}` })
                     .setTimestamp();
 
@@ -3418,7 +3354,7 @@ async function postTriviaQuestion() {
 
         const embed = new Discord.EmbedBuilder()
             .setColor('#FFD700')
-            .setTitle('🧠 Trivia Time!')
+            .setTitle('ðŸ§  Trivia Time!')
             .setDescription(`**Category:** ${currentTrivia.category}\n\n**Question:**\n${currentTrivia.question}`)
             .setFooter({ text: 'First correct answer wins 100 points!' })
             .setTimestamp();
@@ -3447,24 +3383,24 @@ async function closeTicket(channel) {
 
             const embed = new Discord.EmbedBuilder()
                 .setColor('#FFA500')
-                .setTitle(`🗃️ Report Closed: ${channel.name}`)
+                .setTitle(`ðŸ—ƒï¸ Report Closed: ${channel.name}`)
                 .setDescription('Transcript attached below')
                 .setTimestamp();
 
             await oldReportsChannel.send({ embeds: [embed], files: [attachment] });
-            console.log(`✅ Transcript sent to #old-reports for ${channel.name}`);
+            console.log(`âœ… Transcript sent to #old-reports for ${channel.name}`);
         } else {
-            console.error('❌ Could not find #old-reports channel (ID: ' + OLD_REPORTS_CHANNEL_ID + ')');
+            console.error('âŒ Could not find #old-reports channel (ID: ' + OLD_REPORTS_CHANNEL_ID + ')');
         }
 
         addAuditLog('Report Closed', { tag: 'Staff', id: 'staff' }, `Closed ${channel.name}`, 'info');
 
-        await channel.send('🗃️ This report will be deleted in 5 seconds...');
+        await channel.send('ðŸ—ƒï¸ This report will be deleted in 5 seconds...');
         setTimeout(async () => {
             await channel.delete().catch(err => console.error('Error deleting channel:', err));
         }, 5000);
     } catch (error) {
-        console.error('❌ Error closing report:', error);
+        console.error('âŒ Error closing report:', error);
     }
 }
 
@@ -3475,13 +3411,13 @@ async function closeTicket(channel) {
 async function sendHelpMessage(message) {
     const embed = new Discord.EmbedBuilder()
         .setColor('#5865F2')
-        .setTitle('🤖 Discord Bot Commands')
+        .setTitle('ðŸ¤– Discord Bot Commands')
         .setDescription('Multi-function bot for role management, tickets, and community features')
         .addFields(
-            { name: '📊 Role Management', value: '`!dashboard` - Generate HTML permissions dashboard\n`!role` - Select role to manage\n`!permission` - Modify permissions' },
-            { name: '🎫 Ticket System', value: 'DM the bot to create a ticket' },
-            { name: '🎉 Fun Commands', value: '`!trivia on/off/scores/now` - Trivia system\n`!birthday MM/DD` - Set your birthday\n`!vibecheck` - Chat atmosphere analysis' },
-            { name: '⚙️ Staff Commands', value: '`!config` - Check bot configuration\n`!online` / `!offline` - Set bot status\n`!close` - Close ticket channel' }
+            { name: 'ðŸ“Š Role Management', value: '`!dashboard` - Generate HTML permissions dashboard\n`!role` - Select role to manage\n`!permission` - Modify permissions' },
+            { name: 'ðŸŽ« Ticket System', value: 'DM the bot to create a ticket' },
+            { name: 'ðŸŽ‰ Fun Commands', value: '`!trivia on/off/scores/now` - Trivia system\n`!birthday MM/DD` - Set your birthday\n`!vibecheck` - Chat atmosphere analysis' },
+            { name: 'âš™ï¸ Staff Commands', value: '`!config` - Check bot configuration\n`!online` / `!offline` - Set bot status\n`!close` - Close ticket channel' }
         );
 
     await message.reply({ embeds: [embed] });
@@ -3491,7 +3427,7 @@ async function generateDashboard(message) {
     try {
         const guild = message.guild;
         if (!guild) {
-            await message.reply('❌ This command must be used in a server!');
+            await message.reply('âŒ This command must be used in a server!');
             return;
         }
 
@@ -3505,12 +3441,12 @@ async function generateDashboard(message) {
         fs.writeFileSync(filepath, html);
 
         await message.reply({
-            content: '✅ Dashboard generated!',
+            content: 'âœ… Dashboard generated!',
             files: [filepath]
         });
     } catch (error) {
         console.error(error);
-        await message.reply('❌ Error generating dashboard: ' + error.message);
+        await message.reply('âŒ Error generating dashboard: ' + error.message);
     }
 }
 
@@ -3524,7 +3460,7 @@ async function startRoleSelection(message) {
             .sort((a, b) => b.position - a.position)
             .map((role, index) => ({ index: index + 1, role }));
 
-        let roleList = '**📋 Available Roles:**\n\n';
+        let roleList = '**ðŸ“‹ Available Roles:**\n\n';
         roles.forEach(({ index, role }) => {
             roleList += `${index}. ${role.name} (${role.members.size} members)\n`;
         });
@@ -3536,36 +3472,36 @@ async function startRoleSelection(message) {
         const collected = await message.channel.awaitMessages({ filter, max: 1, time: 30000 });
 
         if (collected.size === 0) {
-            await message.reply('❌ Timed out.');
+            await message.reply('âŒ Timed out.');
             return;
         }
 
         const roleIndex = parseInt(collected.first().content);
         if (isNaN(roleIndex) || roleIndex < 1 || roleIndex > roles.length) {
-            await message.reply('❌ Invalid number.');
+            await message.reply('âŒ Invalid number.');
             return;
         }
 
         const selectedRole = roles[roleIndex - 1].role;
         userStates.set(message.author.id, { selectedRole, guild: guild.id });
 
-        await message.reply(`✅ Selected role: **${selectedRole.name}**\n\nUse \`!permission\` to modify permissions.`);
+        await message.reply(`âœ… Selected role: **${selectedRole.name}**\n\nUse \`!permission\` to modify permissions.`);
     } catch (error) {
         console.error(error);
-        await message.reply('❌ Error: ' + error.message);
+        await message.reply('âŒ Error: ' + error.message);
     }
 }
 
 async function handlePermissionCommand(message) {
     const userState = userStates.get(message.author.id);
     if (!userState || !userState.selectedRole) {
-        await message.reply('❌ Please select a role first using `!role`');
+        await message.reply('âŒ Please select a role first using `!role`');
         return;
     }
 
     const role = message.guild.roles.cache.get(userState.selectedRole.id);
     if (!role) {
-        await message.reply('❌ Role not found');
+        await message.reply('âŒ Role not found');
         return;
     }
 
@@ -3580,10 +3516,10 @@ async function handlePermissionCommand(message) {
         { name: 'Manage Messages', flag: Discord.PermissionFlagsBits.ManageMessages },
     ];
 
-    let permList = `**🔐 Permissions for ${role.name}:**\n\n`;
+    let permList = `**ðŸ” Permissions for ${role.name}:**\n\n`;
     permissions.forEach((perm, index) => {
         const hasPermission = role.permissions.has(perm.flag);
-        const status = hasPermission ? '✅' : '❌';
+        const status = hasPermission ? 'âœ…' : 'âŒ';
         permList += `${index + 1}. ${status} ${perm.name}\n`;
     });
     permList += '\n**Reply with permission number, then `enable` or `disable`**';
@@ -4074,8 +4010,8 @@ function startKeepAliveServer() {
     const PORT = process.env.PORT || 10000;
     const HOST = process.env.HOST || '127.0.0.1';
     server.listen(PORT, HOST, () => {
-        console.log(`✅ Web dashboard running on port ${PORT}`);
-        console.log(`📊 Access at: http://${HOST}:${PORT}/dashboard`);
+        console.log(`âœ… Web dashboard running on port ${PORT}`);
+        console.log(`ðŸ“Š Access at: http://${HOST}:${PORT}/dashboard`);
     });
 }
 
@@ -4245,13 +4181,13 @@ function generateDashboardHTML() {
         </div>
 
         <div class="tabs">
-            <button class="tab active" onclick="showTab('messages', this)">📨 Messages</button>
-            <button class="tab" onclick="showTab('users', this)">👥 Users</button>
-            <button class="tab" onclick="showTab('actions', this)">⚡ Quick Actions</button>
-            <button class="tab" onclick="showTab('audit', this)">📋 Audit Log</button>
-            <button class="tab" onclick="showTab('roles', this)">🔐 Roles</button>
-            <button class="tab" onclick="showTab('words', this)">🚫 Banned Words</button>
-            <button class="tab" onclick="showTab('activity', this)">📋 Join/Leave Audits</button>
+            <button class="tab active" onclick="showTab('messages', this)">ðŸ“¨ Messages</button>
+            <button class="tab" onclick="showTab('users', this)">ðŸ‘¥ Users</button>
+            <button class="tab" onclick="showTab('actions', this)">âš¡ Quick Actions</button>
+            <button class="tab" onclick="showTab('audit', this)">ðŸ“‹ Audit Log</button>
+            <button class="tab" onclick="showTab('roles', this)">ðŸ” Roles</button>
+            <button class="tab" onclick="showTab('words', this)">ðŸš« Banned Words</button>
+            <button class="tab" onclick="showTab('activity', this)">ðŸ“‹ Join/Leave Audits</button>
         </div>
 
         <div id="tab-messages" class="tab-content active">
@@ -4285,15 +4221,15 @@ function generateDashboardHTML() {
                 <div id="actionAlert" class="alert"></div>
                 <div class="quick-actions-grid">
                     <div class="quick-action-btn" onclick="quickAction('set-online')">
-                        <div class="quick-action-icon">🟢</div>
+                        <div class="quick-action-icon">ðŸŸ¢</div>
                         <div class="quick-action-label">Set Online</div>
                     </div>
                     <div class="quick-action-btn" onclick="quickAction('set-offline')">
-                        <div class="quick-action-icon">⚫</div>
+                        <div class="quick-action-icon">âš«</div>
                         <div class="quick-action-label">Set Offline</div>
                     </div>
                     <div class="quick-action-btn" onclick="quickAction('clear-audit')">
-                        <div class="quick-action-icon">🗑️</div>
+                        <div class="quick-action-icon">ðŸ—‘ï¸</div>
                         <div class="quick-action-label">Clear Audit</div>
                     </div>
                 </div>
@@ -4323,7 +4259,7 @@ function generateDashboardHTML() {
 
         <div id="tab-words" class="tab-content">
             <div class="card">
-                <h2>🚫 Banned Words (Auto-Jail)</h2>
+                <h2>ðŸš« Banned Words (Auto-Jail)</h2>
                 <p style="color: var(--text-secondary); margin-bottom: 16px;">1st offense = 5 min jail | 2nd offense = 30 min jail | 3rd+ = permanent jail</p>
                 <div id="wordsAlert" class="alert"></div>
                 <div class="form-group" style="display: flex; gap: 8px;">
@@ -4342,7 +4278,7 @@ function generateDashboardHTML() {
 
         <div id="tab-activity" class="tab-content">
             <div class="card">
-                <h2>📋 Join/Leave Audits</h2>
+                <h2>ðŸ“‹ Join/Leave Audits</h2>
                 <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 16px;">
                     <label style="color: var(--text-secondary); font-size: 14px;">Select Date:</label>
                     <select id="activityDate" onchange="loadActivity()" style="padding: 8px 12px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary); font-size: 14px;">
@@ -4353,11 +4289,11 @@ function generateDashboardHTML() {
                 </div>
             </div>
             <div class="card">
-                <h2>🎤 Voice Chat Join / Leave Log</h2>
+                <h2>ðŸŽ¤ Voice Chat Join / Leave Log</h2>
                 <div id="voiceLogContainer" style="max-height: 500px; overflow-y: auto;"></div>
             </div>
             <div class="card">
-                <h2>📥 Server Join / Leave Log</h2>
+                <h2>ðŸ“¥ Server Join / Leave Log</h2>
                 <div id="memberLogContainer" style="max-height: 500px; overflow-y: auto;"></div>
             </div>
         </div>
@@ -4455,7 +4391,7 @@ function generateDashboardHTML() {
                             '<div class="user-meta">' +
                                 '<span class="user-meta-item">Joined: ' + new Date(user.joinedAt).toLocaleDateString() + '</span>' +
                                 '<span class="user-meta-item">Account: ' + new Date(user.accountCreatedAt).toLocaleDateString() + '</span>' +
-                                '<span class="user-meta-item ' + (user.timedOut ? 'text-warning' : '') + '">' + (user.timedOut ? '⏱️ Timed Out' : '✅ Active') + '</span>' +
+                                '<span class="user-meta-item ' + (user.timedOut ? 'text-warning' : '') + '">' + (user.timedOut ? 'â±ï¸ Timed Out' : 'âœ… Active') + '</span>' +
                             '</div>' +
                             '<div class="user-actions">' +
                                 '<button class="btn btn-warning" onclick="timeoutUser(\\'' + user.id + '\\', \\'' + user.tag + '\\')">Timeout</button>' +
@@ -4598,7 +4534,7 @@ function generateDashboardHTML() {
                 '<div class="stat-card"><div class="stat-value">' + stats.channels + '</div><div class="stat-label">Channels</div></div>' +
                 '<div class="stat-card"><div class="stat-value">' + stats.auditEntries + '</div><div class="stat-label">Audit Entries</div></div>' +
                 '<div class="stat-card"><div class="stat-value">' + uptimeHours + 'h ' + uptimeMins + 'm</div><div class="stat-label">Bot Uptime</div></div>' +
-                '<div class="stat-card"><div class="stat-value">' + (stats.triviaEnabled ? '✅ ON' : '❌ OFF') + '</div><div class="stat-label">Trivia System</div></div>';
+                '<div class="stat-card"><div class="stat-value">' + (stats.triviaEnabled ? 'âœ… ON' : 'âŒ OFF') + '</div><div class="stat-label">Trivia System</div></div>';
         }
 
         async function loadAuditLog() {
@@ -4653,7 +4589,7 @@ function generateDashboardHTML() {
                         '<div class="permissions-grid">' +
                             Object.entries(role.permissions).map(function(entry) {
                                 return '<div class="permission-item">' +
-                                    '<span>' + (entry[1] ? '✅' : '❌') + '</span>' +
+                                    '<span>' + (entry[1] ? 'âœ…' : 'âŒ') + '</span>' +
                                     '<span>' + formatPermissionName(entry[0]) + '</span>' +
                                 '</div>';
                             }).join('') +
@@ -4813,14 +4749,14 @@ function generateDashboardHTML() {
                     vContainer.innerHTML = data.voiceLog.map(function(entry) {
                         var color, icon, actionText;
                         if (entry.action === 'joined') {
-                            color = 'var(--success)'; icon = '🟢'; actionText = 'joined';
+                            color = 'var(--success)'; icon = 'ðŸŸ¢'; actionText = 'joined';
                         } else if (entry.action === 'switched') {
-                            color = 'var(--warning)'; icon = '🔄'; actionText = 'switched from';
+                            color = 'var(--warning)'; icon = 'ðŸ”„'; actionText = 'switched from';
                         } else {
-                            color = 'var(--danger)'; icon = '🔴'; actionText = 'left';
+                            color = 'var(--danger)'; icon = 'ðŸ”´'; actionText = 'left';
                         }
-                        var durText = entry.duration ? ' — <strong>' + entry.duration + '</strong>' : '';
-                        var toText = entry.toChannel ? ' → <strong>#' + entry.toChannel + '</strong>' : '';
+                        var durText = entry.duration ? ' â€” <strong>' + entry.duration + '</strong>' : '';
+                        var toText = entry.toChannel ? ' â†’ <strong>#' + entry.toChannel + '</strong>' : '';
                         return '<div style="background: var(--bg-tertiary); padding: 10px 14px; border-radius: 6px; margin-bottom: 4px; border-left: 3px solid ' + color + '; font-size: 13px;">' +
                             '<span style="color: var(--text-muted); font-size: 11px; float: right;">' + entry.timeStr + '</span>' +
                             icon + ' <strong>' + entry.username + '</strong> ' +
@@ -4837,7 +4773,7 @@ function generateDashboardHTML() {
                 } else {
                     mContainer.innerHTML = data.memberLog.map(function(entry) {
                         var color = entry.action === 'joined' ? 'var(--success)' : 'var(--danger)';
-                        var icon = entry.action === 'joined' ? '📥' : '📤';
+                        var icon = entry.action === 'joined' ? 'ðŸ“¥' : 'ðŸ“¤';
                         var actionText = entry.action === 'joined' ? 'joined the server' : 'left the server';
                         return '<div style="background: var(--bg-tertiary); padding: 10px 14px; border-radius: 6px; margin-bottom: 4px; border-left: 3px solid ' + color + '; font-size: 13px;">' +
                             '<span style="color: var(--text-muted); font-size: 11px; float: right;">' + entry.timeStr + '</span>' +
@@ -4979,3 +4915,4 @@ client.login(TOKEN).catch(error => {
         process.exitCode = 1;
     });
 }
+
