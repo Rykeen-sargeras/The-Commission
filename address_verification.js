@@ -1,6 +1,7 @@
 'use strict';
 
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
+const CENSUS_URL = 'https://geocoding.geo.census.gov/geocoder/locations/onelineaddress';
 const USER_AGENT = 'The-Commission-Discord-Bot/3.6.2 (https://github.com/Rykeen-sargeras/The-Commission)';
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const MAX_CACHE_ENTRIES = 500;
@@ -84,13 +85,90 @@ function parseNominatimResult(result, originalText) {
     };
 }
 
+function parseCensusResult(match, originalText) {
+    const components = match?.addressComponents || {};
+    const matchedAddress = match?.matchedAddress || '';
+    const inputWords = normalizeWords(originalText);
+    const matchedWords = normalizeWords(matchedAddress);
+    const inputNumber = String(originalText || '').trim().match(/^(\d+[a-z]?)/i)?.[1] || '';
+    const matchedNumber = matchedAddress.trim().match(/^(\d+[a-z]?)/i)?.[1] || '';
+    const streetNameWords = normalizeWords(components.streetName);
+    const cityWords = normalizeWords(components.city);
+    const state = String(components.state || '').toLowerCase();
+    const zip = String(components.zip || '');
+    const inputZipMatches = String(originalText || '').match(/\b\d{5}(?:-\d{4})?\b/g) || [];
+    const inputZip = [...inputZipMatches].reverse().find(value => value.slice(0, 5) !== inputNumber) || '';
+
+    if (!inputNumber || !matchedNumber || inputNumber.toLowerCase() !== matchedNumber.toLowerCase()) {
+        return { verified: false, reason: 'Census house number does not match' };
+    }
+    if (!streetNameWords.length || !containsWords(inputWords, streetNameWords)) {
+        return { verified: false, reason: 'Census street does not match' };
+    }
+    if (!cityWords.length || !containsWords(inputWords, cityWords)) {
+        return { verified: false, reason: 'Census city does not match' };
+    }
+    if (!state || !inputWords.includes(state)) {
+        return { verified: false, reason: 'Census state does not match' };
+    }
+    if (inputZip && (!zip || zip.slice(0, 5) !== inputZip.slice(0, 5))) {
+        return { verified: false, reason: 'Census postal code does not match' };
+    }
+    if (!matchedWords.includes(matchedNumber.toLowerCase())) {
+        return { verified: false, reason: 'Census result is not a complete address' };
+    }
+
+    return {
+        verified: true,
+        provider: 'U.S. Census Geocoder',
+        displayName: matchedAddress,
+        type: 'street_address',
+        confidence: 1,
+        street: [components.preDirection, components.preType, components.streetName, components.suffixType]
+            .filter(Boolean).join(' '),
+        number: matchedNumber,
+        city: components.city || '',
+        state: components.state || '',
+        zip,
+        country: 'United States',
+        coordinates: match.coordinates || null,
+    };
+}
+
 async function waitForRateLimit() {
     const waitMs = Math.max(0, 1000 - (Date.now() - lastRequestAt));
     if (waitMs) await new Promise(resolve => setTimeout(resolve, waitMs));
     lastRequestAt = Date.now();
 }
 
-async function verifyAddressWithNominatim(text, { fetchImpl = globalThis.fetch, timeoutMs = 7000 } = {}) {
+async function verifyAddressWithCensus(text, fetchImpl, timeoutMs) {
+    const url = new URL(CENSUS_URL);
+    url.searchParams.set('address', text);
+    url.searchParams.set('benchmark', 'Public_AR_Current');
+    url.searchParams.set('format', 'json');
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        const response = await fetchImpl(url, { signal: controller.signal, headers: { 'Accept': 'application/json' } });
+        if (!response.ok) return { verified: false, reason: `Census HTTP ${response.status}` };
+        const data = await response.json();
+        for (const match of data?.result?.addressMatches || []) {
+            const parsed = parseCensusResult(match, text);
+            if (parsed.verified) return parsed;
+        }
+        return { verified: false, reason: 'No exact U.S. Census address match' };
+    } catch (error) {
+        return {
+            verified: false,
+            reason: error.name === 'AbortError' ? 'Census request timed out' : `Census request failed: ${error.message}`,
+        };
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
+async function verifyAddressWithFreeGeocoders(text, { fetchImpl = globalThis.fetch, timeoutMs = 7000 } = {}) {
     if (typeof fetchImpl !== 'function') return { verified: false, reason: 'HTTP client unavailable' };
 
     const cacheKey = String(text || '').trim().toLowerCase();
@@ -117,19 +195,16 @@ async function verifyAddressWithNominatim(text, { fetchImpl = globalThis.fetch, 
                     'Accept-Language': 'en-US,en;q=0.9',
                 },
             });
-            if (!response.ok) return { verified: false, reason: `OpenStreetMap HTTP ${response.status}` };
+            if (!response.ok) return verifyAddressWithCensus(text, fetchImpl, timeoutMs);
 
             const results = await response.json();
             for (const result of results || []) {
                 const parsed = parseNominatimResult(result, text);
                 if (parsed.verified) return parsed;
             }
-            return { verified: false, reason: 'No exact matching street address' };
-        } catch (error) {
-            return {
-                verified: false,
-                reason: error.name === 'AbortError' ? 'OpenStreetMap request timed out' : `OpenStreetMap request failed: ${error.message}`,
-            };
+            return verifyAddressWithCensus(text, fetchImpl, timeoutMs);
+        } catch (_error) {
+            return verifyAddressWithCensus(text, fetchImpl, timeoutMs);
         } finally {
             clearTimeout(timer);
         }
@@ -144,7 +219,8 @@ async function verifyAddressWithNominatim(text, { fetchImpl = globalThis.fetch, 
 }
 
 module.exports = {
+    parseCensusResult,
     parseNominatimResult,
-    verifyAddressWithNominatim,
+    verifyAddressWithFreeGeocoders,
 };
 

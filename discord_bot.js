@@ -6,7 +6,7 @@ const { applyGuildBlueprint, captureGuildBlueprint } = require('./blueprint');
 const { EconomyService } = require('./economy');
 const { economyCommandData, createEconomyIntegration } = require('./economy_discord');
 const { isDoxWord } = require('./moderation_word_policy');
-const { verifyAddressWithNominatim } = require('./address_verification');
+const { verifyAddressWithFreeGeocoders } = require('./address_verification');
 const { MemberBridgeIntegration, memberBridgeCommandData } = require('./memberbridge/integration');
 const goingLive = require('./going_live');
 const { installLiveVoicePairs } = require('./live_voice_pairs');
@@ -1618,10 +1618,10 @@ async function checkAddressAPI(message) {
         console.log(`Checking ${candidates.length} potential address candidate(s) from ${message.author.tag}`);
 
         for (const candidate of candidates) {
-            const result = await verifyAddressWithNominatim(candidate);
+            const result = await verifyAddressWithFreeGeocoders(candidate);
 
             if (result && result.verified) {
-                console.log(`Verified exact street address from ${message.author.tag} via OpenStreetMap`);
+                console.log(`Verified exact street address from ${message.author.tag} via ${result.provider}`);
                 await handleAddressDetection(message, candidate, result);
                 return true;
             }
