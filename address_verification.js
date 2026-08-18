@@ -1,90 +1,150 @@
 'use strict';
 
-// Automatic moderation is high impact, so only accept Google's most precise result.
-const PRECISE_LOCATION_TYPES = new Set(['ROOFTOP']);
+const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
+const USER_AGENT = 'The-Commission-Discord-Bot/3.6.2 (https://github.com/Rykeen-sargeras/The-Commission)';
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const MAX_CACHE_ENTRIES = 500;
+const cache = new Map();
+let requestChain = Promise.resolve();
+let lastRequestAt = 0;
 
-function addressComponent(result, type) {
-    return result?.address_components?.find(component => component.types?.includes(type)) || null;
+const STREET_WORDS = new Map([
+    ['n', 'north'], ['s', 'south'], ['e', 'east'], ['w', 'west'],
+    ['hwy', 'highway'], ['rd', 'road'], ['st', 'street'], ['ave', 'avenue'],
+    ['blvd', 'boulevard'], ['dr', 'drive'], ['ln', 'lane'], ['ct', 'court'],
+    ['pkwy', 'parkway'], ['trl', 'trail'], ['cir', 'circle'], ['ter', 'terrace'],
+]);
+
+function normalizeWords(value) {
+    return String(value || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, ' ')
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+        .map(word => STREET_WORDS.get(word) || word);
 }
 
-function componentValue(result, type, short = false) {
-    const component = addressComponent(result, type);
-    return component ? (short ? component.short_name : component.long_name) : '';
+function containsWords(inputWords, expectedWords) {
+    const input = new Set(inputWords);
+    return expectedWords.every(word => input.has(word));
 }
 
-function parseGoogleGeocodeResult(result) {
-    const locationType = result?.geometry?.location_type || '';
-    const resultTypes = result?.types || [];
-    const number = componentValue(result, 'street_number');
-    const street = componentValue(result, 'route');
-    const city = componentValue(result, 'locality')
-        || componentValue(result, 'postal_town')
-        || componentValue(result, 'administrative_area_level_2');
-    const state = componentValue(result, 'administrative_area_level_1', true);
+function cityFrom(address) {
+    return address.city || address.town || address.village || address.municipality || address.hamlet || '';
+}
 
-    if (!resultTypes.includes('street_address')) {
-        return { verified: false, reason: 'Google result is not a street address' };
-    }
-    if (!PRECISE_LOCATION_TYPES.has(locationType)) {
-        return { verified: false, reason: `Google location is not precise (${locationType || 'unknown'})` };
-    }
+function parseNominatimResult(result, originalText) {
+    const address = result?.address || {};
+    const number = address.house_number || '';
+    const street = address.road || address.pedestrian || address.residential || '';
+    const city = cityFrom(address);
+    const state = address.state || '';
+    const stateCode = String(address['ISO3166-2-lvl4'] || '').replace(/^US-/, '');
+    const zip = address.postcode || '';
+    const inputWords = normalizeWords(originalText);
+    const inputText = ` ${inputWords.join(' ')} `;
+    const numericMatches = String(originalText || '').match(/\b\d{5}(?:-\d{4})?\b/g) || [];
+    const inputZip = [...numericMatches].reverse().find(value => value.slice(0, 5) !== number) || '';
+
     if (!number || !street || !city || !state) {
-        return { verified: false, reason: 'Google result is missing required address components' };
+        return { verified: false, reason: 'OpenStreetMap result is missing exact address components' };
+    }
+    if (!new RegExp(`(^|\\D)${number.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\D|$)`).test(originalText)) {
+        return { verified: false, reason: 'House number does not match' };
+    }
+    if (!containsWords(inputWords, normalizeWords(street))) {
+        return { verified: false, reason: 'Street does not match' };
+    }
+    if (!containsWords(inputWords, normalizeWords(city))) {
+        return { verified: false, reason: 'City does not match' };
+    }
+    const stateMatches = (stateCode && inputText.includes(` ${stateCode.toLowerCase()} `))
+        || containsWords(inputWords, normalizeWords(state));
+    if (!stateMatches) {
+        return { verified: false, reason: 'State does not match' };
+    }
+    if (inputZip && (!zip || !zip.startsWith(inputZip.slice(0, 5)))) {
+        return { verified: false, reason: 'Postal code does not match' };
     }
 
     return {
         verified: true,
-        provider: 'Google Maps Geocoding API',
-        displayName: result.formatted_address || `${number} ${street}, ${city}, ${state}`,
+        provider: 'OpenStreetMap Nominatim â€¢ Â© OpenStreetMap contributors',
+        displayName: result.display_name || `${number} ${street}, ${city}, ${state}`,
         type: 'street_address',
-        confidence: locationType === 'ROOFTOP' ? 1 : 0.9,
-        locationType,
+        confidence: 1,
         street,
         number,
         city,
-        state,
-        zip: componentValue(result, 'postal_code'),
-        country: componentValue(result, 'country'),
-        placeId: result.place_id || '',
+        state: stateCode || state,
+        zip,
+        country: address.country || '',
+        placeId: String(result.place_id || ''),
     };
 }
 
-async function verifyAddressWithGoogle(text, apiKey, { fetchImpl = globalThis.fetch, timeoutMs = 7000 } = {}) {
-    if (!apiKey) return { verified: false, reason: 'Google Maps API key not configured' };
+async function waitForRateLimit() {
+    const waitMs = Math.max(0, 1000 - (Date.now() - lastRequestAt));
+    if (waitMs) await new Promise(resolve => setTimeout(resolve, waitMs));
+    lastRequestAt = Date.now();
+}
+
+async function verifyAddressWithNominatim(text, { fetchImpl = globalThis.fetch, timeoutMs = 7000 } = {}) {
     if (typeof fetchImpl !== 'function') return { verified: false, reason: 'HTTP client unavailable' };
 
-    const url = new URL('https://maps.googleapis.com/maps/api/geocode/json');
-    url.searchParams.set('address', text);
-    url.searchParams.set('key', apiKey);
+    const cacheKey = String(text || '').trim().toLowerCase();
+    const cached = cache.get(cacheKey);
+    if (cached && Date.now() - cached.savedAt < CACHE_TTL_MS) return cached.result;
 
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-    try {
-        const response = await fetchImpl(url, { signal: controller.signal });
-        if (!response.ok) return { verified: false, reason: `Google HTTP ${response.status}` };
+    const performLookup = async () => {
+        await waitForRateLimit();
+        const url = new URL(NOMINATIM_URL);
+        url.searchParams.set('q', text);
+        url.searchParams.set('format', 'jsonv2');
+        url.searchParams.set('addressdetails', '1');
+        url.searchParams.set('countrycodes', 'us');
+        url.searchParams.set('limit', '3');
 
-        const data = await response.json();
-        if (data.status !== 'OK') {
-            return { verified: false, reason: `Google status: ${data.status || 'UNKNOWN'}` };
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
+        try {
+            const response = await fetchImpl(url, {
+                signal: controller.signal,
+                headers: {
+                    'User-Agent': USER_AGENT,
+                    'Accept': 'application/json',
+                    'Accept-Language': 'en-US,en;q=0.9',
+                },
+            });
+            if (!response.ok) return { verified: false, reason: `OpenStreetMap HTTP ${response.status}` };
+
+            const results = await response.json();
+            for (const result of results || []) {
+                const parsed = parseNominatimResult(result, text);
+                if (parsed.verified) return parsed;
+            }
+            return { verified: false, reason: 'No exact matching street address' };
+        } catch (error) {
+            return {
+                verified: false,
+                reason: error.name === 'AbortError' ? 'OpenStreetMap request timed out' : `OpenStreetMap request failed: ${error.message}`,
+            };
+        } finally {
+            clearTimeout(timer);
         }
+    };
 
-        for (const result of data.results || []) {
-            const parsed = parseGoogleGeocodeResult(result);
-            if (parsed.verified) return parsed;
-        }
-        return { verified: false, reason: 'No precise street-address result' };
-    } catch (error) {
-        return {
-            verified: false,
-            reason: error.name === 'AbortError' ? 'Google request timed out' : `Google request failed: ${error.message}`,
-        };
-    } finally {
-        clearTimeout(timer);
-    }
+    const lookup = requestChain.then(performLookup, performLookup);
+    requestChain = lookup.then(() => undefined, () => undefined);
+    const result = await lookup;
+    cache.set(cacheKey, { savedAt: Date.now(), result });
+    if (cache.size > MAX_CACHE_ENTRIES) cache.delete(cache.keys().next().value);
+    return result;
 }
 
 module.exports = {
-    parseGoogleGeocodeResult,
-    verifyAddressWithGoogle,
+    parseNominatimResult,
+    verifyAddressWithNominatim,
 };
 

@@ -6,7 +6,7 @@ const { applyGuildBlueprint, captureGuildBlueprint } = require('./blueprint');
 const { EconomyService } = require('./economy');
 const { economyCommandData, createEconomyIntegration } = require('./economy_discord');
 const { isDoxWord } = require('./moderation_word_policy');
-const { verifyAddressWithGoogle } = require('./address_verification');
+const { verifyAddressWithNominatim } = require('./address_verification');
 const { MemberBridgeIntegration, memberBridgeCommandData } = require('./memberbridge/integration');
 const goingLive = require('./going_live');
 const { installLiveVoicePairs } = require('./live_voice_pairs');
@@ -61,7 +61,6 @@ const CONFIG = {
     PATROL_CHANNEL_ID: process.env.PATROL_CHANNEL_ID || '',
     LOCATIONIQ_API_KEY: process.env.LOCATIONIQ_API_KEY || '',
     POSITIONSTACK_API_KEY: process.env.POSITIONSTACK_API_KEY || '',
-    GOOGLE_MAPS_API_KEY: process.env.GOOGLE_MAPS_API_KEY || '',
     MUSIC_CHANNEL_ID: process.env.MUSIC_CHANNEL_ID || '',
     MUSIC_VOICE_CHANNEL_ID: process.env.MUSIC_VOICE_CHANNEL_ID || '',
     REPORT_CATEGORY_ID: process.env.REPORT_CATEGORY_ID || '',
@@ -1219,7 +1218,7 @@ client.on('messageCreate', async (message) => {
     // Check if user is staff
     const isStaff = message.member.roles.cache.some(role => CONFIG.STAFF_ROLE_IDS.includes(role.id));
 
-    // Address detection for non-staff only (Google-verified)
+    // Address detection for non-staff only (OpenStreetMap-verified)
     if (!isStaff && !isStaffForFilter) {
         if (await checkAddressAPI(message)) return;
     }
@@ -1547,7 +1546,7 @@ async function handleBannedWord(message, triggeredWord) {
 }
 
 // ======================
-// ADDRESS DETECTION (Google Maps Geocoding API)
+// ADDRESS DETECTION (OpenStreetMap Nominatim)
 // ======================
 
 // Pre-filter: could this message contain an address?
@@ -1619,10 +1618,10 @@ async function checkAddressAPI(message) {
         console.log(`Checking ${candidates.length} potential address candidate(s) from ${message.author.tag}`);
 
         for (const candidate of candidates) {
-            const result = await verifyAddressWithGoogle(candidate, CONFIG.GOOGLE_MAPS_API_KEY);
+            const result = await verifyAddressWithNominatim(candidate);
 
             if (result && result.verified) {
-                console.log(`Verified precise street address from ${message.author.tag} via Google Maps`);
+                console.log(`Verified exact street address from ${message.author.tag} via OpenStreetMap`);
                 await handleAddressDetection(message, candidate, result);
                 return true;
             }

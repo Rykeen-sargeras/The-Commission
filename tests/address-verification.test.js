@@ -1,59 +1,56 @@
 'use strict';
 
 const assert = require('assert');
-const { parseGoogleGeocodeResult, verifyAddressWithGoogle } = require('../address_verification');
+const { parseNominatimResult, verifyAddressWithNominatim } = require('../address_verification');
 
-function component(longName, shortName, ...types) {
-    return { long_name: longName, short_name: shortName, types };
-}
-
-const preciseAddress = {
-    formatted_address: '14941 N Dale Mabry Hwy, Tampa, FL 33618, USA',
-    place_id: 'test-place-id',
-    types: ['street_address'],
-    geometry: { location_type: 'ROOFTOP' },
-    address_components: [
-        component('14941', '14941', 'street_number'),
-        component('North Dale Mabry Highway', 'N Dale Mabry Hwy', 'route'),
-        component('Tampa', 'Tampa', 'locality'),
-        component('Florida', 'FL', 'administrative_area_level_1'),
-        component('33618', '33618', 'postal_code'),
-        component('United States', 'US', 'country'),
-    ],
+const example = '14941 N Dale Mabry Hwy, Tampa, FL 33618';
+const exactResult = {
+    place_id: 123,
+    display_name: '14941, North Dale Mabry Highway, Tampa, Hillsborough County, Florida, 33618, United States',
+    address: {
+        house_number: '14941',
+        road: 'North Dale Mabry Highway',
+        city: 'Tampa',
+        state: 'Florida',
+        'ISO3166-2-lvl4': 'US-FL',
+        postcode: '33618',
+        country: 'United States',
+    },
 };
 
-const parsed = parseGoogleGeocodeResult(preciseAddress);
+const parsed = parseNominatimResult(exactResult, example);
 assert.strictEqual(parsed.verified, true);
 assert.strictEqual(parsed.number, '14941');
 assert.strictEqual(parsed.state, 'FL');
-assert.strictEqual(parsed.confidence, 1);
 
-assert.strictEqual(parseGoogleGeocodeResult({
-    ...preciseAddress,
-    types: ['route'],
-}).verified, false);
+assert.strictEqual(parseNominatimResult({
+    ...exactResult,
+    address: { ...exactResult.address, house_number: '14942' },
+}, example).verified, false);
 
-assert.strictEqual(parseGoogleGeocodeResult({
-    ...preciseAddress,
-    geometry: { location_type: 'APPROXIMATE' },
-}).verified, false);
+assert.strictEqual(parseNominatimResult({
+    ...exactResult,
+    address: { ...exactResult.address, road: 'Nebraska Avenue' },
+}, example).verified, false);
 
-assert.strictEqual(parseGoogleGeocodeResult({
-    ...preciseAddress,
-    geometry: { location_type: 'RANGE_INTERPOLATED' },
-}).verified, false);
+assert.strictEqual(parseNominatimResult({
+    ...exactResult,
+    address: { ...exactResult.address, postcode: '33619' },
+}, example).verified, false);
 
 (async () => {
-    const verified = await verifyAddressWithGoogle('14941 N Dale Mabry Hwy, Tampa, FL 33618', 'test-key', {
-        fetchImpl: async () => ({
-            ok: true,
-            json: async () => ({ status: 'OK', results: [preciseAddress] }),
-        }),
+    const verified = await verifyAddressWithNominatim(example, {
+        fetchImpl: async (_url, options) => {
+            assert.match(options.headers['User-Agent'], /The-Commission/);
+            return { ok: true, json: async () => [exactResult] };
+        },
     });
     assert.strictEqual(verified.verified, true);
 
-    const missingKey = await verifyAddressWithGoogle('14941 N Dale Mabry Hwy', '');
-    assert.strictEqual(missingKey.verified, false);
+    const uncertain = await verifyAddressWithNominatim('99999 Fake Rd, Tampa, FL 33618', {
+        fetchImpl: async () => ({ ok: true, json: async () => [] }),
+    });
+    assert.strictEqual(uncertain.verified, false);
 
     console.log('address-verification tests passed');
 })().catch(error => {
