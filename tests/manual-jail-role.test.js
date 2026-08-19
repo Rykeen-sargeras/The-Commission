@@ -87,7 +87,7 @@ const Discord = {
         jailCategoryId: 'category',
         modChannelId: 'mods',
         staffRoleIds: ['staff'],
-    }, { delayMs: 0 });
+    }, { delayMs: 0, reconcileOnReady: false });
 
     await listener(oldMember, newMember);
     assert.strictEqual(created, 1);

@@ -26,6 +26,7 @@ function installManualJailRoleWorkflow(client, Discord, config, options = {}) {
     const modChannelId = config.modChannelId || '';
     const staffRoleIds = config.staffRoleIds || [];
     const delayMs = options.delayMs ?? 1500;
+    const reconcileOnReady = options.reconcileOnReady !== false;
     const provisioning = new Map();
 
     if (!jailRoleId) {
@@ -49,14 +50,16 @@ function installManualJailRoleWorkflow(client, Discord, config, options = {}) {
         }
     }
 
-    async function completeJailWorkflow(member) {
-        if (delayMs) await new Promise(resolve => setTimeout(resolve, delayMs));
+    async function completeJailWorkflow(member, workflowOptions = {}) {
+        if (!workflowOptions.skipDelay && delayMs) await new Promise(resolve => setTimeout(resolve, delayMs));
 
         const guild = member.guild;
         const channels = await guild.channels.fetch();
         let jailChannel = findExistingJailChannel(channels, member.id, jailCategoryId);
         let created = false;
         let failure = '';
+
+        if (workflowOptions.skipExisting && jailChannel) return;
 
         if (!jailChannel) {
             const category = jailCategoryId ? channels.get(jailCategoryId) : null;
@@ -145,6 +148,26 @@ function installManualJailRoleWorkflow(client, Discord, config, options = {}) {
         provisioning.set(newMember.id, task);
         return task;
     });
+
+    if (reconcileOnReady) {
+        client.once(Discord.Events.ClientReady, async () => {
+            for (const guild of client.guilds.cache.values()) {
+                try {
+                    const members = await guild.members.fetch();
+                    for (const member of members.values()) {
+                        if (!member.roles.cache.has(jailRoleId) || provisioning.has(member.id)) continue;
+                        const task = completeJailWorkflow(member, { skipDelay: true, skipExisting: true })
+                            .catch(error => console.error('[Manual jail] Startup repair failed:', error))
+                            .finally(() => provisioning.delete(member.id));
+                        provisioning.set(member.id, task);
+                        await task;
+                    }
+                } catch (error) {
+                    console.error(`[Manual jail] Could not reconcile guild ${guild.id}:`, error);
+                }
+            }
+        });
+    }
 }
 
 module.exports = {
