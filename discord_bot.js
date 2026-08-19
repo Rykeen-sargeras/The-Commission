@@ -10,6 +10,7 @@ const { verifyAddressWithFreeGeocoders } = require('./address_verification');
 const { MemberBridgeIntegration, memberBridgeCommandData } = require('./memberbridge/integration');
 const goingLive = require('./going_live');
 const { installLiveVoicePairs } = require('./live_voice_pairs');
+const { installManualJailRoleWorkflow } = require('./manual_jail_role');
 
 // Music dependencies
 // play-dl is used for YouTube searching/metadata.
@@ -76,6 +77,12 @@ const CONFIG = {
 
 const PREEMPTIVE_BAN_USER_IDS = new Set(CONFIG.PREEMPTIVE_BAN_USER_IDS);
 installLiveVoicePairs(client, { categoryId: CONFIG.LIVE_VOICE_CATEGORY_ID });
+installManualJailRoleWorkflow(client, Discord, {
+    jailRoleId: CONFIG.JAIL_ROLE_ID,
+    jailCategoryId: CONFIG.JAIL_CATEGORY_ID,
+    modChannelId: CONFIG.MOD_CHANNEL_ID,
+    staffRoleIds: CONFIG.STAFF_ROLE_IDS,
+});
 
 // Music channel configuration
 const MUSIC_CHANNEL_ID = CONFIG.MUSIC_CHANNEL_ID;
