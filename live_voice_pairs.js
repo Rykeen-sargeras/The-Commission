@@ -79,6 +79,10 @@ function memberCount(channel) {
     return Number(channel?.members?.size || 0);
 }
 
+function pairMemberCount(pair) {
+    return memberCount(pair?.room) + memberCount(pair?.waiting);
+}
+
 function clonePermissionOverwrites(channel) {
     const cache = channel?.permissionOverwrites?.cache;
     if (!cache) return [];
@@ -173,9 +177,15 @@ class LiveVoicePairManager {
                 this.scheduleCleanup(guild, oldManaged.family, oldManaged.number);
             }
 
-            // Waiting channels never consume the open room slot for either family.
-            const joinedRoom = newManaged?.kind === 'room' && oldState.channelId !== newState.channelId;
-            if (joinedRoom) this.schedule(guild, this.delayMs, newManaged.family);
+            // LIVE uses the whole pair as the available slot: occupying either the
+            // on-air room or its waiting room causes a fresh LIVE/Waiting pair to exist.
+            // Apprentice keeps its existing room-only behavior.
+            const joinedManaged = newManaged && oldState.channelId !== newState.channelId;
+            const consumesOpenSlot = joinedManaged && (
+                newManaged.family === 'live'
+                || newManaged.kind === 'room'
+            );
+            if (consumesOpenSlot) this.schedule(guild, this.delayMs, newManaged.family);
         });
 
         this.client.on('channelDelete', channel => {
@@ -295,7 +305,7 @@ class LiveVoicePairManager {
             for (const [number, pair] of pairs[family]) {
                 await this.ensureCanonicalName(pair.room, family, 'room', number);
                 await this.ensureCanonicalName(pair.waiting, family, 'waiting', number);
-                if (number > 1 && memberCount(pair.room) + memberCount(pair.waiting) === 0) {
+                if (number > 1 && pairMemberCount(pair) === 0) {
                     this.scheduleCleanup(guild, family, number);
                 }
             }
@@ -304,10 +314,22 @@ class LiveVoicePairManager {
         if (!ensureFamily) return;
         const familyPairs = pairs[ensureFamily];
         const templates = familyPairs.get(1);
-        const occupiedRoomExists = Array.from(familyPairs.values()).some(pair => memberCount(pair.room) > 0);
-        const openRoomExists = Array.from(familyPairs.values()).some(pair => pair.room && memberCount(pair.room) === 0);
 
-        if (occupiedRoomExists && !openRoomExists) {
+        // A LIVE slot is the room + its waiting room. If either side is occupied,
+        // that pair is busy and another completely empty pair must remain available.
+        // Apprentice intentionally retains its existing room-only slot behavior.
+        const occupiedSlotExists = Array.from(familyPairs.values()).some(pair => (
+            ensureFamily === 'live'
+                ? pairMemberCount(pair) > 0
+                : memberCount(pair.room) > 0
+        ));
+        const openSlotExists = Array.from(familyPairs.values()).some(pair => (
+            ensureFamily === 'live'
+                ? pair.room && pair.waiting && pairMemberCount(pair) === 0
+                : pair.room && memberCount(pair.room) === 0
+        ));
+
+        if (occupiedSlotExists && !openSlotExists) {
             let nextNumber = 2;
             while (familyPairs.has(nextNumber)) nextNumber += 1;
             const nextPair = {};
@@ -332,7 +354,7 @@ class LiveVoicePairManager {
     async deletePairIfEmpty(guild, family, number) {
         if (number <= 1) return false;
         const pair = (await this.collectPairs(guild))[family].get(number) || {};
-        if (memberCount(pair.room) + memberCount(pair.waiting) > 0) return false;
+        if (pairMemberCount(pair) > 0) return false;
         for (const channel of [pair.room, pair.waiting]) {
             if (channel) await channel.delete('Remove voice pair after ten seconds empty');
         }
