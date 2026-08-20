@@ -112,14 +112,14 @@ function editorPage() {
   function updateDirty(){pushEl.disabled=!dirty.size;dirtyText.textContent=dirty.size?dirty.size+' permission change'+(dirty.size===1?'':'s')+' pending.':'No changes pending.';dirtyText.className=dirty.size?'dirty':'muted';}
   async function loadGuilds(){try{const guilds=await api('/api/permissions/guilds');guildEl.innerHTML='<option value="">Choose a server</option>'+guilds.map(g=>'<option value="'+g.id+'">'+esc(g.name)+'</option>').join('');if(guilds.length===1){guildEl.value=guilds[0].id;await loadGuild();}setStatus('Ready.',true);}catch(e){setStatus(e.message);guildEl.innerHTML='<option>Bot offline</option>';}}
   async function loadGuild(){if(dirty.size&&!confirm('Discard your unpushed permission changes?')){return;}dirty.clear();updateDirty();const guildId=guildEl.value;if(!guildId)return;roleEl.disabled=true;setStatus('Loading roles, categories and channels…');try{info=await api('/api/permissions/guild?guildId='+encodeURIComponent(guildId));roleEl.innerHTML='<option value="">Choose a role</option>'+info.roles.map(r=>'<option value="'+r.id+'">'+esc(r.name)+(r.managed?' [managed]':'')+'</option>').join('');roleEl.disabled=false;headEl.innerHTML='<tr><th>Discord Category / Channel</th>'+info.permissions.map(p=>'<th title="'+esc(p.key)+'">'+esc(p.label)+'</th>').join('')+'</tr>';rowsEl.innerHTML='';setStatus(info.channels.length+' channels · '+info.roles.length+' roles loaded.',true);}catch(e){setStatus(e.message);}}
-  async function loadRole(){if(dirty.size&&!confirm('Discard your unpushed permission changes?')){return;}dirty.clear();updateDirty();const roleId=roleEl.value;if(!roleId||!info)return;setStatus('Loading permission state…');try{state=await api('/api/permissions/role-state?guildId='+encodeURIComponent(guildEl.value)+'&roleId='+encodeURIComponent(roleId));renderRows();setStatus('Channels are grouped under their Discord categories. Dashed boxes are inherited.',true);}catch(e){setStatus(e.message);}}
+  async function loadRole(){if(dirty.size&&!confirm('Discard your unpushed permission changes?')){return;}dirty.clear();updateDirty();const roleId=roleEl.value;if(!roleId||!info)return;setStatus('Loading permission state…');try{state=await api('/api/permissions/role-state?guildId='+encodeURIComponent(guildEl.value)+'&roleId='+encodeURIComponent(roleId));renderRows();setStatus('Category checkboxes apply to every channel underneath. You can still override individual channels before pushing.',true);}catch(e){setStatus(e.message);}}
   function renderRows(){
     const stateMap=new Map(state.channels.map(c=>[c.id,c.permissions]));
     const q=searchEl.value.trim().toLowerCase();
     const categories=info.channels.filter(c=>c.typeLabel==='Category').sort((a,b)=>a.position-b.position||a.name.localeCompare(b.name));
     const regular=info.channels.filter(c=>c.typeLabel!=='Category');
     const matches=c=>!q||c.name.toLowerCase().includes(q)||c.typeLabel.toLowerCase().includes(q);
-    const rowHtml=(c,child=false)=>{const perms=stateMap.get(c.id)||{};return '<tr class="'+(c.typeLabel==='Category'?'category':(child?'child-channel':''))+'"><td><div class="channel"><span class="kind">'+esc(c.typeLabel)+'</span><span class="channel-name">'+esc(c.name)+'</span></div></td>'+info.permissions.map(p=>{const s=perms[p.key]||{allowed:false,explicit:'inherit'};return '<td data-cell="'+c.id+'|'+p.key+'"><input class="check '+(s.explicit==='inherit'?'inherited':'')+'" type="checkbox" '+(s.allowed?'checked':'')+' data-channel="'+c.id+'" data-perm="'+p.key+'" title="'+esc(s.explicit)+'"></td>';}).join('')+'</tr>';};
+    const rowHtml=(c,child=false)=>{const perms=stateMap.get(c.id)||{};return '<tr class="'+(c.typeLabel==='Category'?'category':(child?'child-channel':''))+'"><td><div class="channel"><span class="kind">'+esc(c.typeLabel)+'</span><span class="channel-name">'+esc(c.name)+'</span></div></td>'+info.permissions.map(p=>{const s=perms[p.key]||{allowed:false,explicit:'inherit'};const pendingChange=dirty.get(dirtyKey(c.id,p.key));const allowed=pendingChange?pendingChange.value:s.allowed;const inherited=!pendingChange&&s.explicit==='inherit';return '<td data-cell="'+c.id+'|'+p.key+'" class="'+(pendingChange?'changed':'')+'"><input class="check '+(inherited?'inherited':'')+'" type="checkbox" '+(allowed?'checked':'')+' data-channel="'+c.id+'" data-perm="'+p.key+'" title="'+esc(pendingChange?'pending change':s.explicit)+'"></td>';}).join('')+'</tr>';};
     let html='';
     const uncategorized=regular.filter(c=>!c.parentId&&matches(c));
     if(uncategorized.length){html+='<tr class="uncategorized-label"><td colspan="'+(info.permissions.length+1)+'">Uncategorized Channels</td></tr>'+uncategorized.sort((a,b)=>a.position-b.position||a.name.localeCompare(b.name)).map(c=>rowHtml(c,false)).join('');}
@@ -133,7 +133,23 @@ function editorPage() {
       html+=rows.map(c=>rowHtml(c,true)).join('');
     }
     rowsEl.innerHTML=html||'<tr><td colspan="'+(info.permissions.length+1)+'" style="padding:28px;color:#777;text-align:center">No matching channels.</td></tr>';
-    document.querySelectorAll('.check').forEach(box=>box.onchange=()=>{const key=dirtyKey(box.dataset.channel,box.dataset.perm);dirty.set(key,{channelId:box.dataset.channel,permission:box.dataset.perm,value:box.checked});box.classList.remove('inherited');box.closest('td').classList.add('changed');updateDirty();});
+    document.querySelectorAll('.check').forEach(box=>box.onchange=()=>{
+      const channel=info.channels.find(c=>c.id===box.dataset.channel);
+      const permission=box.dataset.perm;
+      const value=box.checked;
+      const setPending=(channelId,checked)=>{
+        const key=dirtyKey(channelId,permission);
+        dirty.set(key,{channelId,permission,value:checked});
+        const visible=document.querySelector('.check[data-channel="'+channelId+'"][data-perm="'+permission+'"]');
+        if(visible){visible.checked=checked;visible.classList.remove('inherited');visible.closest('td')?.classList.add('changed');}
+      };
+      setPending(box.dataset.channel,value);
+      if(channel?.typeLabel==='Category'){
+        info.channels.filter(c=>c.parentId===channel.id).forEach(child=>setPending(child.id,value));
+        setStatus((value?'Enabled ':'Disabled ')+permission+' for '+channel.name+' and all channels underneath. Individual channel overrides are still allowed.',true);
+      }
+      updateDirty();
+    });
   }
   async function push(){if(!dirty.size||!info)return;if(!confirm('Push '+dirty.size+' permission change'+(dirty.size===1?'':'s')+' to Discord now?'))return;pushEl.disabled=true;pushEl.textContent='Pushing…';try{const d=await api('/api/permissions/push',{method:'POST',body:JSON.stringify({guildId:guildEl.value,roleId:roleEl.value,changes:[...dirty.values()]})});dirty.clear();updateDirty();pushEl.textContent='Push Changes';setStatus('Pushed '+d.changedPermissions+' permissions across '+d.changedChannels+' channels.',true);await loadRole();}catch(e){pushEl.textContent='Push Changes';pushEl.disabled=false;setStatus(e.message);}}
   guildEl.onchange=loadGuild;roleEl.onchange=loadRole;searchEl.oninput=()=>{if(state)renderRows();};document.getElementById('reload').onclick=()=>{if(guildEl.value)loadGuild();else loadGuilds();};pushEl.onclick=push;window.addEventListener('beforeunload',e=>{if(dirty.size){e.preventDefault();e.returnValue='';}});loadGuilds();
