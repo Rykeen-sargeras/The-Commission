@@ -8,6 +8,7 @@ let activeClient = null;
 
 const CHANNEL_PERMISSIONS = [
   ['ViewChannel', 'View'],
+  ['Connect', 'Join'],
   ['SendMessages', 'Send'],
   ['ReadMessageHistory', 'History'],
   ['AddReactions', 'React'],
@@ -23,7 +24,6 @@ const CHANNEL_PERMISSIONS = [
   ['CreatePrivateThreads', 'Private Threads'],
   ['SendMessagesInThreads', 'Send in Threads'],
   ['ManageThreads', 'Manage Threads'],
-  ['Connect', 'Connect'],
   ['Speak', 'Speak'],
   ['Stream', 'Video/Stream'],
   ['UseVAD', 'Voice Activity'],
