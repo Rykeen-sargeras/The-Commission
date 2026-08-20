@@ -1,5 +1,7 @@
 'use strict';
 
+if (String(process.argv[1] || '').endsWith('railway_start.js')) require('./permissions_web_preload');
+
 const ZONE = 'America/New_York';
 const RESET_HOUR = 5;
 
