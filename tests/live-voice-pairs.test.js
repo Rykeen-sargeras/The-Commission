@@ -140,6 +140,24 @@ function denyBits(item) {
     const waiting2 = findChannel(guild, '⬆️ Waiting 2 ⬆️');
     assert(live2 && waiting2);
 
+    // New LIVE pairs retain LIVE permissions rather than Apprentice permissions.
+    assert.strictEqual(allowBits(live2), VIEW_CHANNEL);
+    assert.strictEqual(denyBits(live2), CONNECT | MOVE_MEMBERS);
+    assert.strictEqual(allowBits(waiting2), VIEW_CHANNEL | CONNECT);
+    assert.strictEqual(denyBits(waiting2), MOVE_MEMBERS);
+
+    // If all existing LIVE pairs are busy, including via a Waiting room,
+    // another complete LIVE/Waiting pair is created.
+    waiting2.members.size = 1;
+    await manager.reconcile(guild, 'live');
+    const live3 = findChannel(guild, '🔴 LIVE 3 🔴');
+    const waiting3 = findChannel(guild, '⬆️ Waiting 3 ⬆️');
+    assert(live3 && waiting3);
+    assert.strictEqual(allowBits(live3), VIEW_CHANNEL);
+    assert.strictEqual(denyBits(live3), CONNECT | MOVE_MEMBERS);
+    assert.strictEqual(allowBits(waiting3), VIEW_CHANNEL | CONNECT);
+    assert.strictEqual(denyBits(waiting3), MOVE_MEMBERS);
+
     // Occupying the only open Apprentice room creates its own next pair.
     apprentice1.members.size = 1;
     await manager.reconcile(guild, 'apprentice');
@@ -147,7 +165,7 @@ function denyBits(item) {
     const apprenticeWaiting2 = findChannel(guild, '⬆️ Apprentice Waiting 2 ⬆️');
     assert(apprentice2 && apprenticeWaiting2);
 
-    // A waiting-room occupant does not consume an open room slot.
+    // Apprentice waiting-room occupancy keeps the existing Apprentice behavior.
     apprenticeWaiting2.members.size = 1;
     await manager.reconcile(guild, 'apprentice');
     assert(!findChannel(guild, '💛 Apprentice 3 💛'));
@@ -156,10 +174,15 @@ function denyBits(item) {
     live1.members.size = 0;
     live2.members.size = 0;
     waiting2.members.size = 0;
+    live3.members.size = 0;
+    waiting3.members.size = 0;
     manager.scheduleCleanup(guild, 'live', 2);
+    manager.scheduleCleanup(guild, 'live', 3);
     await new Promise(resolve => setTimeout(resolve, 30));
     assert.strictEqual(live2.deleted, true);
     assert.strictEqual(waiting2.deleted, true);
+    assert.strictEqual(live3.deleted, true);
+    assert.strictEqual(waiting3.deleted, true);
     assert.strictEqual(live1.deleted, false);
     assert.strictEqual(waiting1.deleted, false);
 
