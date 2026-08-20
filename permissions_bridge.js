@@ -60,6 +60,20 @@ function typeLabel(type) {
   }
 }
 
+function linkedRoleFamily(name) {
+  const value = String(name || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  if (!/\b(gidgy|scooter)\b/.test(value)) return null;
+  if (/\b(vvip|vip)\b/.test(value)) return 'gidgy-scooter-vip';
+  if (/\bmember\b/.test(value)) return 'gidgy-scooter-member';
+  return null;
+}
+
+function linkedFamilyLabel(family) {
+  if (family === 'gidgy-scooter-member') return 'Gidgy + Scooter Members';
+  if (family === 'gidgy-scooter-vip') return 'Gidgy + Scooter VIP / VVIP';
+  return '';
+}
+
 function getClient() {
   if (!activeClient) throw new Error('Discord client is not ready yet.');
   if (!activeClient.isReady?.()) throw new Error('Discord bot is still connecting.');
@@ -78,14 +92,19 @@ async function getGuild(guildId) {
 
 function roleList(guild) {
   return guild.roles.cache
-    .map(role => ({
-      id: role.id,
-      name: role.id === guild.id ? '@everyone' : role.name,
-      color: role.hexColor === '#000000' ? '#777b84' : role.hexColor,
-      position: role.position,
-      managed: Boolean(role.managed),
-      everyone: role.id === guild.id,
-    }))
+    .map(role => {
+      const family = linkedRoleFamily(role.name);
+      return {
+        id: role.id,
+        name: role.id === guild.id ? '@everyone' : role.name,
+        color: role.hexColor === '#000000' ? '#777b84' : role.hexColor,
+        position: role.position,
+        managed: Boolean(role.managed),
+        everyone: role.id === guild.id,
+        linkedFamily: family,
+        linkedFamilyLabel: linkedFamilyLabel(family),
+      };
+    })
     .sort((a, b) => {
       if (a.everyone) return 1;
       if (b.everyone) return -1;
@@ -130,6 +149,13 @@ async function roleState(payload) {
   const role = guild.roles.cache.get(roleId);
   if (!role) throw new Error('Role not found. Refresh the permission editor and try again.');
 
+  const family = linkedRoleFamily(role.name);
+  const linkedRoles = family
+    ? guild.roles.cache.filter(candidate => !candidate.managed && linkedRoleFamily(candidate.name) === family)
+      .map(candidate => ({ id: candidate.id, name: candidate.name }))
+      .sort((a, b) => a.name.localeCompare(b.name))
+    : [{ id: role.id, name: role.name }];
+
   const channels = channelList(guild).map(info => {
     const channel = guild.channels.cache.get(info.id);
     const overwrite = channel?.permissionOverwrites?.cache?.get(role.id) || null;
@@ -150,7 +176,14 @@ async function roleState(payload) {
     return { id: info.id, permissions };
   });
 
-  return { guildId: guild.id, roleId: role.id, channels };
+  return {
+    guildId: guild.id,
+    roleId: role.id,
+    channels,
+    linkedFamily: family,
+    linkedFamilyLabel: linkedFamilyLabel(family),
+    linkedRoles,
+  };
 }
 
 async function pushChanges(payload) {
@@ -160,7 +193,7 @@ async function pushChanges(payload) {
   if (!role) throw new Error('Role not found.');
 
   const changes = Array.isArray(payload.changes) ? payload.changes : [];
-  if (!changes.length) return { ok: true, changedChannels: 0, changedPermissions: 0 };
+  if (!changes.length) return { ok: true, changedChannels: 0, changedPermissions: 0, changedRoles: 0 };
   if (changes.length > 5000) throw new Error('Too many permission changes in one push.');
 
   const grouped = new Map();
@@ -173,20 +206,39 @@ async function pushChanges(payload) {
     grouped.get(channelId)[permission] = Boolean(change.value);
   }
 
+  const family = linkedRoleFamily(role.name);
+  const targetRoles = family
+    ? guild.roles.cache.filter(candidate => !candidate.managed && linkedRoleFamily(candidate.name) === family)
+    : [role];
+
+  if (!targetRoles.length) throw new Error('No editable roles were found in this linked permission family.');
+
   let changedPermissions = 0;
+  let changedChannels = 0;
   for (const [channelId, edits] of grouped) {
     const channel = guild.channels.cache.get(channelId);
     if (!channel?.permissionOverwrites?.edit) continue;
-    await channel.permissionOverwrites.edit(role, edits, {
-      reason: 'The Commission web permission editor',
-    });
-    changedPermissions += Object.keys(edits).length;
+    let channelChanged = false;
+    for (const targetRole of targetRoles.values()) {
+      await channel.permissionOverwrites.edit(targetRole, edits, {
+        reason: family
+          ? `The Commission linked permission family: ${linkedFamilyLabel(family)}`
+          : 'The Commission web permission editor',
+      });
+      changedPermissions += Object.keys(edits).length;
+      channelChanged = true;
+    }
+    if (channelChanged) changedChannels += 1;
   }
 
   return {
     ok: true,
-    changedChannels: grouped.size,
+    changedChannels,
     changedPermissions,
+    changedRoles: targetRoles.size ?? targetRoles.length,
+    linkedFamily: family,
+    linkedFamilyLabel: linkedFamilyLabel(family),
+    roleNames: [...targetRoles.values()].map(targetRole => targetRole.name),
   };
 }
 
@@ -222,4 +274,4 @@ process.on('message', async message => {
   }
 });
 
-module.exports = { CHANNEL_PERMISSIONS };
+module.exports = { CHANNEL_PERMISSIONS, linkedRoleFamily };
