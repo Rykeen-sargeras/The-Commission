@@ -13,8 +13,8 @@ const FAMILY_DEFINITIONS = {
         waitingName: '⬆️ Waiting ⬆️',
     },
     apprentice: {
-        roomName: '💛 Apprentice 1 💛',
-        waitingName: '⬆️ Apprentice Waiting ⬆️',
+        roomName: '🟡 Apprentice 1 🟡',
+        waitingName: '🟡 Apprentice Waiting 🟡',
     },
 };
 
@@ -271,6 +271,40 @@ class LiveVoicePairManager {
         await channel.setName(expected, 'Normalize managed voice channel name');
     }
 
+    async ensureChannelOrder(guild, pairs) {
+        if (!guild?.channels?.setPositions) return;
+
+        const ordered = [];
+        for (const family of ['live', 'apprentice']) {
+            const numbers = Array.from(pairs[family].keys()).sort((a, b) => a - b);
+            for (const number of numbers) {
+                const pair = pairs[family].get(number) || {};
+                if (pair.room) ordered.push(pair.room);
+                if (pair.waiting) ordered.push(pair.waiting);
+            }
+        }
+        if (ordered.length < 2) return;
+
+        const knownPositions = ordered
+            .map(channel => Number(channel.rawPosition ?? channel.position))
+            .filter(Number.isFinite);
+        if (!knownPositions.length) return;
+        const startPosition = Math.min(...knownPositions);
+
+        const alreadyOrdered = ordered.every((channel, index) => {
+            const current = Number(channel.rawPosition ?? channel.position);
+            return Number.isFinite(current) && current === startPosition + index;
+        });
+        if (alreadyOrdered) return;
+
+        await guild.channels.setPositions(
+            ordered.map((channel, index) => ({
+                channel,
+                position: startPosition + index,
+            })),
+        );
+    }
+
     async createChannel(guild, template, name, family, kind) {
         return guild.channels.create(cloneChannelOptions(template, name, this.categoryId, {
             apprenticeRoleId: this.apprenticeRoleId,
@@ -311,7 +345,10 @@ class LiveVoicePairManager {
             }
         }
 
-        if (!ensureFamily) return;
+        if (!ensureFamily) {
+            await this.ensureChannelOrder(guild, pairs);
+            return;
+        }
         const familyPairs = pairs[ensureFamily];
         const templates = familyPairs.get(1);
 
@@ -349,6 +386,8 @@ class LiveVoicePairManager {
             );
             familyPairs.set(nextNumber, nextPair);
         }
+
+        await this.ensureChannelOrder(guild, pairs);
     }
 
     async deletePairIfEmpty(guild, family, number) {
@@ -358,6 +397,7 @@ class LiveVoicePairManager {
         for (const channel of [pair.room, pair.waiting]) {
             if (channel) await channel.delete('Remove voice pair after ten seconds empty');
         }
+        this.schedule(guild, 0, null);
         return true;
     }
 }
