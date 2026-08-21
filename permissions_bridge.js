@@ -80,13 +80,35 @@ function getClient() {
   return activeClient;
 }
 
+function settleWithin(promise, timeoutMs = 8000) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('Discord refresh timed out. Using the ready cache.')), timeoutMs);
+    Promise.resolve(promise).then(
+      value => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      error => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
 async function getGuild(guildId) {
   const client = getClient();
   const id = String(guildId || '').trim();
   if (!id) throw new Error('Choose a Discord server.');
-  const guild = client.guilds.cache.get(id) || await client.guilds.fetch(id).catch(() => null);
+  const guild = client.guilds.cache.get(id) || await settleWithin(client.guilds.fetch(id)).catch(() => null);
   if (!guild) throw new Error('Discord server not found or bot does not have access.');
-  await Promise.allSettled([guild.roles.fetch(), guild.channels.fetch()]);
+
+  // READY already hydrates roles and channels. Only call Discord's REST API when
+  // a cache is genuinely empty, and never let a stalled REST request hold the UI.
+  const refreshes = [];
+  if (guild.roles.cache.size <= 1) refreshes.push(settleWithin(guild.roles.fetch()));
+  if (guild.channels.cache.size === 0) refreshes.push(settleWithin(guild.channels.fetch()));
+  if (refreshes.length) await Promise.allSettled(refreshes);
   return guild;
 }
 
