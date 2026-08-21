@@ -26,6 +26,8 @@ function channel(id, name, numberOfMembers = 0, permissionOverwrites = []) {
         type: 2,
         bitrate: 64000,
         userLimit: 0,
+        rawPosition: 0,
+        position: 0,
         members: { size: numberOfMembers },
         permissionOverwrites: {
             cache: overwriteCache,
@@ -50,6 +52,10 @@ function channel(id, name, numberOfMembers = 0, permissionOverwrites = []) {
 function guildWith(initialChannels) {
     const cache = new Map(initialChannels.map(item => [item.id, item]));
     let nextId = 100;
+    initialChannels.forEach((item, index) => {
+        item.rawPosition = index;
+        item.position = index;
+    });
     const guild = {
         id: 'guild-1',
         name: 'Test Guild',
@@ -58,10 +64,19 @@ function guildWith(initialChannels) {
             async fetch() { return cache; },
             async create(options) {
                 const created = channel(String(nextId++), options.name, 0, options.permissionOverwrites);
+                const nextPosition = cache.size;
+                created.rawPosition = nextPosition;
+                created.position = nextPosition;
                 created.createdOptions = options;
                 created.guild = guild;
                 cache.set(created.id, created);
                 return created;
+            },
+            async setPositions(entries) {
+                for (const entry of entries) {
+                    entry.channel.rawPosition = entry.position;
+                    entry.channel.position = entry.position;
+                }
             },
         },
     };
@@ -71,6 +86,13 @@ function guildWith(initialChannels) {
 
 function findChannel(guild, name) {
     return Array.from(guild.channels.cache.values()).find(item => item.name === name);
+}
+
+function orderedManagedNames(guild) {
+    return Array.from(guild.channels.cache.values())
+        .filter(item => !item.deleted)
+        .sort((a, b) => a.rawPosition - b.rawPosition)
+        .map(item => item.name);
 }
 
 function roleOverwrite(item) {
@@ -93,9 +115,9 @@ function denyBits(item) {
     assert.strictEqual(numberedName('Waiting', 2, 'waiting', 'live'), 'Waiting 2');
     assert.strictEqual(numberedName('Apprentice 1', 2, 'room', 'apprentice'), 'Apprentice 2');
     assert.strictEqual(numberedName('Apprentice Waiting 1', 2, 'waiting', 'apprentice'), 'Apprentice Waiting 2');
-    assert.strictEqual(numberedName('💛 Apprentice 1 💛', 2, 'room', 'apprentice'), '💛 Apprentice 2 💛');
-    assert.strictEqual(numberedName('⬆️ Apprentice Waiting ⬆️', 2, 'waiting', 'apprentice'), '⬆️ Apprentice Waiting 2 ⬆️');
-    assert.deepStrictEqual(describeManagedChannel(channel('aw', '⬆️ Apprentice Waiting ⬆️'), CATEGORY_ID), {
+    assert.strictEqual(numberedName('🟡 Apprentice 1 🟡', 2, 'room', 'apprentice'), '🟡 Apprentice 2 🟡');
+    assert.strictEqual(numberedName('🟡 Apprentice Waiting 🟡', 2, 'waiting', 'apprentice'), '🟡 Apprentice Waiting 2 🟡');
+    assert.deepStrictEqual(describeManagedChannel(channel('aw', '🟡 Apprentice Waiting 🟡'), CATEGORY_ID), {
         family: 'apprentice', kind: 'waiting', number: 1,
     });
     assert.deepStrictEqual(describeManagedChannel(channel('a', 'Apprentice Waiting 3'), CATEGORY_ID), {
@@ -114,8 +136,8 @@ function denyBits(item) {
 
     const live1 = findChannel(guild, '🔴 LIVE 1 🔴');
     const waiting1 = findChannel(guild, '⬆️ Waiting ⬆️');
-    const apprentice1 = findChannel(guild, '💛 Apprentice 1 💛');
-    const apprenticeWaiting1 = findChannel(guild, '⬆️ Apprentice Waiting ⬆️');
+    const apprentice1 = findChannel(guild, '🟡 Apprentice 1 🟡');
+    const apprenticeWaiting1 = findChannel(guild, '🟡 Apprentice Waiting 🟡');
     assert(live1 && waiting1 && apprentice1 && apprenticeWaiting1);
 
     assert.strictEqual(allowBits(live1), VIEW_CHANNEL);
@@ -126,12 +148,12 @@ function denyBits(item) {
     assert.strictEqual(denyBits(apprentice1), 0n);
     assert.strictEqual(allowBits(apprenticeWaiting1), VIEW_CHANNEL | CONNECT | MOVE_MEMBERS);
 
-    // Existing mojibake names from an earlier bad upload are repaired in place.
-    apprentice1.name = 'ðŸ’› Apprentice 1 ðŸ’›';
-    apprenticeWaiting1.name = 'â¬†ï¸ Apprentice Waiting â¬†ï¸';
+    // Existing old/malformed names are repaired in place to the yellow-circle theme.
+    apprentice1.name = '💛 Apprentice 1 💛';
+    apprenticeWaiting1.name = '⬆️ Apprentice Waiting ⬆️';
     await manager.reconcile(guild);
-    assert.strictEqual(apprentice1.name, '💛 Apprentice 1 💛');
-    assert.strictEqual(apprenticeWaiting1.name, '⬆️ Apprentice Waiting ⬆️');
+    assert.strictEqual(apprentice1.name, '🟡 Apprentice 1 🟡');
+    assert.strictEqual(apprenticeWaiting1.name, '🟡 Apprentice Waiting 🟡');
 
     // Occupying the only open LIVE room creates the next LIVE pair.
     live1.members.size = 1;
@@ -145,6 +167,16 @@ function denyBits(item) {
     assert.strictEqual(denyBits(live2), CONNECT | MOVE_MEMBERS);
     assert.strictEqual(allowBits(waiting2), VIEW_CHANNEL | CONNECT);
     assert.strictEqual(denyBits(waiting2), MOVE_MEMBERS);
+
+    // LIVE room + waiting room stay partnered, with Apprentice grouped beneath them.
+    assert.deepStrictEqual(orderedManagedNames(guild), [
+        '🔴 LIVE 1 🔴',
+        '⬆️ Waiting ⬆️',
+        '🔴 LIVE 2 🔴',
+        '⬆️ Waiting 2 ⬆️',
+        '🟡 Apprentice 1 🟡',
+        '🟡 Apprentice Waiting 🟡',
+    ]);
 
     // If all existing LIVE pairs are busy, including via a Waiting room,
     // another complete LIVE/Waiting pair is created.
@@ -161,14 +193,27 @@ function denyBits(item) {
     // Occupying the only open Apprentice room creates its own next pair.
     apprentice1.members.size = 1;
     await manager.reconcile(guild, 'apprentice');
-    const apprentice2 = findChannel(guild, '💛 Apprentice 2 💛');
-    const apprenticeWaiting2 = findChannel(guild, '⬆️ Apprentice Waiting 2 ⬆️');
+    const apprentice2 = findChannel(guild, '🟡 Apprentice 2 🟡');
+    const apprenticeWaiting2 = findChannel(guild, '🟡 Apprentice Waiting 2 🟡');
     assert(apprentice2 && apprenticeWaiting2);
+
+    assert.deepStrictEqual(orderedManagedNames(guild), [
+        '🔴 LIVE 1 🔴',
+        '⬆️ Waiting ⬆️',
+        '🔴 LIVE 2 🔴',
+        '⬆️ Waiting 2 ⬆️',
+        '🔴 LIVE 3 🔴',
+        '⬆️ Waiting 3 ⬆️',
+        '🟡 Apprentice 1 🟡',
+        '🟡 Apprentice Waiting 🟡',
+        '🟡 Apprentice 2 🟡',
+        '🟡 Apprentice Waiting 2 🟡',
+    ]);
 
     // Apprentice waiting-room occupancy keeps the existing Apprentice behavior.
     apprenticeWaiting2.members.size = 1;
     await manager.reconcile(guild, 'apprentice');
-    assert(!findChannel(guild, '💛 Apprentice 3 💛'));
+    assert(!findChannel(guild, '🟡 Apprentice 3 🟡'));
 
     // Dynamic pairs are removed after both sides are empty; pair 1 is protected.
     live1.members.size = 0;
