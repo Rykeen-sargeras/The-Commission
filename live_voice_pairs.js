@@ -14,7 +14,7 @@ const FAMILY_DEFINITIONS = {
     },
     apprentice: {
         roomName: '🟡 Apprentice 1 🟡',
-        waitingName: '🟡 Apprentice Waiting 🟡',
+        waitingName: '⬆️ Apprentice Waiting ⬆️',
     },
 };
 
