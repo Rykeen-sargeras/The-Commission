@@ -23,19 +23,37 @@ function isOpenPanel(channel) {
     );
 }
 
-function isLiveChannel(channel) {
-    if (!channel || String(channel.parentId || '') !== CATEGORY_ID) return false;
+function liveDescriptor(channel) {
+    if (!channel || String(channel.parentId || '') !== CATEGORY_ID) return null;
     const name = String(channel.name || '');
-    return /\bLIVE\s+\d+\b/iu.test(name)
-        || (/\bWaiting(?:\s+\d+)?\b/iu.test(name) && !/\bApprentice\b/iu.test(name));
+    if (/\bApprentice\b/iu.test(name)) return null;
+
+    const room = name.match(/\bLIVE\s+(\d+)\b/iu);
+    if (room) return { number: Number(room[1]), kind: 'room' };
+
+    const waiting = name.match(/\bWaiting(?:\s+(\d+))?\b/iu);
+    if (waiting) return { number: Number(waiting[1] || 1), kind: 'waiting' };
+    return null;
+}
+
+function apprenticeDescriptor(channel) {
+    if (!channel || String(channel.parentId || '') !== CATEGORY_ID) return null;
+    const name = String(channel.name || '');
+
+    const waiting = name.match(/\bApprentice\s+Waiting(?:\s+(\d+))?\b/iu);
+    if (waiting) return { number: Number(waiting[1] || 1), kind: 'waiting' };
+
+    const room = name.match(/\bApprentice\s+(\d+)\b/iu);
+    if (room) return { number: Number(room[1]), kind: 'room' };
+    return null;
+}
+
+function isLiveChannel(channel) {
+    return Boolean(liveDescriptor(channel));
 }
 
 function isApprenticeChannel(channel) {
-    return Boolean(
-        channel
-        && String(channel.parentId || '') === CATEGORY_ID
-        && /\bApprentice\b/iu.test(String(channel.name || ''))
-    );
+    return Boolean(apprenticeDescriptor(channel));
 }
 
 function roleOverwrite(roleId, allow) {
@@ -59,29 +77,52 @@ async function desiredOverwrites(guild) {
     return overwrites;
 }
 
-async function positionOpenPanel(guild, channel) {
-    if (!channel?.setPosition) return;
+function pairSort(describe) {
+    return (a, b) => {
+        const left = describe(a);
+        const right = describe(b);
+        if (!left && !right) return 0;
+        if (!left) return 1;
+        if (!right) return -1;
+        if (left.number !== right.number) return left.number - right.number;
+        if (left.kind === right.kind) return 0;
+        return left.kind === 'room' ? -1 : 1;
+    };
+}
+
+async function enforceCategoryOrder(guild, openPanel) {
+    if (!guild?.channels?.setPositions || !openPanel) return;
     await guild.channels.fetch().catch(() => null);
 
     const categoryChannels = Array.from(guild.channels.cache.values())
         .filter(item => String(item.parentId || '') === CATEGORY_ID);
-    const apprentice = categoryChannels
-        .filter(isApprenticeChannel)
-        .sort((a, b) => Number(a.rawPosition ?? a.position ?? 0) - Number(b.rawPosition ?? b.position ?? 0));
 
-    let desiredPosition;
-    if (apprentice.length) {
-        desiredPosition = Number(apprentice[0].rawPosition ?? apprentice[0].position);
-    } else {
-        const live = categoryChannels.filter(isLiveChannel);
-        if (!live.length) return;
-        desiredPosition = Math.max(...live.map(item => Number(item.rawPosition ?? item.position ?? 0))) + 1;
-    }
+    const liveChannels = categoryChannels.filter(isLiveChannel).sort(pairSort(liveDescriptor));
+    const apprenticeChannels = categoryChannels.filter(isApprenticeChannel).sort(pairSort(apprenticeDescriptor));
 
-    const current = Number(channel.rawPosition ?? channel.position);
-    if (Number.isFinite(desiredPosition) && current !== desiredPosition) {
-        await channel.setPosition(desiredPosition, { reason: 'Keep OPEN PANNEL after LIVE pairs and above Apprentice channels' });
-    }
+    // OPEN PANNEL is permanently first. Every LIVE room is immediately followed by
+    // its own Waiting room. All Apprentice rooms are always grouped at the bottom.
+    const ordered = [openPanel, ...liveChannels, ...apprenticeChannels];
+    if (ordered.length < 2) return;
+
+    const knownPositions = categoryChannels
+        .map(channel => Number(channel.rawPosition ?? channel.position))
+        .filter(Number.isFinite);
+    if (!knownPositions.length) return;
+    const startPosition = Math.min(...knownPositions);
+
+    const alreadyOrdered = ordered.every((channel, index) => {
+        const current = Number(channel.rawPosition ?? channel.position);
+        return Number.isFinite(current) && current === startPosition + index;
+    });
+    if (alreadyOrdered) return;
+
+    await guild.channels.setPositions(
+        ordered.map((channel, index) => ({
+            channel,
+            position: startPosition + index,
+        })),
+    );
 }
 
 async function ensureOpenPanel(guild) {
@@ -120,7 +161,7 @@ async function ensureOpenPanel(guild) {
         );
     }
 
-    await positionOpenPanel(guild, channel);
+    await enforceCategoryOrder(guild, channel);
     return channel;
 }
 
@@ -139,15 +180,23 @@ function installOpenPanel(client) {
     };
 
     client.on('ready', () => {
-        for (const guild of client.guilds.cache.values()) schedule(guild, 900);
+        for (const guild of client.guilds.cache.values()) schedule(guild, 1200);
     });
 
+    // Run after the LIVE pair manager has finished creating both halves of a pair,
+    // making this the final ordering pass for the category.
     client.on('channelCreate', channel => {
-        if (String(channel.parentId || '') === CATEGORY_ID) schedule(channel.guild, 1000);
+        if (String(channel.parentId || '') === CATEGORY_ID) schedule(channel.guild, 1400);
     });
 
     client.on('channelDelete', channel => {
-        if (isOpenPanel(channel) || String(channel.parentId || '') === CATEGORY_ID) schedule(channel.guild, 1000);
+        if (isOpenPanel(channel) || String(channel.parentId || '') === CATEGORY_ID) schedule(channel.guild, 1400);
+    });
+
+    client.on('channelUpdate', (oldChannel, newChannel) => {
+        if (String(oldChannel?.parentId || '') === CATEGORY_ID || String(newChannel?.parentId || '') === CATEGORY_ID) {
+            schedule(newChannel?.guild || oldChannel?.guild, 1400);
+        }
     });
 
     client.on('roleCreate', role => schedule(role.guild, 500));
@@ -172,8 +221,11 @@ patchDiscordClient();
 
 module.exports = {
     OPEN_PANEL_NAME,
+    apprenticeDescriptor,
+    enforceCategoryOrder,
     ensureOpenPanel,
     installOpenPanel,
     isOpenPanel,
+    liveDescriptor,
     patchDiscordClient,
 };
