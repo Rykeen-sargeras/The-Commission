@@ -18,8 +18,6 @@ const FAMILY_DEFINITIONS = {
     },
 };
 
-// Discord permission bitfields. Keeping these local lets this helper stay easy
-// to unit test without constructing a Discord client.
 const VIEW_CHANNEL = 1n << 10n;
 const CONNECT = 1n << 20n;
 const MOVE_MEMBERS = 1n << 24n;
@@ -81,6 +79,10 @@ function memberCount(channel) {
 
 function pairMemberCount(pair) {
     return memberCount(pair?.room) + memberCount(pair?.waiting);
+}
+
+function isCompleteEmptyPair(pair) {
+    return Boolean(pair?.room && pair?.waiting && pairMemberCount(pair) === 0);
 }
 
 function clonePermissionOverwrites(channel) {
@@ -154,6 +156,7 @@ class LiveVoicePairManager {
         this.timers = new Map();
         this.guildQueues = new Map();
         this.cleanupTimers = new Map();
+        this.healthInterval = null;
     }
 
     install() {
@@ -163,7 +166,14 @@ class LiveVoicePairManager {
         }
 
         this.client.on('ready', () => {
-            for (const guild of this.client.guilds.cache.values()) this.schedule(guild, 0, null);
+            for (const guild of this.client.guilds.cache.values()) this.schedule(guild, 0, 'live');
+
+            if (!this.healthInterval) {
+                this.healthInterval = setInterval(() => {
+                    for (const guild of this.client.guilds.cache.values()) this.schedule(guild, 0, 'live');
+                }, 5_000);
+                this.healthInterval.unref?.();
+            }
         });
 
         this.client.on('voiceStateUpdate', (oldState, newState) => {
@@ -177,22 +187,23 @@ class LiveVoicePairManager {
                 this.scheduleCleanup(guild, oldManaged.family, oldManaged.number);
             }
 
-            // LIVE uses the whole pair as the available slot: occupying either the
-            // on-air room or its waiting room causes a fresh LIVE/Waiting pair to exist.
-            // Apprentice keeps its existing room-only behavior.
             const joinedManaged = newManaged && oldState.channelId !== newState.channelId;
             const consumesOpenSlot = joinedManaged && (
                 newManaged.family === 'live'
                 || newManaged.kind === 'room'
             );
             if (consumesOpenSlot) this.schedule(guild, this.delayMs, newManaged.family);
+            else if (oldManaged?.family === 'live') this.schedule(guild, this.delayMs, 'live');
         });
 
         this.client.on('channelDelete', channel => {
             const managed = describeManagedChannel(channel, this.categoryId);
             if (!managed) return;
-            if (managed.number === 1) this.schedule(channel.guild, 0, null);
-            else this.scheduleCleanup(channel.guild, managed.family, managed.number);
+            if (managed.number === 1) this.schedule(channel.guild, 0, managed.family);
+            else {
+                this.scheduleCleanup(channel.guild, managed.family, managed.number);
+                if (managed.family === 'live') this.schedule(channel.guild, 0, 'live');
+            }
         });
 
         return this;
@@ -261,7 +272,7 @@ class LiveVoicePairManager {
             ViewChannel: Boolean(nextAllow & VIEW_CHANNEL),
             Connect: Boolean(nextAllow & CONNECT),
             MoveMembers: Boolean(nextAllow & MOVE_MEMBERS),
-        }, { reason: 'Enforce Apprentice voice channel access' });
+        }, { reason: 'Enforce managed voice channel access' });
     }
 
     async ensureCanonicalName(channel, family, kind, number) {
@@ -330,6 +341,55 @@ class LiveVoicePairManager {
         return pair;
     }
 
+    async ensureSparePair(guild, pairs, family) {
+        const familyPairs = pairs[family];
+        const templates = familyPairs.get(1);
+        if (!templates?.room || !templates?.waiting) return false;
+
+        const values = Array.from(familyPairs.values());
+        const occupiedSlotExists = values.some(pair => (
+            family === 'live'
+                ? pairMemberCount(pair) > 0
+                : memberCount(pair.room) > 0
+        ));
+        if (!occupiedSlotExists) return false;
+
+        const openSlotExists = values.some(pair => (
+            family === 'live'
+                ? isCompleteEmptyPair(pair)
+                : pair.room && memberCount(pair.room) === 0
+        ));
+        if (openSlotExists) return false;
+
+        let nextNumber = 2;
+        while (familyPairs.has(nextNumber)) nextNumber += 1;
+
+        const nextPair = {};
+        nextPair.room = await this.createChannel(
+            guild,
+            templates.room,
+            numberedName(templates.room.name, nextNumber, 'room', family),
+            family,
+            'room',
+        );
+        try {
+            nextPair.waiting = await this.createChannel(
+                guild,
+                templates.waiting,
+                numberedName(templates.waiting.name, nextNumber, 'waiting', family),
+                family,
+                'waiting',
+            );
+        } catch (error) {
+            await nextPair.room.delete('Rollback incomplete voice pair').catch(() => {});
+            throw error;
+        }
+
+        familyPairs.set(nextNumber, nextPair);
+        this.logger?.log?.(`[voice-pairs] Created ${family} pair ${nextNumber}.`);
+        return true;
+    }
+
     async reconcile(guild, ensureFamily = null) {
         const pairs = await this.collectPairs(guild);
         await this.ensureBasePair(guild, pairs, 'live');
@@ -345,59 +405,35 @@ class LiveVoicePairManager {
             }
         }
 
-        if (!ensureFamily) {
-            await this.ensureChannelOrder(guild, pairs);
-            return;
-        }
-        const familyPairs = pairs[ensureFamily];
-        const templates = familyPairs.get(1);
-
-        // A LIVE slot is the room + its waiting room. If either side is occupied,
-        // that pair is busy and another completely empty pair must remain available.
-        // Apprentice intentionally retains its existing room-only slot behavior.
-        const occupiedSlotExists = Array.from(familyPairs.values()).some(pair => (
-            ensureFamily === 'live'
-                ? pairMemberCount(pair) > 0
-                : memberCount(pair.room) > 0
-        ));
-        const openSlotExists = Array.from(familyPairs.values()).some(pair => (
-            ensureFamily === 'live'
-                ? pair.room && pair.waiting && pairMemberCount(pair) === 0
-                : pair.room && memberCount(pair.room) === 0
-        ));
-
-        if (occupiedSlotExists && !openSlotExists) {
-            let nextNumber = 2;
-            while (familyPairs.has(nextNumber)) nextNumber += 1;
-            const nextPair = {};
-            nextPair.room = await this.createChannel(
-                guild,
-                templates.room,
-                numberedName(templates.room.name, nextNumber, 'room', ensureFamily),
-                ensureFamily,
-                'room',
-            );
-            nextPair.waiting = await this.createChannel(
-                guild,
-                templates.waiting,
-                numberedName(templates.waiting.name, nextNumber, 'waiting', ensureFamily),
-                ensureFamily,
-                'waiting',
-            );
-            familyPairs.set(nextNumber, nextPair);
-        }
-
+        const familyToEnsure = ensureFamily || 'live';
+        await this.ensureSparePair(guild, pairs, familyToEnsure);
         await this.ensureChannelOrder(guild, pairs);
     }
 
     async deletePairIfEmpty(guild, family, number) {
         if (number <= 1) return false;
-        const pair = (await this.collectPairs(guild))[family].get(number) || {};
+
+        const pairs = (await this.collectPairs(guild))[family];
+        const pair = pairs.get(number) || {};
         if (pairMemberCount(pair) > 0) return false;
+
+        if (family === 'live' && isCompleteEmptyPair(pair)) {
+            const otherPairs = Array.from(pairs.entries())
+                .filter(([otherNumber]) => otherNumber !== number)
+                .map(([, otherPair]) => otherPair);
+            const anotherPairIsOccupied = otherPairs.some(otherPair => pairMemberCount(otherPair) > 0);
+            const anotherCompleteSpareExists = otherPairs.some(isCompleteEmptyPair);
+
+            if (anotherPairIsOccupied && !anotherCompleteSpareExists) {
+                this.logger?.log?.(`[voice-pairs] Keeping LIVE ${number} as the required spare pair.`);
+                return false;
+            }
+        }
+
         for (const channel of [pair.room, pair.waiting]) {
             if (channel) await channel.delete('Remove voice pair after ten seconds empty');
         }
-        this.schedule(guild, 0, null);
+        this.schedule(guild, 0, family === 'live' ? 'live' : null);
         return true;
     }
 }
