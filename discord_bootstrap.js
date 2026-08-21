@@ -13,4 +13,5 @@ require('./economy_luck_panel_patch');
 require('./permissions_bridge');
 require('./open_panel_preload');
 require('./live_spawn_guard');
+require('./live_spare_cleanup_guard');
 require('./discord_bot.js');
