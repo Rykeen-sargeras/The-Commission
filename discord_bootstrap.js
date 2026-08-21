@@ -11,4 +11,5 @@ require('./economy_luck_store_patch');
 require('./economy_luck_rng_fix');
 require('./economy_luck_panel_patch');
 require('./permissions_bridge');
+require('./open_panel_preload');
 require('./discord_bot.js');
