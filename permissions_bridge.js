@@ -173,7 +173,7 @@ async function roleState(payload) {
 
   const family = linkedRoleFamily(role.name);
   const linkedRoles = family
-    ? guild.roles.cache.filter(candidate => !candidate.managed && linkedRoleFamily(candidate.name) === family)
+    ? guild.roles.cache.filter(candidate => linkedRoleFamily(candidate.name) === family)
       .map(candidate => ({ id: candidate.id, name: candidate.name }))
       .sort((a, b) => a.name.localeCompare(b.name))
     : [{ id: role.id, name: role.name }];
@@ -230,7 +230,7 @@ async function pushChanges(payload) {
 
   const family = linkedRoleFamily(role.name);
   const targetRoles = family
-    ? guild.roles.cache.filter(candidate => !candidate.managed && linkedRoleFamily(candidate.name) === family)
+    ? guild.roles.cache.filter(candidate => linkedRoleFamily(candidate.name) === family)
     : [role];
 
   if (!targetRoles.length) throw new Error('No editable roles were found in this linked permission family.');
@@ -242,11 +242,17 @@ async function pushChanges(payload) {
     if (!channel?.permissionOverwrites?.edit) continue;
     let channelChanged = false;
     for (const targetRole of targetRoles.values()) {
-      await channel.permissionOverwrites.edit(targetRole, edits, {
+      const updatedChannel = await channel.permissionOverwrites.edit(targetRole, edits, {
         reason: family
           ? `The Commission linked permission family: ${linkedFamilyLabel(family)}`
           : 'The Commission web permission editor',
       });
+      const savedOverwrite = updatedChannel.permissionOverwrites.cache.get(targetRole.id);
+      const verified = Object.entries(edits).every(([permission, value]) => {
+        const flag = PermissionFlagsBits[permission];
+        return value ? savedOverwrite?.allow?.has(flag) : savedOverwrite?.deny?.has(flag);
+      });
+      if (!verified) throw new Error(`Discord did not confirm the permission overwrite for role ${targetRole.name} in #${channel.name}.`);
       changedPermissions += Object.keys(edits).length;
       channelChanged = true;
     }
