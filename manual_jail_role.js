@@ -20,6 +20,25 @@ function safeChannelPart(value) {
     return String(value || 'member').toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').slice(0, 15);
 }
 
+async function resolveStaffRoles(guild, staffRoleIds) {
+    let roles = guild.roles.cache;
+    try {
+        roles = await guild.roles.fetch();
+    } catch (error) {
+        console.warn('[Manual jail] Could not refresh guild roles; using the current role cache:', error.message);
+    }
+
+    const configuredIds = [...new Set(staffRoleIds.map(id => String(id).trim()).filter(Boolean))];
+    const validRoles = configuredIds.map(id => roles?.get(id)).filter(Boolean);
+    const invalidRoleIds = configuredIds.filter(id => !roles?.has(id));
+
+    if (invalidRoleIds.length) {
+        console.warn(`[Manual jail] Ignoring staff role IDs that do not exist in guild ${guild.id}: ${invalidRoleIds.join(', ')}`);
+    }
+
+    return validRoles;
+}
+
 function installManualJailRoleWorkflow(client, Discord, config, options = {}) {
     const jailRoleId = config.jailRoleId || '';
     const jailCategoryId = config.jailCategoryId || '';
@@ -67,6 +86,7 @@ function installManualJailRoleWorkflow(client, Discord, config, options = {}) {
                 failure = 'The configured jail category is missing or invalid.';
             } else {
                 try {
+                    const staffRoles = await resolveStaffRoles(guild, staffRoleIds);
                     jailChannel = await guild.channels.create({
                         name: `jail-${safeChannelPart(member.user.username)}-${Math.floor(Math.random() * 9999)}`,
                         type: Discord.ChannelType.GuildText,
@@ -81,8 +101,8 @@ function installManualJailRoleWorkflow(client, Discord, config, options = {}) {
                                     Discord.PermissionFlagsBits.ReadMessageHistory,
                                 ],
                             },
-                            ...staffRoleIds.map(id => ({
-                                id,
+                            ...staffRoles.map(role => ({
+                                id: role.id,
                                 allow: [
                                     Discord.PermissionFlagsBits.ViewChannel,
                                     Discord.PermissionFlagsBits.SendMessages,
@@ -94,10 +114,10 @@ function installManualJailRoleWorkflow(client, Discord, config, options = {}) {
                         reason: `Jail role assigned to ${member.user.tag}`,
                     });
                     created = true;
-                    const staffMentions = staffRoleIds.map(id => `<@&${id}>`).join(' ');
+                    const staffMentions = staffRoles.map(role => `<@&${role.id}>`).join(' ');
                     const embed = new Discord.EmbedBuilder()
                         .setColor('#FF0000')
-                        .setTitle('ðŸ”’ You Have Been Jailed')
+                        .setTitle('🔒 You Have Been Jailed')
                         .setDescription('The Jail role was assigned. Staff will review this case here.')
                         .addFields(
                             { name: 'User', value: `${member.user.tag} (${member.id})` },
@@ -118,7 +138,7 @@ function installManualJailRoleWorkflow(client, Discord, config, options = {}) {
                 if (modChannel?.isTextBased()) {
                     const embed = new Discord.EmbedBuilder()
                         .setColor(failure ? '#FF9900' : '#FF0000')
-                        .setTitle('ðŸ”’ Jail Role Assigned')
+                        .setTitle('🔒 Jail Role Assigned')
                         .setThumbnail(member.user.displayAvatarURL())
                         .addFields(
                             { name: 'Member', value: `<@${member.id}> (${member.user.tag})` },
@@ -173,6 +193,6 @@ function installManualJailRoleWorkflow(client, Discord, config, options = {}) {
 module.exports = {
     findExistingJailChannel,
     installManualJailRoleWorkflow,
+    resolveStaffRoles,
     wasJailRoleAdded,
 };
-
