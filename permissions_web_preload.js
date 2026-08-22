@@ -165,7 +165,7 @@ function editorPage() {
     setStatus('Queued '+batch.length+' permission change'+(batch.length===1?'':'s')+'. Keep editing — this batch will sync in the background.',true);
     pushQueue=pushQueue
       .then(()=>api('/api/permissions/push',{method:'POST',body:JSON.stringify(payload)}))
-      .then(d=>setStatus('Background update finished: '+d.changedPermissions+' permissions across '+d.changedChannels+' channels. You can keep working.',true))
+      .then(d=>setStatus('Discord confirmed '+d.changedPermissions+' permissions across '+d.changedChannels+' channels for '+(d.roleNames?.join(', ')||d.changedRoles+' role'+(d.changedRoles===1?'':'s'))+'.',true))
       .catch(e=>setStatus('Background permission update failed: '+e.message))
       .finally(()=>{queuedPushes=Math.max(0,queuedPushes-1);updateDirty();});
   }
