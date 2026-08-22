@@ -94,17 +94,29 @@ const STAFF_CHANNEL_PERMISSIONS = [
     Discord.PermissionFlagsBits.ReadMessageHistory,
 ];
 
-function staffPermissionOverwrites() {
-    return CONFIG.STAFF_ROLE_IDS.map(id => ({
+function configuredStaffRoleIds(guild) {
+    const configuredIds = [...new Set(CONFIG.STAFF_ROLE_IDS.map(id => String(id).trim()).filter(Boolean))];
+    const validIds = configuredIds.filter(id => guild.roles.cache.has(id));
+    const invalidIds = configuredIds.filter(id => !guild.roles.cache.has(id));
+
+    if (invalidIds.length) {
+        console.warn(`[Discord permissions] Ignoring staff role IDs that do not exist in guild ${guild.id}: ${invalidIds.join(', ')}`);
+    }
+
+    return validIds;
+}
+
+function staffPermissionOverwrites(guild) {
+    return configuredStaffRoleIds(guild).map(id => ({
         id,
         allow: STAFF_CHANNEL_PERMISSIONS,
     }));
 }
 
-function staffMentions(extraUserId = '') {
+function staffMentions(guild, extraUserId = '') {
     const mentions = [];
     if (CONFIG.OWNER_USER_ID) mentions.push(`<@${CONFIG.OWNER_USER_ID}>`);
-    mentions.push(...CONFIG.STAFF_ROLE_IDS.map(id => `<@&${id}>`));
+    mentions.push(...configuredStaffRoleIds(guild).map(id => `<@&${id}>`));
     if (extraUserId) mentions.push(`<@${extraUserId}>`);
     return mentions.join(' ');
 }
@@ -1451,7 +1463,7 @@ async function handleBannedWord(message, triggeredWord) {
                 permissionOverwrites: [
                     { id: guild.id, deny: [Discord.PermissionFlagsBits.ViewChannel] },
                     { id: userId, allow: [Discord.PermissionFlagsBits.ViewChannel, Discord.PermissionFlagsBits.SendMessages, Discord.PermissionFlagsBits.ReadMessageHistory] },
-                    ...staffPermissionOverwrites(),
+                    ...staffPermissionOverwrites(guild),
                 ],
             });
 
@@ -1472,7 +1484,7 @@ async function handleBannedWord(message, triggeredWord) {
                 .setFooter({ text: jailDuration ? 'Will auto-unjail when time expires' : 'Use /unjail to release' })
                 .setTimestamp();
 
-            await jailChannel.send({ content: staffMentions(userId), embeds: [embed] });
+            await jailChannel.send({ content: staffMentions(guild, userId), embeds: [embed] });
             console.log(`âœ… Jail channel created: #${jailChannel.name}`);
 
         } catch (err) {
@@ -1682,7 +1694,7 @@ async function handleAddressDetection(message, addressText, apiResult) {
                 permissionOverwrites: [
                     { id: guild.id, deny: [Discord.PermissionFlagsBits.ViewChannel] },
                     { id: userId, allow: [Discord.PermissionFlagsBits.ViewChannel, Discord.PermissionFlagsBits.SendMessages, Discord.PermissionFlagsBits.ReadMessageHistory] },
-                    ...staffPermissionOverwrites(),
+                    ...staffPermissionOverwrites(guild),
                 ],
             });
 
@@ -1703,7 +1715,7 @@ async function handleAddressDetection(message, addressText, apiResult) {
                 .setFooter({ text: `Address verified via ${apiResult.provider || 'Google Maps Geocoding API'}` })
                 .setTimestamp();
 
-            await jailChannel.send({ content: staffMentions(userId), embeds: [embed] });
+            await jailChannel.send({ content: staffMentions(guild, userId), embeds: [embed] });
 
             console.log(`âœ… User ${message.author.tag} jailed for posting address`);
 
@@ -1776,7 +1788,7 @@ async function createDMReport(user, state) {
             permissionOverwrites: [
                 { id: guild.id, deny: [Discord.PermissionFlagsBits.ViewChannel] },
                 { id: user.id, allow: [Discord.PermissionFlagsBits.ViewChannel, Discord.PermissionFlagsBits.SendMessages, Discord.PermissionFlagsBits.ReadMessageHistory] },
-                ...staffPermissionOverwrites(),
+                ...staffPermissionOverwrites(guild),
             ],
         });
 
@@ -1793,7 +1805,7 @@ async function createDMReport(user, state) {
             .setFooter({ text: 'Use !close or /close to archive this report' })
             .setTimestamp();
 
-        await channel.send({ content: `${staffMentions(user.id)}\n\nMods will be with you shortly. You can chat here.`, embeds: [embed] });
+        await channel.send({ content: `${staffMentions(guild, user.id)}\n\nMods will be with you shortly. You can chat here.`, embeds: [embed] });
 
         addAuditLog('DM Report Created', { tag: user.tag, id: user.id }, `Report #${ticketNumber} against ${state.who}`, 'warning');
 
@@ -1879,7 +1891,7 @@ async function handleReportCommand(interaction) {
             id: reporter.id,
             allow: [Discord.PermissionFlagsBits.ViewChannel, Discord.PermissionFlagsBits.SendMessages, Discord.PermissionFlagsBits.ReadMessageHistory],
         },
-        ...staffPermissionOverwrites(),
+        ...staffPermissionOverwrites(guild),
     ];
 
     const channel = await guild.channels.create({
@@ -1905,7 +1917,7 @@ async function handleReportCommand(interaction) {
         .setTimestamp();
 
     // Ping mod roles and the reporter
-    await channel.send({ content: `${staffMentions(reporter.id)}\n\nMods will be with you shortly. You can chat here.`, embeds: [embed] });
+    await channel.send({ content: `${staffMentions(guild, reporter.id)}\n\nMods will be with you shortly. You can chat here.`, embeds: [embed] });
 
     addAuditLog('Report Created', { tag: reporter.tag, id: reporter.id }, `Report #${ticketNumber} against ${reportedUser}`, 'warning');
 
@@ -2007,7 +2019,7 @@ async function handleJailCommand(interaction) {
             permissionOverwrites: [
                 { id: guild.id, deny: [Discord.PermissionFlagsBits.ViewChannel] },
                 { id: targetUser.id, allow: [Discord.PermissionFlagsBits.ViewChannel, Discord.PermissionFlagsBits.SendMessages, Discord.PermissionFlagsBits.ReadMessageHistory] },
-                ...staffPermissionOverwrites(),
+                ...staffPermissionOverwrites(guild),
             ],
         });
 
@@ -2028,7 +2040,7 @@ async function handleJailCommand(interaction) {
             .setFooter({ text: duration.ms ? 'Will auto-unjail when time expires' : 'Staff can use /unjail to restore access' })
             .setTimestamp();
 
-        await jailChannel.send({ content: staffMentions(targetUser.id), embeds: [embed] });
+        await jailChannel.send({ content: staffMentions(guild, targetUser.id), embeds: [embed] });
 
         console.log(`âœ… Jail channel created: #${jailChannel.name}`);
 
@@ -4921,4 +4933,3 @@ client.login(TOKEN).catch(error => {
         process.exitCode = 1;
     });
 }
-
