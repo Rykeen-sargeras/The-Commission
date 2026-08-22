@@ -47,22 +47,35 @@ const Discord = {
     let listener;
     let created = 0;
     let modNotices = 0;
+    let jailNotice = '';
+    let createOptions;
     const modChannel = { isTextBased: () => true, send: async () => { modNotices += 1; } };
     const category = { id: 'category', type: Discord.ChannelType.GuildCategory };
     const channels = new Map([['category', category]]);
+    const roles = new Map([['staff', { id: 'staff' }]]);
     const guild = {
-        roles: { everyone: { id: 'everyone' } },
+        id: 'guild',
+        roles: {
+            everyone: { id: 'everyone' },
+            cache: roles,
+            fetch: async () => roles,
+        },
         fetchAuditLogs: async () => ({ entries: new Map() }),
         channels: {
             fetch: async id => id === 'mods' ? modChannel : channels,
             create: async options => {
+                createOptions = options;
+                const resolvableIds = new Set(['everyone', 'member', 'staff']);
+                if (options.permissionOverwrites.some(overwrite => !resolvableIds.has(overwrite.id))) {
+                    throw new TypeError('Supplied parameter is not a cached User or Role.');
+                }
                 created += 1;
                 const channel = {
                     id: 'new-jail',
                     name: options.name,
                     parentId: options.parent,
                     permissionOverwrites: { cache: new Map([['member', true]]) },
-                    send: async () => {},
+                    send: async message => { jailNotice = message.content; },
                 };
                 channels.set(channel.id, channel);
                 return channel;
@@ -86,12 +99,14 @@ const Discord = {
         jailRoleId: 'jail',
         jailCategoryId: 'category',
         modChannelId: 'mods',
-        staffRoleIds: ['staff'],
+        staffRoleIds: ['staff', 'stale-role', 'staff', ''],
     }, { delayMs: 0, reconcileOnReady: false });
 
     await listener(oldMember, newMember);
     assert.strictEqual(created, 1);
     assert.strictEqual(modNotices, 1);
+    assert.deepStrictEqual(createOptions.permissionOverwrites.map(overwrite => overwrite.id), ['everyone', 'member', 'staff']);
+    assert.strictEqual(jailNotice, '<@&staff> <@member>');
 
     const before = created;
     await listener(newMember, newMember);
@@ -101,4 +116,3 @@ const Discord = {
     console.error(error);
     process.exitCode = 1;
 });
-
