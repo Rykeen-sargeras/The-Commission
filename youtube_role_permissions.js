@@ -54,15 +54,6 @@ const READ_ONLY_PERMISSION_NAMES = Object.freeze([
     'UseExternalEmojis',
 ]);
 
-const LANDING_PAD_PERMISSION_NAMES = Object.freeze([
-    ...STANDARD_PERMISSION_NAMES.filter(name => name !== 'Connect'),
-    'MentionEveryone',
-    'ManageMessages',
-    'ManageThreads',
-    'MuteMembers',
-    'DeafenMembers',
-]);
-
 function bitfield(value) {
     return BigInt(value?.bitfield ?? value ?? 0n);
 }
@@ -103,7 +94,9 @@ function permissionProfileForChannel(channel) {
             return permissionBits(['ViewChannel', 'ReadMessageHistory']);
         }
         if (name === 'landing pad') {
-            return permissionBits(LANDING_PAD_PERMISSION_NAMES);
+            // The configured YouTube/member roles are non-staff roles. Explicitly
+            // deny the Landing Pad so the sync cannot expose this staff channel.
+            return 0n;
         }
         return permissionBits(READ_ONLY_PERMISSION_NAMES);
     }
@@ -245,7 +238,6 @@ patchDiscordClient();
 
 module.exports = {
     CATEGORY_IDS,
-    LANDING_PAD_PERMISSION_NAMES,
     READ_ONLY_PERMISSION_NAMES,
     STANDARD_PERMISSION_NAMES,
     TARGET_ROLE_IDS,
@@ -258,4 +250,3 @@ module.exports = {
     planRoleOverwrites,
     syncConfiguredRolePermissions,
 };
-
