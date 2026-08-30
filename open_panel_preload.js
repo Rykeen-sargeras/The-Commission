@@ -3,7 +3,7 @@
 const Discord = require('discord.js');
 
 const CATEGORY_ID = String(process.env.LIVE_VOICE_CATEGORY_ID || '1532513765701189683');
-const OPEN_PANEL_NAME = '🟢 OPEN PANNEL 🟢';
+const OPEN_PANEL_NAME = '🟢 OPEN PANEL 🟢';
 const OPEN_PANEL_RE = /OPEN\s+PANN?EL/iu;
 const MANAGED_KEY = Symbol.for('the-commission.open-panel-installed');
 
@@ -100,7 +100,7 @@ async function enforceCategoryOrder(guild, openPanel) {
     const liveChannels = categoryChannels.filter(isLiveChannel).sort(pairSort(liveDescriptor));
     const apprenticeChannels = categoryChannels.filter(isApprenticeChannel).sort(pairSort(apprenticeDescriptor));
 
-    // OPEN PANNEL is permanently first. Every LIVE room is immediately followed by
+    // OPEN PANEL is permanently first. Every LIVE room is immediately followed by
     // its own Waiting room. All Apprentice rooms are always grouped at the bottom.
     const ordered = [openPanel, ...liveChannels, ...apprenticeChannels];
     if (ordered.length < 2) return;
@@ -138,26 +138,26 @@ async function ensureOpenPanel(guild) {
             type: Discord.ChannelType.GuildVoice,
             parent: CATEGORY_ID,
             permissionOverwrites: await desiredOverwrites(guild),
-            reason: 'Create permanent OPEN PANNEL voice room',
+            reason: 'Create permanent OPEN PANEL voice room',
         });
         matches = [channel];
     }
 
     if (channel.name !== OPEN_PANEL_NAME && channel.setName) {
-        await channel.setName(OPEN_PANEL_NAME, 'Normalize OPEN PANNEL channel name');
+        await channel.setName(OPEN_PANEL_NAME, 'Normalize OPEN PANEL channel name');
     }
 
-    // Keep exactly one managed OPEN PANNEL room.
+    // Keep exactly one managed OPEN PANEL room.
     for (const extra of matches.slice(1)) {
         if (extra?.deletable !== false && extra?.delete) {
-            await extra.delete('Remove duplicate OPEN PANNEL room');
+            await extra.delete('Remove duplicate OPEN PANEL room');
         }
     }
 
     if (channel.permissionOverwrites?.set) {
         await channel.permissionOverwrites.set(
             await desiredOverwrites(guild),
-            'OPEN PANNEL is available to every assigned role but not @everyone',
+            'OPEN PANEL is available to every assigned role but not @everyone',
         );
     }
 
@@ -229,3 +229,5 @@ module.exports = {
     liveDescriptor,
     patchDiscordClient,
 };
+
+

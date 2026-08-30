@@ -12,4 +12,8 @@ require('./economy_luck_rng_fix');
 require('./economy_luck_panel_patch');
 require('./permissions_bridge');
 require('./open_panel_preload');
+require('./youtube_role_permissions');
+require('./dm_ticket_system');
 require('./discord_bot.js');
+
+
