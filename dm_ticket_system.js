@@ -223,14 +223,23 @@ function createDMTicketSystem(client, config = defaultConfig(), options = {}) {
     }
 
     async function handleClose(message) {
-        if (!message.guild || !message.channel?.topic?.startsWith(TICKET_TOPIC_PREFIX)) return false;
+        if (!message.guild || !message.channel) return false;
+        const topic = String(message.channel.topic || '');
+        const openTicket = topic.startsWith(TICKET_TOPIC_PREFIX);
+        const closedTicket = topic.startsWith(CLOSED_TICKET_TOPIC_PREFIX);
+        if (!openTicket && !closedTicket) return false;
         if (!/^\s*[!/](?:ticket-?)?close\s*$/iu.test(String(message.content || ''))) return false;
         if (!canClose(message)) {
             await message.reply('Only configured staff can close this ticket.');
             return true;
         }
 
-        const userId = message.channel.topic.slice(TICKET_TOPIC_PREFIX.length);
+        if (closedTicket) {
+            await message.channel.delete?.(`Delete previously closed DM ticket at ${message.author.tag}`);
+            return true;
+        }
+
+        const userId = topic.slice(TICKET_TOPIC_PREFIX.length);
         await message.channel.permissionOverwrites.edit(userId, {
             ViewChannel: false,
             SendMessages: false,

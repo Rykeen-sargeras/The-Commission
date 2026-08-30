@@ -3045,7 +3045,7 @@ async function handleStaffCommands(message) {
     if (command === 'close') {
         // DM tickets are handled by dm_ticket_system.js. Returning here prevents
         // the legacy report closer from replying to the same !close message.
-        if (message.channel.topic?.startsWith('commission-ticket-user:')) return;
+        if (message.channel.topic?.startsWith('commission-ticket-')) return;
         if (message.channel.name.startsWith('tech-') || message.channel.name.startsWith('report-')) {
             await closeTicket(message.channel);
         } else {
@@ -4935,5 +4935,4 @@ client.login(TOKEN).catch(error => {
         process.exitCode = 1;
     });
 }
-
 

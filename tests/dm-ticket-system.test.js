@@ -135,6 +135,14 @@ assert.strictEqual(allocate(), 30003);
     assert.strictEqual(findOpenTicketChannel(channels, 'member', 'mod-category'), null);
     assert.strictEqual(deleteCount, 1);
 
+    const deletedArchive = await system.handleClose({
+        author: { id: 'moderator', tag: 'Mod#0001' }, guild, channel, content: '!close',
+        member: { roles: { cache: new Map([['staff', true]]) }, permissions: { has: () => false } },
+        reply: async () => {},
+    });
+    assert.strictEqual(deletedArchive, true);
+    assert.strictEqual(deleteCount, 2);
+
     console.log('dm-ticket-system tests passed');
 })().catch(error => {
     console.error(error);
