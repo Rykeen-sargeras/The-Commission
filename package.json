@@ -1,6 +1,6 @@
 {
   "name": "the-commission-bot",
-  "version": "3.6.8",
+  "version": "3.6.9",
   "description": "The Commission - Railway web control room, Windows control panel, Discord protection and Going Live scheduler",
   "main": "desktop/main.js",
   "author": "Rykeen-sargeras",
