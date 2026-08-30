@@ -2,68 +2,76 @@
 
 const Discord = require('discord.js');
 
-const SOURCE_ROLE_NAME = 'Scooter VIP';
-const REQUIRED_CATEGORY_IDS = Object.freeze([
-    '1532513761573863577', // Announcement
-    '1532513763918483497', // Text Channels
-    '1532513765701189683', // Live On Air
-    '1532513764660871180', // Voice Channels
+const TARGET_ROLE_IDS = Object.freeze([
+    '1532514409904082979',
+    '1532515201579094270',
+    '1542007552710287443',
+    '1541632068985950281',
+    '1532514409904082978',
+    '1532515201579094269',
+    '1532514409904082977',
+    '1532515201579094268',
+    '1541632068985950280',
+    '1542007552710287442',
+    '1532514409904082976',
+    '1532515201579094267',
+    '1541632068985950279',
+    '1542007552710287441',
 ]);
+
+const CATEGORY_IDS = Object.freeze({
+    announcement: '1532513761573863577',
+    text: '1532513763918483497',
+    liveOnAir: '1532513765701189683',
+    voice: '1532513764660871180',
+});
+
 const INSTALL_KEY = Symbol.for('the-commission.youtube-permissions-installed');
 const PATCH_KEY = Symbol.for('the-commission.youtube-permissions-client-patch');
 
-function normalizeRoleName(value) {
-    return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-}
+const STANDARD_PERMISSION_NAMES = Object.freeze([
+    'ViewChannel',
+    'Connect',
+    'SendMessages',
+    'ReadMessageHistory',
+    'AddReactions',
+    'EmbedLinks',
+    'AttachFiles',
+    'UseExternalEmojis',
+    'UseExternalStickers',
+    'CreatePublicThreads',
+    'CreatePrivateThreads',
+    'SendMessagesInThreads',
+    'Speak',
+    'Stream',
+    'UseVAD',
+]);
 
-function integrationId(role) {
-    return String(role?.tags?.integrationId || role?.tags?.integration_id || '').trim();
-}
+const READ_ONLY_PERMISSION_NAMES = Object.freeze([
+    'ViewChannel',
+    'ReadMessageHistory',
+    'AddReactions',
+    'UseExternalEmojis',
+]);
 
-async function fetchYouTubeIntegrationIds(guild, logger = console) {
-    let integrations = null;
-    try {
-        if (typeof guild.fetchIntegrations === 'function') integrations = await guild.fetchIntegrations();
-        else if (typeof guild.integrations?.fetch === 'function') integrations = await guild.integrations.fetch();
-    } catch (error) {
-        logger.warn?.(`[youtube-role-sync] Could not list guild integrations: ${error.message}`);
-    }
-    if (!integrations) return new Set();
-    return new Set(
-        [...integrations.values()]
-            .filter(integration => String(integration?.type || '').toLowerCase() === 'youtube')
-            .map(integration => String(integration.id || '').trim())
-            .filter(Boolean),
-    );
-}
-
-function youtubeRoleSet(guild, sourceName = SOURCE_ROLE_NAME, youtubeIntegrationIds = new Set()) {
-    const roles = [...guild.roles.cache.values()];
-    const source = roles.find(role => normalizeRoleName(role.name) === normalizeRoleName(sourceName)) || null;
-    if (!source) return { source: null, targets: [], integrationIds: [] };
-    const sourceIntegrationId = integrationId(source);
-    const allowedIds = new Set([...youtubeIntegrationIds].map(String).filter(Boolean));
-    // If Discord will not expose the integration list, retain the safe legacy
-    // fallback and synchronize roles belonging to Scooter VIP's integration.
-    if (!allowedIds.size && sourceIntegrationId) allowedIds.add(sourceIntegrationId);
-    const targets = roles.filter(role => (
-        role.id !== source.id
-        && allowedIds.has(integrationId(role))
-    ));
-    return { source, targets, integrationIds: [...allowedIds] };
-}
+const LANDING_PAD_PERMISSION_NAMES = Object.freeze([
+    ...STANDARD_PERMISSION_NAMES.filter(name => name !== 'Connect'),
+    'MentionEveryone',
+    'ManageMessages',
+    'ManageThreads',
+    'MuteMembers',
+    'DeafenMembers',
+]);
 
 function bitfield(value) {
     return BigInt(value?.bitfield ?? value ?? 0n);
 }
 
-function serializeOverwrite(overwrite) {
-    return {
-        id: overwrite.id,
-        type: overwrite.type,
-        allow: bitfield(overwrite.allow),
-        deny: bitfield(overwrite.deny),
-    };
+function permissionBits(names) {
+    return names.reduce((permissions, name) => {
+        const flag = Discord.PermissionFlagsBits?.[name];
+        return flag === undefined ? permissions : permissions | bitfield(flag);
+    }, 0n);
 }
 
 function allPermissionBits() {
@@ -76,43 +84,65 @@ function allPermissionBits() {
     );
 }
 
-function effectiveChannelPermissions(channel, role) {
-    try {
-        if (typeof channel?.permissionsFor === 'function') {
-            const permissions = channel.permissionsFor(role);
-            if (permissions) return bitfield(permissions);
+function normalizeChannelName(value) {
+    return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+function channelCategoryId(channel) {
+    const id = String(channel?.id || '');
+    if (Object.values(CATEGORY_IDS).includes(id)) return id;
+    return String(channel?.parentId || channel?.parent?.id || '');
+}
+
+function permissionProfileForChannel(channel) {
+    const categoryId = channelCategoryId(channel);
+    const name = normalizeChannelName(channel?.name);
+
+    if (categoryId === CATEGORY_IDS.announcement) {
+        if (name === 'verify membership') {
+            return permissionBits(['ViewChannel', 'ReadMessageHistory']);
         }
-        if (typeof role?.permissionsIn === 'function') {
-            const permissions = role.permissionsIn(channel);
-            if (permissions) return bitfield(permissions);
+        if (name === 'landing pad') {
+            return permissionBits(LANDING_PAD_PERMISSION_NAMES);
         }
-    } catch (_) {
-        // Fall back to copying the source role's explicit overwrite.
+        return permissionBits(READ_ONLY_PERMISSION_NAMES);
     }
+
+    if (categoryId === CATEGORY_IDS.text || categoryId === CATEGORY_IDS.voice) {
+        return permissionBits(STANDARD_PERMISSION_NAMES);
+    }
+
+    if (categoryId === CATEGORY_IDS.liveOnAir) {
+        const namesWithoutConnect = new Set(['live 1', 'live 2']);
+        const permissions = namesWithoutConnect.has(name)
+            ? STANDARD_PERMISSION_NAMES.filter(permission => permission !== 'Connect')
+            : STANDARD_PERMISSION_NAMES;
+        return permissionBits(permissions);
+    }
+
     return null;
 }
 
-function planChannelOverwrites(overwrites, sourceRoleId, targetRoleIds, desiredPermissions = null) {
+function serializeOverwrite(overwrite) {
+    return {
+        id: overwrite.id,
+        type: overwrite.type,
+        allow: bitfield(overwrite.allow),
+        deny: bitfield(overwrite.deny),
+    };
+}
+
+function planRoleOverwrites(overwrites, targetRoleIds, desiredPermissions) {
     const current = [...overwrites.values()];
-    const source = current.find(overwrite => String(overwrite.id) === String(sourceRoleId)) || null;
     const targetIds = new Set(targetRoleIds.map(String));
-    const desired = desiredPermissions === null ? null : bitfield(desiredPermissions);
-    const denied = desired === null ? null : allPermissionBits() & ~desired;
+    const allow = bitfield(desiredPermissions);
+    const deny = allPermissionBits() & ~allow;
     let changed = false;
 
-    for (const overwrite of current) {
-        if (!targetIds.has(String(overwrite.id))) continue;
-        const expectedAllow = desired === null ? source?.allow : desired;
-        const expectedDeny = desired === null ? source?.deny : denied;
-        if (expectedAllow === undefined
-            || bitfield(overwrite.allow) !== bitfield(expectedAllow)
-            || bitfield(overwrite.deny) !== bitfield(expectedDeny)) {
+    for (const targetId of targetIds) {
+        const existing = current.find(overwrite => String(overwrite.id) === targetId);
+        if (!existing || bitfield(existing.allow) !== allow || bitfield(existing.deny) !== deny) {
             changed = true;
-        }
-    }
-    if (source || desired !== null) {
-        for (const targetId of targetIds) {
-            if (!current.some(overwrite => String(overwrite.id) === targetId)) changed = true;
         }
     }
     if (!changed) return { changed: false, overwrites: current.map(serializeOverwrite) };
@@ -120,105 +150,55 @@ function planChannelOverwrites(overwrites, sourceRoleId, targetRoleIds, desiredP
     const output = current
         .filter(overwrite => !targetIds.has(String(overwrite.id)))
         .map(serializeOverwrite);
-    if (source || desired !== null) {
-        for (const targetId of targetIds) {
-            output.push({
-                id: targetId,
-                type: Discord.OverwriteType.Role,
-                allow: desired === null ? bitfield(source.allow) : desired,
-                deny: desired === null ? bitfield(source.deny) : denied,
-            });
-        }
+    for (const targetId of targetIds) {
+        output.push({ id: targetId, type: Discord.OverwriteType.Role, allow, deny });
     }
     return { changed: true, overwrites: output };
 }
 
-async function syncGuildYouTubeRolePermissions(guild, options = {}) {
+async function syncConfiguredRolePermissions(guild, options = {}) {
     const logger = options.logger || console;
+    const requestedRoleIds = options.targetRoleIds || TARGET_ROLE_IDS;
     await guild.roles.fetch().catch(() => null);
     await guild.channels.fetch().catch(() => null);
-    const requiredCategoryIds = options.requiredCategoryIds || REQUIRED_CATEGORY_IDS;
-    for (const categoryId of requiredCategoryIds) {
+    for (const categoryId of Object.values(CATEGORY_IDS)) {
         await guild.channels.fetch(categoryId).catch(() => null);
     }
 
-    const youtubeIntegrationIds = await fetchYouTubeIntegrationIds(guild, logger);
-    const { source, targets, integrationIds } = youtubeRoleSet(
-        guild,
-        options.sourceRoleName || SOURCE_ROLE_NAME,
-        youtubeIntegrationIds,
-    );
-    if (!source) {
-        return { ok: false, reason: 'source-role-missing', sourceRoleName: options.sourceRoleName || SOURCE_ROLE_NAME };
-    }
-    if (!integrationIds.length) {
-        return { ok: false, reason: 'youtube-integrations-not-found', sourceRoleName: source.name };
-    }
-    if (!targets.length) {
-        return { ok: true, sourceRoleName: source.name, targetRoleNames: [], changedRoles: 0, changedChannels: 0 };
+    const targetRoleIds = requestedRoleIds
+        .map(String)
+        .filter(roleId => guild.roles.cache.has(roleId));
+    const missingRoleIds = requestedRoleIds.map(String).filter(roleId => !guild.roles.cache.has(roleId));
+    if (!targetRoleIds.length) {
+        return { ok: false, reason: 'configured-roles-not-found', missingRoleIds };
     }
 
-    let changedRoles = 0;
     let changedChannels = 0;
-    const sourcePermissions = bitfield(source.permissions);
-    for (const role of targets) {
-        if (bitfield(role.permissions) === sourcePermissions) continue;
-        if (role.editable === false || typeof role.setPermissions !== 'function') {
-            logger.warn?.(`[youtube-role-sync] Discord manages ${role.name}; base permissions cannot be edited directly. Channel overrides will still be synchronized.`);
-            continue;
-        }
-        try {
-            await role.setPermissions(source.permissions, `Match YouTube integration role permissions to ${source.name}`);
-            changedRoles += 1;
-        } catch (error) {
-            logger.warn?.(`[youtube-role-sync] Could not copy base permissions to ${role.name}: ${error.message}`);
-        }
-    }
-
-    const targetIds = targets.map(role => role.id);
-    const requiredCategoryIdSet = new Set(requiredCategoryIds.map(String));
+    const failedChannels = [];
     for (const channel of guild.channels.cache.values()) {
-        const channelId = String(channel.id || '');
-        const parentId = String(channel.parentId || channel.parent?.id || '');
-        if (!requiredCategoryIdSet.has(channelId) && !requiredCategoryIdSet.has(parentId)) continue;
+        const desiredPermissions = permissionProfileForChannel(channel);
+        if (desiredPermissions === null) continue;
         if (!channel.permissionOverwrites?.cache || typeof channel.permissionOverwrites.set !== 'function') continue;
-        // Integration-managed roles cannot have their base permissions edited by
-        // bots. Mirror Scooter VIP's effective permissions on every channel so
-        // inherited text-channel access is not lost when a YouTube role is managed.
-        // Limit this to the user-approved public categories and their children.
-        const effectivePermissions = effectiveChannelPermissions(channel, source);
-        const plan = planChannelOverwrites(
-            channel.permissionOverwrites.cache,
-            source.id,
-            targetIds,
-            effectivePermissions,
-        );
+        const plan = planRoleOverwrites(channel.permissionOverwrites.cache, targetRoleIds, desiredPermissions);
         if (!plan.changed) continue;
         try {
             await channel.permissionOverwrites.set(
                 plan.overwrites,
-                `Match YouTube integration roles to ${source.name}`,
+                'Apply configured channel permissions to the specified roles',
             );
             changedChannels += 1;
         } catch (error) {
-            logger.warn?.(`[youtube-role-sync] Could not synchronize #${channel.name}: ${error.message}`);
+            failedChannels.push({ id: channel.id, name: channel.name, error: error.message });
+            logger.warn?.(`[configured-role-sync] Could not synchronize #${channel.name}: ${error.message}`);
         }
     }
 
-    const result = {
-        ok: true,
-        sourceRoleName: source.name,
-        youtubeIntegrationIds: integrationIds,
-        targetRoleNames: targets.map(role => role.name),
-        changedRoles,
-        changedChannels,
-        requiredCategoryIds: [...requiredCategoryIds],
-    };
-    logger.log?.(`[youtube-role-sync] ${source.name} -> ${result.targetRoleNames.join(', ') || 'no sibling roles'}; ${changedRoles} role permission set(s), ${changedChannels} channel override set(s) changed.`);
+    const result = { ok: true, targetRoleIds, missingRoleIds, changedChannels, failedChannels };
+    logger.log?.(`[configured-role-sync] Updated ${targetRoleIds.length} configured roles across ${changedChannels} channel(s).`);
     return result;
 }
 
-function installYouTubeRolePermissionSync(client, options = {}) {
+function installConfiguredRolePermissionSync(client, options = {}) {
     if (!client || client[INSTALL_KEY]) return client;
     client[INSTALL_KEY] = true;
     const timers = new Map();
@@ -232,8 +212,8 @@ function installYouTubeRolePermissionSync(client, options = {}) {
             const previous = queues.get(guild.id) || Promise.resolve();
             const next = previous
                 .catch(() => null)
-                .then(() => syncGuildYouTubeRolePermissions(guild, options))
-                .catch(error => (options.logger || console).error?.(`[youtube-role-sync] ${guild.id}:`, error));
+                .then(() => syncConfiguredRolePermissions(guild, options))
+                .catch(error => (options.logger || console).error?.(`[configured-role-sync] ${guild.id}:`, error));
             queues.set(guild.id, next);
         }, delay));
     };
@@ -255,8 +235,8 @@ function patchDiscordClient() {
     if (!proto || proto[PATCH_KEY]) return;
     Object.defineProperty(proto, PATCH_KEY, { value: true, configurable: false });
     const originalLogin = proto.login;
-    proto.login = function patchedYouTubePermissionLogin(...args) {
-        installYouTubeRolePermissionSync(this);
+    proto.login = function patchedConfiguredPermissionLogin(...args) {
+        installConfiguredRolePermissionSync(this);
         return originalLogin.apply(this, args);
     };
 }
@@ -264,16 +244,18 @@ function patchDiscordClient() {
 patchDiscordClient();
 
 module.exports = {
-    REQUIRED_CATEGORY_IDS,
-    SOURCE_ROLE_NAME,
-    fetchYouTubeIntegrationIds,
-    effectiveChannelPermissions,
-    integrationId,
-    installYouTubeRolePermissionSync,
-    normalizeRoleName,
+    CATEGORY_IDS,
+    LANDING_PAD_PERMISSION_NAMES,
+    READ_ONLY_PERMISSION_NAMES,
+    STANDARD_PERMISSION_NAMES,
+    TARGET_ROLE_IDS,
+    channelCategoryId,
+    installConfiguredRolePermissionSync,
+    normalizeChannelName,
     patchDiscordClient,
-    planChannelOverwrites,
-    syncGuildYouTubeRolePermissions,
-    youtubeRoleSet,
+    permissionBits,
+    permissionProfileForChannel,
+    planRoleOverwrites,
+    syncConfiguredRolePermissions,
 };
 
