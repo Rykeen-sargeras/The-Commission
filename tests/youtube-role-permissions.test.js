@@ -67,7 +67,7 @@ assert.strictEqual(inheritedPlan.overwrites.some(item => item.id === 'sibling'),
     secondYoutube.editable = true;
     secondYoutube.setPermissions = async permissions => { secondYoutube.permissions = permissions; };
     const channel = {
-        id: 'channel', name: 'members',
+        id: 'channel', parentId: '1532513763918483497', name: 'members',
         permissionsFor: role => role.id === source.id ? { bitfield: 6n } : null,
         permissionOverwrites: {
             cache: overwrites,
@@ -76,7 +76,7 @@ assert.strictEqual(inheritedPlan.overwrites.some(item => item.id === 'sibling'),
     };
     let inheritedReplacementOverwrites = null;
     const inheritedTextChannel = {
-        id: 'inherited-text', name: 'general',
+        id: 'inherited-text', parentId: '1532513763918483497', name: 'general',
         permissionsFor: role => role.id === source.id ? { bitfield: 11n } : null,
         permissionOverwrites: {
             cache: new Map(),
