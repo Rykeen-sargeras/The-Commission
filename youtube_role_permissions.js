@@ -3,7 +3,12 @@
 const Discord = require('discord.js');
 
 const SOURCE_ROLE_NAME = 'Scooter VIP';
-const REQUIRED_TEXT_CATEGORY_IDS = Object.freeze(['1532513763918483497']);
+const REQUIRED_CATEGORY_IDS = Object.freeze([
+    '1532513761573863577', // Announcement
+    '1532513763918483497', // Text Channels
+    '1532513765701189683', // Live On Air
+    '1532513764660871180', // Voice Channels
+]);
 const INSTALL_KEY = Symbol.for('the-commission.youtube-permissions-installed');
 const PATCH_KEY = Symbol.for('the-commission.youtube-permissions-client-patch');
 
@@ -132,7 +137,7 @@ async function syncGuildYouTubeRolePermissions(guild, options = {}) {
     const logger = options.logger || console;
     await guild.roles.fetch().catch(() => null);
     await guild.channels.fetch().catch(() => null);
-    const requiredCategoryIds = options.requiredTextCategoryIds || REQUIRED_TEXT_CATEGORY_IDS;
+    const requiredCategoryIds = options.requiredCategoryIds || REQUIRED_CATEGORY_IDS;
     for (const categoryId of requiredCategoryIds) {
         await guild.channels.fetch(categoryId).catch(() => null);
     }
@@ -180,7 +185,7 @@ async function syncGuildYouTubeRolePermissions(guild, options = {}) {
         // Integration-managed roles cannot have their base permissions edited by
         // bots. Mirror Scooter VIP's effective permissions on every channel so
         // inherited text-channel access is not lost when a YouTube role is managed.
-        // Limit this to the user-approved text category and its children.
+        // Limit this to the user-approved public categories and their children.
         const effectivePermissions = effectiveChannelPermissions(channel, source);
         const plan = planChannelOverwrites(
             channel.permissionOverwrites.cache,
@@ -207,7 +212,7 @@ async function syncGuildYouTubeRolePermissions(guild, options = {}) {
         targetRoleNames: targets.map(role => role.name),
         changedRoles,
         changedChannels,
-        requiredTextCategoryIds: [...requiredCategoryIds],
+        requiredCategoryIds: [...requiredCategoryIds],
     };
     logger.log?.(`[youtube-role-sync] ${source.name} -> ${result.targetRoleNames.join(', ') || 'no sibling roles'}; ${changedRoles} role permission set(s), ${changedChannels} channel override set(s) changed.`);
     return result;
@@ -259,7 +264,7 @@ function patchDiscordClient() {
 patchDiscordClient();
 
 module.exports = {
-    REQUIRED_TEXT_CATEGORY_IDS,
+    REQUIRED_CATEGORY_IDS,
     SOURCE_ROLE_NAME,
     fetchYouTubeIntegrationIds,
     effectiveChannelPermissions,
