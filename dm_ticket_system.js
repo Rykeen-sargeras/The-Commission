@@ -82,6 +82,7 @@ function createDMTicketSystem(client, config = defaultConfig(), options = {}) {
     const ownerUserId = String(config.ownerUserId || '');
     const allocateTicketNumber = options.allocateTicketNumber
         || createTicketNumberAllocator(config.dataDir || path.join(__dirname, 'data'), options);
+    const closeDelayMs = Number.isFinite(options.closeDelayMs) ? Math.max(0, options.closeDelayMs) : 5000;
     const queues = new Map();
 
     function configuredStaffRoles(guild) {
@@ -245,6 +246,14 @@ function createDMTicketSystem(client, config = defaultConfig(), options = {}) {
             content: `🔒 Ticket closed by <@${message.author.id}>. The submitting member’s temporary access was removed.`,
             allowedMentions: { users: [message.author.id] },
         });
+        const deleteTicket = () => message.channel.delete?.('Delete closed DM ticket')
+            .catch(error => console.error(`[DM tickets] Could not delete ${message.channel.name}:`, error));
+        if (closeDelayMs === 0) {
+            await deleteTicket();
+        } else {
+            const timer = setTimeout(deleteTicket, closeDelayMs);
+            timer.unref?.();
+        }
         return true;
     }
 

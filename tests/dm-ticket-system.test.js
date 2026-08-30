@@ -64,6 +64,7 @@ assert.strictEqual(allocate(), 30003);
 
 (async () => {
     let createCount = 0;
+    let deleteCount = 0;
     const replies = [];
     const channelMessages = [];
     const permissionEdits = [];
@@ -88,6 +89,7 @@ assert.strictEqual(allocate(), 30003);
                     send: async payload => { channelMessages.push(payload); },
                     setName: async value => { channel.name = value; },
                     setTopic: async value => { channel.topic = value; },
+                    delete: async () => { deleteCount += 1; },
                 };
                 channels.set(channel.id, channel);
                 return channel;
@@ -102,7 +104,7 @@ assert.strictEqual(allocate(), 30003);
     };
     const system = createDMTicketSystem(client, {
         categoryId: 'mod-category', dataDir: '/data', staffRoleIds: ['staff', 'stale-role'], ownerUserId: 'owner',
-    }, { allocateTicketNumber: () => 30001 });
+    }, { allocateTicketNumber: () => 30001, closeDelayMs: 0 });
 
     const firstMessage = {
         author: user, content: 'I need help.', attachments: new Map(),
@@ -131,6 +133,7 @@ assert.strictEqual(allocate(), 30003);
     assert.strictEqual(channel.topic, `${CLOSED_TICKET_TOPIC_PREFIX}member`);
     assert.strictEqual(channel.name, 'closed-ticket-30001-some-user');
     assert.strictEqual(findOpenTicketChannel(channels, 'member', 'mod-category'), null);
+    assert.strictEqual(deleteCount, 1);
 
     console.log('dm-ticket-system tests passed');
 })().catch(error => {
