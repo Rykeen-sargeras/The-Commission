@@ -8,6 +8,7 @@ const Discord = {
     Client,
     Events: { ClientReady: 'ready' },
     OverwriteType: { Role: 0 },
+    PermissionsBitField: { All: 15n },
 };
 const originalLoad = Module._load;
 Module._load = function(request, parent, isMain) {
@@ -15,6 +16,7 @@ Module._load = function(request, parent, isMain) {
     return originalLoad.call(this, request, parent, isMain);
 };
 const {
+    REQUIRED_TEXT_CATEGORY_IDS,
     integrationId,
     fetchYouTubeIntegrationIds,
     normalizeRoleName,
@@ -26,6 +28,7 @@ Module._load = originalLoad;
 
 assert.strictEqual(normalizeRoleName('  Scooter—VIP  '), 'scooter vip');
 assert.strictEqual(integrationId({ tags: { integrationId: 'youtube-1' } }), 'youtube-1');
+assert.deepStrictEqual(REQUIRED_TEXT_CATEGORY_IDS, ['1532513763918483497']);
 
 const source = { id: 'source', name: 'Scooter VIP', tags: { integrationId: 'youtube-1' }, permissions: { bitfield: 8n } };
 const sibling = { id: 'sibling', name: 'Scooter Member', tags: { integrationId: 'youtube-1' }, permissions: { bitfield: 4n } };
@@ -65,9 +68,19 @@ assert.strictEqual(inheritedPlan.overwrites.some(item => item.id === 'sibling'),
     secondYoutube.setPermissions = async permissions => { secondYoutube.permissions = permissions; };
     const channel = {
         id: 'channel', name: 'members',
+        permissionsFor: role => role.id === source.id ? { bitfield: 6n } : null,
         permissionOverwrites: {
             cache: overwrites,
             set: async values => { replacementOverwrites = values; },
+        },
+    };
+    let inheritedReplacementOverwrites = null;
+    const inheritedTextChannel = {
+        id: 'inherited-text', name: 'general',
+        permissionsFor: role => role.id === source.id ? { bitfield: 11n } : null,
+        permissionOverwrites: {
+            cache: new Map(),
+            set: async values => { inheritedReplacementOverwrites = values; },
         },
     };
     const guild = {
@@ -75,7 +88,10 @@ assert.strictEqual(inheritedPlan.overwrites.some(item => item.id === 'sibling'),
             cache: roleCache,
             fetch: async () => null,
         },
-        channels: { cache: new Map([[channel.id, channel]]), fetch: async () => null },
+        channels: {
+            cache: new Map([[channel.id, channel], [inheritedTextChannel.id, inheritedTextChannel]]),
+            fetch: async () => null,
+        },
         fetchIntegrations: async () => new Map([
             ['youtube-1', { id: 'youtube-1', type: 'youtube' }],
             ['youtube-2', { id: 'youtube-2', type: 'YouTube' }],
@@ -90,10 +106,15 @@ assert.strictEqual(inheritedPlan.overwrites.some(item => item.id === 'sibling'),
     assert.strictEqual(result.ok, true);
     assert.deepStrictEqual(result.targetRoleNames, ['Scooter Member', 'TammyTen Member']);
     assert.strictEqual(result.changedRoles, 2);
-    assert.strictEqual(result.changedChannels, 1);
+    assert.strictEqual(result.changedChannels, 2);
+    assert.deepStrictEqual(result.requiredTextCategoryIds, ['1532513763918483497']);
     assert.strictEqual(copiedBasePermissions, 8n);
     assert.strictEqual(replacementOverwrites.find(item => item.id === 'sibling').allow, 6n);
     assert.strictEqual(replacementOverwrites.find(item => item.id === 'second').allow, 6n);
+    assert.strictEqual(replacementOverwrites.find(item => item.id === 'sibling').deny, 9n);
+    assert.strictEqual(inheritedReplacementOverwrites.find(item => item.id === 'sibling').allow, 11n);
+    assert.strictEqual(inheritedReplacementOverwrites.find(item => item.id === 'sibling').deny, 4n);
+    assert.strictEqual(inheritedReplacementOverwrites.find(item => item.id === 'second').allow, 11n);
 
     console.log('youtube-role-permissions tests passed');
 })().catch(error => {
