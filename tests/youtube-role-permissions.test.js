@@ -16,7 +16,7 @@ Module._load = function(request, parent, isMain) {
     return originalLoad.call(this, request, parent, isMain);
 };
 const {
-    REQUIRED_TEXT_CATEGORY_IDS,
+    REQUIRED_CATEGORY_IDS,
     integrationId,
     fetchYouTubeIntegrationIds,
     normalizeRoleName,
@@ -28,7 +28,12 @@ Module._load = originalLoad;
 
 assert.strictEqual(normalizeRoleName('  Scooter—VIP  '), 'scooter vip');
 assert.strictEqual(integrationId({ tags: { integrationId: 'youtube-1' } }), 'youtube-1');
-assert.deepStrictEqual(REQUIRED_TEXT_CATEGORY_IDS, ['1532513763918483497']);
+assert.deepStrictEqual(REQUIRED_CATEGORY_IDS, [
+    '1532513761573863577',
+    '1532513763918483497',
+    '1532513765701189683',
+    '1532513764660871180',
+]);
 
 const source = { id: 'source', name: 'Scooter VIP', tags: { integrationId: 'youtube-1' }, permissions: { bitfield: 8n } };
 const sibling = { id: 'sibling', name: 'Scooter Member', tags: { integrationId: 'youtube-1' }, permissions: { bitfield: 4n } };
@@ -107,7 +112,7 @@ assert.strictEqual(inheritedPlan.overwrites.some(item => item.id === 'sibling'),
     assert.deepStrictEqual(result.targetRoleNames, ['Scooter Member', 'TammyTen Member']);
     assert.strictEqual(result.changedRoles, 2);
     assert.strictEqual(result.changedChannels, 2);
-    assert.deepStrictEqual(result.requiredTextCategoryIds, ['1532513763918483497']);
+    assert.deepStrictEqual(result.requiredCategoryIds, REQUIRED_CATEGORY_IDS);
     assert.strictEqual(copiedBasePermissions, 8n);
     assert.strictEqual(replacementOverwrites.find(item => item.id === 'sibling').allow, 6n);
     assert.strictEqual(replacementOverwrites.find(item => item.id === 'second').allow, 6n);
