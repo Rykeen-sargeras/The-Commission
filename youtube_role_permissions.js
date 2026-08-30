@@ -14,17 +14,37 @@ function integrationId(role) {
     return String(role?.tags?.integrationId || role?.tags?.integration_id || '').trim();
 }
 
-function youtubeRoleSet(guild, sourceName = SOURCE_ROLE_NAME) {
+async function fetchYouTubeIntegrationIds(guild, logger = console) {
+    let integrations = null;
+    try {
+        if (typeof guild.fetchIntegrations === 'function') integrations = await guild.fetchIntegrations();
+        else if (typeof guild.integrations?.fetch === 'function') integrations = await guild.integrations.fetch();
+    } catch (error) {
+        logger.warn?.(`[youtube-role-sync] Could not list guild integrations: ${error.message}`);
+    }
+    if (!integrations) return new Set();
+    return new Set(
+        [...integrations.values()]
+            .filter(integration => String(integration?.type || '').toLowerCase() === 'youtube')
+            .map(integration => String(integration.id || '').trim())
+            .filter(Boolean),
+    );
+}
+
+function youtubeRoleSet(guild, sourceName = SOURCE_ROLE_NAME, youtubeIntegrationIds = new Set()) {
     const roles = [...guild.roles.cache.values()];
     const source = roles.find(role => normalizeRoleName(role.name) === normalizeRoleName(sourceName)) || null;
-    if (!source) return { source: null, targets: [], integrationId: '' };
+    if (!source) return { source: null, targets: [], integrationIds: [] };
     const sourceIntegrationId = integrationId(source);
-    if (!sourceIntegrationId) return { source, targets: [], integrationId: '' };
+    const allowedIds = new Set([...youtubeIntegrationIds].map(String).filter(Boolean));
+    // If Discord will not expose the integration list, retain the safe legacy
+    // fallback and synchronize roles belonging to Scooter VIP's integration.
+    if (!allowedIds.size && sourceIntegrationId) allowedIds.add(sourceIntegrationId);
     const targets = roles.filter(role => (
         role.id !== source.id
-        && integrationId(role) === sourceIntegrationId
+        && allowedIds.has(integrationId(role))
     ));
-    return { source, targets, integrationId: sourceIntegrationId };
+    return { source, targets, integrationIds: [...allowedIds] };
 }
 
 function bitfield(value) {
@@ -80,15 +100,17 @@ async function syncGuildYouTubeRolePermissions(guild, options = {}) {
     await guild.roles.fetch().catch(() => null);
     await guild.channels.fetch().catch(() => null);
 
-    const { source, targets, integrationId: sourceIntegrationId } = youtubeRoleSet(
+    const youtubeIntegrationIds = await fetchYouTubeIntegrationIds(guild, logger);
+    const { source, targets, integrationIds } = youtubeRoleSet(
         guild,
         options.sourceRoleName || SOURCE_ROLE_NAME,
+        youtubeIntegrationIds,
     );
     if (!source) {
         return { ok: false, reason: 'source-role-missing', sourceRoleName: options.sourceRoleName || SOURCE_ROLE_NAME };
     }
-    if (!sourceIntegrationId) {
-        return { ok: false, reason: 'source-is-not-an-integration-role', sourceRoleName: source.name };
+    if (!integrationIds.length) {
+        return { ok: false, reason: 'youtube-integrations-not-found', sourceRoleName: source.name };
     }
     if (!targets.length) {
         return { ok: true, sourceRoleName: source.name, targetRoleNames: [], changedRoles: 0, changedChannels: 0 };
@@ -130,6 +152,7 @@ async function syncGuildYouTubeRolePermissions(guild, options = {}) {
     const result = {
         ok: true,
         sourceRoleName: source.name,
+        youtubeIntegrationIds: integrationIds,
         targetRoleNames: targets.map(role => role.name),
         changedRoles,
         changedChannels,
@@ -185,6 +208,7 @@ patchDiscordClient();
 
 module.exports = {
     SOURCE_ROLE_NAME,
+    fetchYouTubeIntegrationIds,
     integrationId,
     installYouTubeRolePermissionSync,
     normalizeRoleName,

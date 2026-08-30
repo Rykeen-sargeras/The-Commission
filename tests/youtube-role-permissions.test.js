@@ -16,6 +16,7 @@ Module._load = function(request, parent, isMain) {
 };
 const {
     integrationId,
+    fetchYouTubeIntegrationIds,
     normalizeRoleName,
     planChannelOverwrites,
     syncGuildYouTubeRolePermissions,
@@ -28,10 +29,12 @@ assert.strictEqual(integrationId({ tags: { integrationId: 'youtube-1' } }), 'you
 
 const source = { id: 'source', name: 'Scooter VIP', tags: { integrationId: 'youtube-1' }, permissions: { bitfield: 8n } };
 const sibling = { id: 'sibling', name: 'Scooter Member', tags: { integrationId: 'youtube-1' }, permissions: { bitfield: 4n } };
+const secondYoutube = { id: 'second', name: 'TammyTen Member', tags: { integrationId: 'youtube-2' }, permissions: { bitfield: 2n } };
 const otherIntegration = { id: 'other', name: 'Twitch Subscriber', tags: { integrationId: 'twitch-1' }, permissions: { bitfield: 4n } };
-const selection = youtubeRoleSet({ roles: { cache: new Map([[source.id, source], [sibling.id, sibling], [otherIntegration.id, otherIntegration]]) } });
+const roleCache = new Map([[source.id, source], [sibling.id, sibling], [secondYoutube.id, secondYoutube], [otherIntegration.id, otherIntegration]]);
+const selection = youtubeRoleSet({ roles: { cache: roleCache } }, 'Scooter VIP', new Set(['youtube-1', 'youtube-2']));
 assert.strictEqual(selection.source, source);
-assert.deepStrictEqual(selection.targets, [sibling]);
+assert.deepStrictEqual(selection.targets, [sibling, secondYoutube]);
 
 const overwrites = new Map([
     ['everyone', { id: 'everyone', type: 0, allow: { bitfield: 0n }, deny: { bitfield: 1n } }],
@@ -58,6 +61,8 @@ assert.strictEqual(inheritedPlan.overwrites.some(item => item.id === 'sibling'),
     let replacementOverwrites = null;
     sibling.editable = true;
     sibling.setPermissions = async permissions => { copiedBasePermissions = permissions.bitfield; sibling.permissions = permissions; };
+    secondYoutube.editable = true;
+    secondYoutube.setPermissions = async permissions => { secondYoutube.permissions = permissions; };
     const channel = {
         id: 'channel', name: 'members',
         permissionOverwrites: {
@@ -67,18 +72,28 @@ assert.strictEqual(inheritedPlan.overwrites.some(item => item.id === 'sibling'),
     };
     const guild = {
         roles: {
-            cache: new Map([[source.id, source], [sibling.id, sibling], [otherIntegration.id, otherIntegration]]),
+            cache: roleCache,
             fetch: async () => null,
         },
         channels: { cache: new Map([[channel.id, channel]]), fetch: async () => null },
+        fetchIntegrations: async () => new Map([
+            ['youtube-1', { id: 'youtube-1', type: 'youtube' }],
+            ['youtube-2', { id: 'youtube-2', type: 'YouTube' }],
+            ['twitch-1', { id: 'twitch-1', type: 'twitch' }],
+        ]),
     };
+    assert.deepStrictEqual(
+        [...await fetchYouTubeIntegrationIds(guild, { warn() {} })].sort(),
+        ['youtube-1', 'youtube-2'],
+    );
     const result = await syncGuildYouTubeRolePermissions(guild, { logger: { log() {}, warn() {} } });
     assert.strictEqual(result.ok, true);
-    assert.deepStrictEqual(result.targetRoleNames, ['Scooter Member']);
-    assert.strictEqual(result.changedRoles, 1);
+    assert.deepStrictEqual(result.targetRoleNames, ['Scooter Member', 'TammyTen Member']);
+    assert.strictEqual(result.changedRoles, 2);
     assert.strictEqual(result.changedChannels, 1);
     assert.strictEqual(copiedBasePermissions, 8n);
     assert.strictEqual(replacementOverwrites.find(item => item.id === 'sibling').allow, 6n);
+    assert.strictEqual(replacementOverwrites.find(item => item.id === 'second').allow, 6n);
 
     console.log('youtube-role-permissions tests passed');
 })().catch(error => {
