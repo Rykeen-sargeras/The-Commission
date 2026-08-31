@@ -65,6 +65,27 @@ function roleOverwrite(roleId, allow) {
     };
 }
 
+function overwriteBits(value) {
+    if (value?.bitfield !== undefined) return BigInt(value.bitfield);
+    return BigInt(new Discord.PermissionsBitField(value || []).bitfield);
+}
+
+function overwritesMatch(currentCache, desired) {
+    if (!currentCache) return false;
+    const current = Array.from(currentCache.values());
+    if (current.length !== desired.length) return false;
+
+    return desired.every(target => {
+        const existing = current.find(item =>
+            String(item.id) === String(target.id)
+            && Number(item.type) === Number(target.type)
+        );
+        if (!existing) return false;
+        return overwriteBits(existing.allow) === overwriteBits(target.allow)
+            && overwriteBits(existing.deny) === overwriteBits(target.deny);
+    });
+}
+
 async function desiredOverwrites(guild) {
     await guild.roles.fetch().catch(() => null);
     const everyoneId = guild.roles.everyone?.id || guild.id;
@@ -155,10 +176,13 @@ async function ensureOpenPanel(guild) {
     }
 
     if (channel.permissionOverwrites?.set) {
-        await channel.permissionOverwrites.set(
-            await desiredOverwrites(guild),
-            'OPEN PANEL is available to every assigned role but not @everyone',
-        );
+        const desired = await desiredOverwrites(guild);
+        if (!overwritesMatch(channel.permissionOverwrites.cache, desired)) {
+            await channel.permissionOverwrites.set(
+                desired,
+                'OPEN PANEL is available to every assigned role but not @everyone',
+            );
+        }
     }
 
     await enforceCategoryOrder(guild, channel);
@@ -227,7 +251,6 @@ module.exports = {
     installOpenPanel,
     isOpenPanel,
     liveDescriptor,
+    overwritesMatch,
     patchDiscordClient,
 };
-
-
