@@ -12,21 +12,15 @@ const { installDiscordFeatures } = require('./discord_features');
 const { installLiveVoicePairs } = require('./live_voice_pairs');
 const { installManualJailRoleWorkflow } = require('./manual_jail_role');
 const { generateDashboardHTML } = require('./discord/dashboard_page');
+const { loadDiscordConfig } = require('./discord/config');
+const { loadMusicDependencies } = require('./discord/music_dependencies');
+const { createStaffAccess } = require('./discord/staff_access');
 
 // Music dependencies
 // play-dl is used for YouTube searching/metadata.
 // @distube/ytdl-core is used for the actual audio stream because play-dl.stream()
 // can return ERR_INVALID_URL/input undefined on some Railway/YouTube results.
-let voice, playDl, ytdl;
-try {
-    voice = require('@discordjs/voice');
-    playDl = require('play-dl');
-    ytdl = require('@distube/ytdl-core');
-    console.log('✅ Music dependencies loaded');
-} catch (e) {
-    console.warn('⚠️ Music dependencies not installed. Run: npm install @discordjs/voice play-dl @distube/ytdl-core libsodium-wrappers ffmpeg-static');
-    console.warn(e.message);
-}
+const { voice, playDl, ytdl } = loadMusicDependencies();
 
 const client = new Discord.Client({
     intents: [
@@ -49,32 +43,7 @@ const client = new Discord.Client({
 installDiscordFeatures(client);
 
 // Configuration - supplied by Railway or the Windows control panel.
-const CONFIG = {
-    MAIN_CHAT_CHANNEL_ID: process.env.MAIN_CHAT_CHANNEL_ID || '',
-    ANNOUNCEMENT_CHANNEL_ID: process.env.ANNOUNCEMENT_CHANNEL_ID || '',
-    MOD_CHANNEL_ID: process.env.MOD_CHANNEL_ID || '1532529016479682774',
-    LOG_CHANNEL_ID: process.env.LOG_CHANNEL_ID || '',
-    TICKET_CATEGORY_ID: process.env.TICKET_CATEGORY_ID || '',
-    STAFF_ROLE_IDS: (process.env.STAFF_ROLE_IDS || '').split(',').filter(Boolean),
-    OWNER_USER_ID: process.env.OWNER_USER_ID || '',
-    WEB_DASHBOARD_PASSWORD: process.env.WEB_DASHBOARD_PASSWORD || '',
-    ALT_DETECTION_ENABLED: process.env.ALT_DETECTION_ENABLED !== 'false', // Default enabled
-    ALT_ACCOUNT_AGE_DAYS: parseInt(process.env.ALT_ACCOUNT_AGE_DAYS || '14'), // Auto-jail accounts newer than 14 days
-    PATROL_CHANNEL_ID: process.env.PATROL_CHANNEL_ID || '',
-    LOCATIONIQ_API_KEY: process.env.LOCATIONIQ_API_KEY || '',
-    POSITIONSTACK_API_KEY: process.env.POSITIONSTACK_API_KEY || '',
-    MUSIC_CHANNEL_ID: process.env.MUSIC_CHANNEL_ID || '',
-    MUSIC_VOICE_CHANNEL_ID: process.env.MUSIC_VOICE_CHANNEL_ID || '',
-    REPORT_CATEGORY_ID: process.env.REPORT_CATEGORY_ID || '',
-    OLD_REPORTS_CHANNEL_ID: process.env.OLD_REPORTS_CHANNEL_ID || '',
-    JAIL_CATEGORY_IDS: (process.env.JAIL_CATEGORY_IDS || '').split(',').filter(Boolean),
-    JAIL_CATEGORY_ID: process.env.JAIL_CATEGORY_ID || '',
-    JAIL_ROLE_ID: process.env.JAIL_ROLE_ID || '',
-    JAIL_LOG_CHANNEL_ID: process.env.JAIL_LOG_CHANNEL_ID || '',
-    PREEMPTIVE_BAN_USER_IDS: (process.env.PREEMPTIVE_BAN_USER_IDS || '').split(/[\s,]+/).filter(Boolean),
-    PREEMPTIVE_BAN_REASON: process.env.PREEMPTIVE_BAN_REASON || 'Listed in The Commission preemptive ban list',
-    LIVE_VOICE_CATEGORY_ID: process.env.LIVE_VOICE_CATEGORY_ID || '1532513765701189683',
-};
+const CONFIG = loadDiscordConfig();
 
 const PREEMPTIVE_BAN_USER_IDS = new Set(CONFIG.PREEMPTIVE_BAN_USER_IDS);
 installLiveVoicePairs(client, { categoryId: CONFIG.LIVE_VOICE_CATEGORY_ID });
@@ -89,38 +58,7 @@ installManualJailRoleWorkflow(client, Discord, {
 const MUSIC_CHANNEL_ID = CONFIG.MUSIC_CHANNEL_ID;
 const MUSIC_VOICE_CHANNEL_ID = CONFIG.MUSIC_VOICE_CHANNEL_ID;
 
-const STAFF_CHANNEL_PERMISSIONS = [
-    Discord.PermissionFlagsBits.ViewChannel,
-    Discord.PermissionFlagsBits.SendMessages,
-    Discord.PermissionFlagsBits.ReadMessageHistory,
-];
-
-function configuredStaffRoleIds(guild) {
-    const configuredIds = [...new Set(CONFIG.STAFF_ROLE_IDS.map(id => String(id).trim()).filter(Boolean))];
-    const validIds = configuredIds.filter(id => guild.roles.cache.has(id));
-    const invalidIds = configuredIds.filter(id => !guild.roles.cache.has(id));
-
-    if (invalidIds.length) {
-        console.warn(`[Discord permissions] Ignoring staff role IDs that do not exist in guild ${guild.id}: ${invalidIds.join(', ')}`);
-    }
-
-    return validIds;
-}
-
-function staffPermissionOverwrites(guild) {
-    return configuredStaffRoleIds(guild).map(id => ({
-        id,
-        allow: STAFF_CHANNEL_PERMISSIONS,
-    }));
-}
-
-function staffMentions(guild, extraUserId = '') {
-    const mentions = [];
-    if (CONFIG.OWNER_USER_ID) mentions.push(`<@${CONFIG.OWNER_USER_ID}>`);
-    mentions.push(...configuredStaffRoleIds(guild).map(id => `<@&${id}>`));
-    if (extraUserId) mentions.push(`<@${extraUserId}>`);
-    return mentions.join(' ');
-}
+const { configuredStaffRoleIds, staffPermissionOverwrites, staffMentions } = createStaffAccess(Discord, CONFIG);
 
 // Patrol channel tracking
 const patrolCooldowns = new Map(); // userId -> lastPostTimestamp
