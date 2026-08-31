@@ -4,6 +4,7 @@ const assert = require('assert');
 const Module = require('module');
 
 class Client { login() { return Promise.resolve('token'); } }
+const originalLogin = Client.prototype.login;
 const Discord = {
     Client,
     ChannelType: { GuildVoice: 2 },
@@ -23,6 +24,8 @@ Module._load = function(request, parent, isMain) {
 };
 const { OPEN_PANEL_NAME, ensureOpenPanel, isOpenPanel } = require('../open_panel_preload');
 Module._load = originalLoad;
+
+assert.strictEqual(Client.prototype.login, originalLogin, 'importing the module must not patch Discord.Client.login');
 
 assert.strictEqual(OPEN_PANEL_NAME, '🟢 OPEN PANEL 🟢');
 

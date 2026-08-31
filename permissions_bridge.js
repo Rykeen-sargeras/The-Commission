@@ -1,9 +1,9 @@
 'use strict';
 
-const { Client, ChannelType, PermissionFlagsBits } = require('discord.js');
+const { ChannelType, PermissionFlagsBits } = require('discord.js');
 
 const BRIDGE_CHANNEL = 'commission:permissions-request';
-const CLIENT_PATCH = Symbol.for('the-commission.permissions-client-patch');
+const PROCESS_INSTALL = Symbol.for('the-commission.permissions-bridge-installed');
 let activeClient = null;
 
 const CHANNEL_PERMISSIONS = [
@@ -283,16 +283,7 @@ async function handle(action, payload) {
   throw new Error(`Unknown permission editor action: ${action}`);
 }
 
-if (!Client.prototype[CLIENT_PATCH]) {
-  const originalLogin = Client.prototype.login;
-  Object.defineProperty(Client.prototype, CLIENT_PATCH, { value: true, configurable: false });
-  Client.prototype.login = function patchedCommissionLogin(...args) {
-    activeClient = this;
-    return originalLogin.apply(this, args);
-  };
-}
-
-process.on('message', async message => {
+async function handleMessage(message) {
   if (!message || message.channel !== BRIDGE_CHANNEL || !message.id) return;
   try {
     const data = await handle(message.action, message.payload || {});
@@ -300,6 +291,16 @@ process.on('message', async message => {
   } catch (error) {
     process.send?.({ id: message.id, ok: false, error: error?.message || String(error) });
   }
-});
+}
 
-module.exports = { CHANNEL_PERMISSIONS, linkedRoleFamily };
+function installPermissionsBridge(client) {
+  if (!client) throw new TypeError('A Discord client is required.');
+  activeClient = client;
+  if (!process[PROCESS_INSTALL]) {
+    Object.defineProperty(process, PROCESS_INSTALL, { value: true, configurable: false });
+    process.on('message', handleMessage);
+  }
+  return client;
+}
+
+module.exports = { CHANNEL_PERMISSIONS, installPermissionsBridge, linkedRoleFamily };

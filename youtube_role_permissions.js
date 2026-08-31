@@ -27,7 +27,6 @@ const CATEGORY_IDS = Object.freeze({
 });
 
 const INSTALL_KEY = Symbol.for('the-commission.youtube-permissions-installed');
-const PATCH_KEY = Symbol.for('the-commission.youtube-permissions-client-patch');
 
 const STANDARD_PERMISSION_NAMES = Object.freeze([
     'ViewChannel',
@@ -227,19 +226,6 @@ function installConfiguredRolePermissionSync(client, options = {}) {
     return client;
 }
 
-function patchDiscordClient() {
-    const proto = Discord.Client?.prototype;
-    if (!proto || proto[PATCH_KEY]) return;
-    Object.defineProperty(proto, PATCH_KEY, { value: true, configurable: false });
-    const originalLogin = proto.login;
-    proto.login = function patchedConfiguredPermissionLogin(...args) {
-        installConfiguredRolePermissionSync(this);
-        return originalLogin.apply(this, args);
-    };
-}
-
-patchDiscordClient();
-
 module.exports = {
     CATEGORY_IDS,
     READ_ONLY_PERMISSION_NAMES,
@@ -248,7 +234,6 @@ module.exports = {
     channelCategoryId,
     installConfiguredRolePermissionSync,
     normalizeChannelName,
-    patchDiscordClient,
     permissionBits,
     permissionProfileForChannel,
     planRoleOverwrites,

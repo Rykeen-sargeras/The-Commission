@@ -3,16 +3,6 @@
 const fs = require('fs');
 const path = require('path');
 
-// The Commission always loads this compatibility module during Discord startup.
-// Patch the Discord client here so Going Live is installed even when Railway
-// launches discord_bot.js directly and bypasses package-script preload wrappers.
-try {
-    require('../going_live').patchDiscordClient();
-    console.log('[Going Live] Discord client hook loaded from Commission core startup.');
-} catch (error) {
-    console.error(`[Going Live] Could not load scheduler hook: ${error.message}`);
-}
-
 /**
  * MemberBridge has been retired from The Commission.
  *

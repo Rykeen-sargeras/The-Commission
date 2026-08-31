@@ -14,6 +14,7 @@ class EmbedBuilder {
 }
 
 class Client { login() { return Promise.resolve('token'); } }
+const originalLogin = Client.prototype.login;
 const Discord = {
     ChannelType: { GuildCategory: 4, GuildText: 0 },
     Client,
@@ -41,6 +42,8 @@ const {
     safeChannelPart,
 } = require('../dm_ticket_system');
 Module._load = originalLoad;
+
+assert.strictEqual(Client.prototype.login, originalLogin, 'importing the module must not patch Discord.Client.login');
 
 function createMemoryFileSystem() {
     const files = new Map();

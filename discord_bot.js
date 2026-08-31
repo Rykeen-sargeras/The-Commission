@@ -8,7 +8,7 @@ const { economyCommandData, createEconomyIntegration } = require('./economy_disc
 const { isDoxWord } = require('./moderation_word_policy');
 const { verifyAddressWithFreeGeocoders } = require('./address_verification');
 const { MemberBridgeIntegration, memberBridgeCommandData } = require('./memberbridge/integration');
-const goingLive = require('./going_live');
+const { installDiscordFeatures } = require('./discord_features');
 const { installLiveVoicePairs } = require('./live_voice_pairs');
 const { installManualJailRoleWorkflow } = require('./manual_jail_role');
 
@@ -45,7 +45,7 @@ const client = new Discord.Client({
         Discord.Partials.GuildMember,
     ]
 });
-goingLive.install(client);
+installDiscordFeatures(client);
 
 // Configuration - supplied by Railway or the Windows control panel.
 const CONFIG = {

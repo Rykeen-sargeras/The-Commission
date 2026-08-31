@@ -373,15 +373,4 @@ function install(client) {
   });
 }
 
-function patchDiscordClient() {
-  const proto = Discord.Client.prototype;
-  if (proto.__goingLivePatched) return;
-  proto.__goingLivePatched = true;
-  const originalLogin = proto.login;
-  proto.login = function(...args) {
-    install(this);
-    return originalLogin.apply(this, args);
-  };
-}
-
-module.exports = { install, patchDiscordClient, upcomingEntries, refreshBoard, repostBoard, registerCommand, GOING_LIVE_COMMAND, WHO_COMMAND, FILE, GUILD_ID, BOARD_CHANNEL_ID, ZONE };
+module.exports = { install, upcomingEntries, refreshBoard, repostBoard, registerCommand, GOING_LIVE_COMMAND, WHO_COMMAND, FILE, GUILD_ID, BOARD_CHANNEL_ID, ZONE };

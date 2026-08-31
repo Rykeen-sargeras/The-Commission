@@ -229,20 +229,6 @@ function installOpenPanel(client) {
     return client;
 }
 
-function patchDiscordClient() {
-    const proto = Discord.Client?.prototype;
-    if (!proto || proto.__commissionOpenPanelPatched) return;
-    proto.__commissionOpenPanelPatched = true;
-
-    const originalLogin = proto.login;
-    proto.login = function patchedLogin(...args) {
-        installOpenPanel(this);
-        return originalLogin.apply(this, args);
-    };
-}
-
-patchDiscordClient();
-
 module.exports = {
     OPEN_PANEL_NAME,
     apprenticeDescriptor,
@@ -252,5 +238,4 @@ module.exports = {
     isOpenPanel,
     liveDescriptor,
     overwritesMatch,
-    patchDiscordClient,
 };

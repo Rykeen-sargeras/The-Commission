@@ -4,6 +4,7 @@ const assert = require('assert');
 const Module = require('module');
 
 class Client { login() { return Promise.resolve('token'); } }
+const originalLogin = Client.prototype.login;
 const permissionNames = [
     'ViewChannel', 'Connect', 'SendMessages', 'ReadMessageHistory', 'AddReactions',
     'EmbedLinks', 'AttachFiles', 'UseExternalEmojis', 'UseExternalStickers',
@@ -34,6 +35,8 @@ const {
     syncConfiguredRolePermissions,
 } = require('../youtube_role_permissions');
 Module._load = originalLoad;
+
+assert.strictEqual(Client.prototype.login, originalLogin, 'importing the module must not patch Discord.Client.login');
 
 assert.strictEqual(TARGET_ROLE_IDS.length, 14);
 assert.deepStrictEqual(CATEGORY_IDS, {

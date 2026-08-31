@@ -8,7 +8,6 @@ const FIRST_TICKET_NUMBER = 30001;
 const TICKET_TOPIC_PREFIX = 'commission-ticket-user:';
 const CLOSED_TICKET_TOPIC_PREFIX = 'commission-ticket-closed-user:';
 const INSTALL_KEY = Symbol.for('the-commission.dm-tickets-installed');
-const PATCH_KEY = Symbol.for('the-commission.dm-tickets-client-patch');
 
 function safeChannelPart(value) {
     return String(value || 'member')
@@ -281,19 +280,6 @@ function installDMTicketSystem(client, config = defaultConfig(), options = {}) {
     return client;
 }
 
-function patchDiscordClient() {
-    const proto = Discord.Client?.prototype;
-    if (!proto || proto[PATCH_KEY]) return;
-    Object.defineProperty(proto, PATCH_KEY, { value: true, configurable: false });
-    const originalLogin = proto.login;
-    proto.login = function patchedDMTicketLogin(...args) {
-        installDMTicketSystem(this);
-        return originalLogin.apply(this, args);
-    };
-}
-
-patchDiscordClient();
-
 module.exports = {
     CLOSED_TICKET_TOPIC_PREFIX,
     FIRST_TICKET_NUMBER,
@@ -304,7 +290,6 @@ module.exports = {
     findOpenTicketChannel,
     installDMTicketSystem,
     messageSummary,
-    patchDiscordClient,
     safeChannelPart,
     splitIds,
 };
