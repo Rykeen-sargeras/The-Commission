@@ -39,6 +39,7 @@
     ],
     "files": [
       "desktop/**/*",
+      "discord/**/*",
       "blueprint.js",
       "address_verification.js",
       "manual_jail_role.js",
