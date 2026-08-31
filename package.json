@@ -10,7 +10,7 @@
     "start:bot": "node discord_bootstrap.js",
     "railway:start": "node railway_start.js",
     "check": "node --check discord_bot.js && node --check address_verification.js && node --check manual_jail_role.js && node --check live_voice_pairs.js && node --check discord_bootstrap.js && node --check discord_features.js && node --check permissions_bridge.js && node --check open_panel_preload.js && node --check youtube_role_permissions.js && node --check dm_ticket_system.js && node --check permissions_web_preload.js && node --check going_live.js && node --check going_live_time.js && node --check going_live_command_guard.js && node --check going_live_preload.js && node --check economy.js && node --check economy/luck.js && node --check economy/luck_panel.js && node --check economy/slots.js && node --check moderation_word_policy.js && node --check economy_discord.js && node --check railway_start.js && node --check desktop/main.js && node --check desktop/preload.js && node --check desktop/renderer.js && node --check memberbridge/integration.js",
-    "test": "node tests/manual-jail-role.test.js && node tests/discord-jail-role-cache.test.js && node tests/address-verification.test.js && node tests/live-voice-pairs.test.js && node tests/preemptive-ban.test.js && node tests/blueprint.test.js && node tests/economy.test.js && node tests/economy-core-games.test.js && node tests/economy-luck.test.js && node tests/economy-discord-consolidation.test.js && node tests/going-live.test.js && node tests/memberbridge-retirement.test.js && node tests/discord-features.test.js && node tests/open-panel-preload.test.js && node tests/youtube-role-permissions.test.js && node tests/dm-ticket-system.test.js",
+    "test": "node scripts/run-tests.js",
     "dist": "electron-builder --win nsis portable",
     "dist:dir": "electron-builder --dir"
   },
@@ -39,7 +39,6 @@
     ],
     "files": [
       "desktop/**/*",
-      "tests/**/*",
       "blueprint.js",
       "address_verification.js",
       "manual_jail_role.js",
@@ -64,8 +63,7 @@
       "assets/app-icon.ico",
       "live_voice_pairs.js",
       "discord_bot.js",
-      "package.json",
-      "node_modules/**/*"
+      "package.json"
     ],
     "directories": {
       "output": "dist"
