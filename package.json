@@ -40,6 +40,7 @@
     "files": [
       "desktop/**/*",
       "discord/**/*",
+      "railway/**/*",
       "blueprint.js",
       "address_verification.js",
       "manual_jail_role.js",
