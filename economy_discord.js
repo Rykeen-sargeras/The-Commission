@@ -1,21 +1,13 @@
 const crypto = require('crypto');
 const Discord = require('discord.js');
-const slots = require('./economy_slots_patch');
+const slots = require('./economy/slots');
 const {
-    DICE_PAYOUT_TABLE,
     HIGHER_LOWER_MULTIPLIERS,
     DRAGON_TOWER_COLUMNS,
     DRAGON_TOWER_ROWS,
     DRAGON_TOWER_EGGS_PER_ROW,
-    diceExpectedReturn,
-    diceHouseEdge,
     higherLowerSuccessProbability,
 } = require('./economy');
-
-const DICE_ODDS_TEXT = [...DICE_PAYOUT_TABLE]
-    .reverse()
-    .map(outcome => `${outcome.multiplier}× at ${outcome.weight / 100}%`)
-    .join(', ');
 
 function money(value) {
     return Number(value || 0).toLocaleString('en-US');
@@ -176,7 +168,7 @@ function higherLowerPayload(game, userMention, currencyName, note = '') {
     return {
         embeds: [new Discord.EmbedBuilder().setColor(active ? 0x7c3aed : game.status === 'lost' ? 0x9b1c31 : 0x2ea043)
             .setTitle('🃏 Higher / Lower Cards').setDescription(`${description}${note ? `\n\n*${note}*` : ''}`).addFields(fields)
-            .setFooter({ text: '85% RTP · 15% house edge · ties lose · inactivity cashes out earned progress' }).setTimestamp()],
+            .setFooter({ text: 'Ties lose · inactivity cashes out earned progress' }).setTimestamp()],
         components,
     };
 }
@@ -230,7 +222,7 @@ function dragonTowerPayload(game, userMention, currencyName, note = '') {
     return {
         embeds: [new Discord.EmbedBuilder().setColor(active ? 0xd29922 : game.status === 'lost' ? 0x9b1c31 : 0x2ea043)
             .setTitle('🐉 Dragon Tower · 4×8').setDescription(`${description}\n\n${dragonTowerGrid(game)}${note ? `\n\n*${note}*` : ''}`).addFields(fields)
-            .setFooter({ text: 'Rows 1–5: 3 eggs · Rows 6–8: 1 egg · 85% RTP · 15% house edge' }).setTimestamp()],
+            .setFooter({ text: 'Rows 1–5: 3 eggs · Rows 6–8: 1 egg' }).setTimestamp()],
         components,
     };
 }
@@ -882,7 +874,7 @@ function createEconomyIntegration(client, economy, options = {}) {
             await interaction.reply({ embeds: [new Discord.EmbedBuilder().setColor(result.payout ? 0x2ea043 : 0x9b1c31)
                 .setTitle(`🎲 Dice · ${result.outcome} · ${result.multiplier}×`)
                 .setDescription(result.payout ? `You received **${money(result.payout)} ${economy.config.currencyName}**.` : `The house took **${money(result.wager)} ${economy.config.currencyName}**.`)
-                .addFields({ name: 'Outcome chance', value: `${result.odds}%`, inline: true }, { name: 'Balance', value: money(result.balance), inline: true })] });
+                .addFields({ name: 'Balance', value: money(result.balance), inline: true })] });
             await audit(interaction.guild, 'Dice result', `${interaction.user} wagered ${money(result.wager)} and received ${money(result.payout)} (${result.multiplier}×).`);
             return;
         }
@@ -1142,7 +1134,7 @@ function createEconomyIntegration(client, economy, options = {}) {
         }
         if (action === 'settings') {
             const c = economy.config;
-            await interaction.reply({ content: `🩸 **Blood Money settings**\nText: ${c.messageRewardMin}-${c.messageRewardMax}, ${c.messageChance}% chance, ${c.messageCooldownSeconds}s cooldown, ${c.messageDailyCap}/day\nMedia: ${c.mediaRewardMin}-${c.mediaRewardMax}, ${c.mediaDailyCap}/day\nVoice: ${c.voiceRewardMin}-${c.voiceRewardMax} every ${c.voiceIntervalMinutes}m, ${c.voiceDailyCap}/day\nDaily: ${c.dailyBase} base, ${c.dailyStreakMaximum} maximum\nGambling: **${money(c.gamblingHourlyWagerCap)} ${c.currencyName} per rolling hour** and **${money(c.gamblingDailyWagerCap)} per day** across all games. No separate per-game maximums.\nDice: ${DICE_ODDS_TEXT}. RTP ${(diceExpectedReturn() * 100).toFixed(1)}%; house edge ${(diceHouseEdge() * 100).toFixed(1)}%.\nHigher / Lower: ${HIGHER_LOWER_MULTIPLIERS.join('× · ')}× ladder. RTP 85%; house edge 15%.\nDragon Tower: 4×8; rows 1–5 have 3 eggs, rows 6–8 have 1 egg. Cash out after any cleared row. RTP 85%; house edge 15%.`, ephemeral: true });
+            await interaction.reply({ content: `🩸 **Blood Money settings**\nText: ${c.messageRewardMin}-${c.messageRewardMax}, ${c.messageChance}% chance, ${c.messageCooldownSeconds}s cooldown, ${c.messageDailyCap}/day\nMedia: ${c.mediaRewardMin}-${c.mediaRewardMax}, ${c.mediaDailyCap}/day\nVoice: ${c.voiceRewardMin}-${c.voiceRewardMax} every ${c.voiceIntervalMinutes}m, ${c.voiceDailyCap}/day\nDaily: ${c.dailyBase} base, ${c.dailyStreakMaximum} maximum\nGambling: **${money(c.gamblingHourlyWagerCap)} ${c.currencyName} per rolling hour** and **${money(c.gamblingDailyWagerCap)} per day** across all games. No separate per-game maximums.\nHigher / Lower: ${HIGHER_LOWER_MULTIPLIERS.join('× · ')}× ladder.\nDragon Tower: 4×8; rows 1–5 have 3 eggs, rows 6–8 have 1 egg. Cash out after any cleared row.`, ephemeral: true });
             return;
         }
         if (action === 'disable-gambling' || action === 'enable-gambling') {
@@ -1236,7 +1228,6 @@ function createEconomyIntegration(client, economy, options = {}) {
                 await interaction.reply({ embeds: [new Discord.EmbedBuilder().setColor(result.payout ? 0x2ea043 : 0x9b1c31).setTitle(`🎲 Dice · ${result.outcome} · ${result.multiplier}×`)
                     .setDescription(result.payout ? `You received **${money(result.payout)} ${economy.config.currencyName}**.` : `The house took **${money(result.wager)} ${economy.config.currencyName}**.`)
                     .addFields(
-                        { name: 'Outcome chance', value: `${result.odds}%`, inline: true },
                         { name: 'Balance', value: money(result.balance), inline: true },
                     )] });
                 await audit(interaction.guild, 'Dice result', `${interaction.user} wagered ${money(result.wager)} and received ${money(result.payout)} (${result.multiplier}×).`);
@@ -1383,3 +1374,8 @@ function createEconomyIntegration(client, economy, options = {}) {
 }
 
 module.exports = { economyCommandData, createEconomyIntegration, pokerComponents, canAdministerEconomy, gambleMenuPayload, wagerModal };
+
+const { installLuckCommands } = require('./economy/luck');
+const { installLuckPanel } = require('./economy/luck_panel');
+installLuckCommands(module.exports, Discord);
+installLuckPanel(module.exports);

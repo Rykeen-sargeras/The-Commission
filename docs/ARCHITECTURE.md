@@ -1,58 +1,22 @@
-# The Commission MemberBridge architecture
+# The Commission architecture
 
-## Decision: integrate, do not replace
-
-MemberBridge is implemented as a first-party feature inside The Commission. The existing Electron desktop process remains the administrator application and continues to own Windows startup, tray behavior, application authentication, and Windows `safeStorage` secret protection. The existing Discord.js child process remains the only Discord gateway connection. This preserves the configured bot application, token, guild, channel IDs, and Blood Money database.
-
-The attached standalone .NET/WPF proposal is therefore translated to the repository's established Node.js/Electron architecture. Building a second WPF application and Windows service would duplicate the Discord connection and force the owner to configure a second product, contradicting the explicit requirement to insert the feature into the already-configured app.
+The Commission runs one Discord.js worker from either the Electron desktop control panel or the Railway launcher. `discord_bot.js` creates the Discord client, and `discord_features.js` explicitly installs each client-bound feature before login.
 
 ## Runtime boundaries
 
-```text
-The Commission.exe (Electron main process)
-  - encrypted configuration and machine-local login
-  - desktop MemberBridge admin UI
-  - IPC request/response bridge
-  - starts the existing Discord worker
+- `desktop/` owns the Windows UI, encrypted configuration, process lifecycle, and tray behavior.
+- `railway_start.js` owns hosted configuration, process lifecycle, and public Going Live pages.
+- `discord_bot.js` owns the Discord gateway client and coordinates moderation, economy, REP, tickets, and voice systems.
+- `economy.js` owns economy persistence and core game behavior.
+- `economy/` contains Luck Shop and slots modules; `economy_discord.js` owns Discord commands and panels.
+- `memberbridge/integration.js` is a temporary retirement migration only. It removes legacy MemberBridge data and panels and exposes no commands or active verification service.
 
-discord_bot.js (existing Discord worker)
-  - single Discord gateway session
-  - existing moderation and Blood Money features
-  - MemberBridge Discord slash commands
-  - MemberBridge callback server and scheduler
+## Membership verification
 
-memberbridge/
-  store.js       SQLite schema and durable state
-  crypto.js      AES-256-GCM protection using a safeStorage-wrapped key
-  youtube.js     official Google OAuth and YouTube Data API client
-  engine.js      centralized membership state machine and role reconciliation
-  web.js         OAuth routes, state/PKCE validation, privacy and result pages
-  integration.js Discord commands, admin API, scheduler and simulator
-```
+MemberBridge is retired. YouTube membership verification is owned by the standalone Safetybot project. The Commission must not start OAuth callbacks, YouTube polling, membership schedulers, or role reconciliation.
 
-## Persistent data compatibility
+The small retirement integration remains so upgrades can remove legacy SQLite files, backups, and bot-authored verification panels safely. It should be removed only after all deployed installations have completed that migration.
 
-Existing files remain unchanged. MemberBridge creates `bot-data/memberbridge.db` beside the existing economy database. Schema creation is forward-only and idempotent. Updates never replace `commission-config.json` or the `bot-data` directory.
+## Startup rule
 
-Secret values are never stored in plaintext configuration. Electron encrypts the Discord token, Discord OAuth client secret, Google OAuth client secret, and the MemberBridge database-encryption key with Windows `safeStorage`. Only decrypted values are passed to the already-local child process. Creator refresh tokens are additionally encrypted with AES-256-GCM before they enter SQLite.
-
-## Identity and authorization
-
-- Permanent Discord guild, user, and role IDs are authoritative.
-- Permanent YouTube creator channel, member channel, and membership-level IDs are authoritative.
-- Member linking begins with an ephemeral Discord command and a single-use ten-minute token.
-- Discord OAuth `identify` confirms the browser user matches the command user.
-- Discord OAuth `identify connections` retrieves a member's verified YouTube connection; member OAuth tokens are discarded after linking.
-- Google OAuth with PKCE is limited to approved creators. A creator-bound portal session can read only that creator source's cached member list.
-- Creator OAuth is a separate administrator-initiated flow using the creator-memberships scope. Its refresh token is encrypted and retained.
-- Production callback URLs must be HTTPS. Loopback HTTP is permitted only in development mode.
-
-## Failure and role safety
-
-Membership absence is counted only after a successful, structurally valid targeted `members.list` response containing the requested ID batch. Network, quota, authorization, malformed-response, Discord, and database failures preserve current roles.
-
-Role upgrades and downgrades add the replacement role first and remove obsolete MemberBridge-managed roles only after the add succeeds. Creator sources remain independent. A creator-wide sudden-absence threshold automatically enables safe mode for that source and pauses removals.
-
-## External production boundary
-
-The app uses only official Google OAuth and YouTube Data API endpoints. It never scrapes YouTube, imports browser cookies, or automates YouTube Studio. Google documents that `members.list` and `membershipsLevels.list` are for creators checking their own memberships-enabled channel and may require access approved by Google/YouTube. Simulation mode provides deterministic local validation but is blocked when production mode is enabled.
+Feature modules must export explicit installers. Importing a module must not patch `Discord.Client.login()` or another library prototype. Add new client-bound features to `discord_features.js` so startup order stays visible and testable.

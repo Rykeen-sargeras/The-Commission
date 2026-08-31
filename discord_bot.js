@@ -7,7 +7,7 @@ const { EconomyService } = require('./economy');
 const { economyCommandData, createEconomyIntegration } = require('./economy_discord');
 const { isDoxWord } = require('./moderation_word_policy');
 const { verifyAddressWithFreeGeocoders } = require('./address_verification');
-const { MemberBridgeIntegration, memberBridgeCommandData } = require('./memberbridge/integration');
+const { MemberBridgeIntegration } = require('./memberbridge/integration');
 const { installDiscordFeatures } = require('./discord_features');
 const { installLiveVoicePairs } = require('./live_voice_pairs');
 const { installManualJailRoleWorkflow } = require('./manual_jail_role');
@@ -148,28 +148,15 @@ let memberBridgeConfig = {};
 try {
     memberBridgeConfig = JSON.parse(process.env.MEMBERBRIDGE_CONFIG_JSON || '{}');
 } catch (error) {
-    console.error('Invalid MemberBridge configuration; the feature will stay disabled:', error.message);
+    console.error('Invalid legacy MemberBridge configuration; panel cleanup will use defaults:', error.message);
 }
 const RAILWAY_MODE = Boolean(
     process.env.RAILWAY_ENVIRONMENT_ID
     || process.env.COMMISSION_RAILWAY_MODE === 'true'
     || process.env.COMMISSION_RAILWAY_MODE === '1'
 );
-if (RAILWAY_MODE) {
-    memberBridgeConfig.callbackHost = '0.0.0.0';
-    memberBridgeConfig.callbackPort = Number(process.env.PORT || memberBridgeConfig.callbackPort || 17842);
-    if (process.env.RAILWAY_PUBLIC_DOMAIN) {
-        memberBridgeConfig.publicBaseUrl = `https://${String(process.env.RAILWAY_PUBLIC_DOMAIN).replace(/^https?:\/\//, '').replace(/\/$/, '')}`;
-    }
-}
-const memberBridgeEncryptionKey = process.env.MEMBERBRIDGE_ENCRYPTION_KEY
-    || require('crypto').createHash('sha256').update(process.env.DISCORD_TOKEN || 'memberbridge-development-only').digest('base64');
 const memberBridgeIntegration = new MemberBridgeIntegration(client, {
     dataDir: DATA_DIR,
-    encryptionKey: memberBridgeEncryptionKey,
-    googleClientSecret: process.env.MEMBERBRIDGE_GOOGLE_CLIENT_SECRET || '',
-    discordClientSecret: process.env.MEMBERBRIDGE_DISCORD_CLIENT_SECRET || '',
-    ownerPassword: CONFIG.WEB_DASHBOARD_PASSWORD,
     config: memberBridgeConfig,
 });
 
@@ -651,7 +638,6 @@ client.on('ready', async () => {
                 .toJSON(),
             goingLive.GOING_LIVE_COMMAND,
             ...economyCommandData(),
-            ...memberBridgeCommandData(),
         ];
 
         // Clear old global commands (removes duplicates)
@@ -685,8 +671,7 @@ client.on('ready', async () => {
     setInterval(checkBirthdays, 60000);
     checkBirthdays(); // Check immediately on startup
 
-    // Railway exposes one HTTP port. MemberBridge owns it there; the legacy
-    // moderation dashboard remains available only inside the Windows app.
+    // Railway owns the hosted HTTP port; the legacy moderation dashboard is local-only.
     if (!RAILWAY_MODE) startKeepAliveServer();
     await memberBridgeIntegration.start();
 });
@@ -1830,10 +1815,8 @@ const JAIL_CATEGORY_IDS = CONFIG.JAIL_CATEGORY_IDS;
 
 client.on('interactionCreate', async (interaction) => {
     try {
-        if (await memberBridgeIntegration.handleButton(interaction)) return;
         if (await economyIntegration.handleButton(interaction)) return;
         if (!interaction.isChatInputCommand()) return;
-        if (await memberBridgeIntegration.handleCommand(interaction)) return;
         if (await economyIntegration.handleCommand(interaction)) return;
 
         if (interaction.commandName === 'report') {
@@ -4828,17 +4811,6 @@ function sendBlueprintMessage(message) {
 
 process.on('message', async message => {
     if (!message) return;
-    if (message.channel === 'commission:memberbridge-request') {
-        const { id, action, payload = {} } = message;
-        try {
-            if (!client.isReady()) throw new Error('Start the bot and wait for Discord to connect first.');
-            const data = await memberBridgeIntegration.admin(action, payload);
-            if (typeof process.send === 'function') process.send({ channel: 'commission:memberbridge-response', id, ok: true, data });
-        } catch (error) {
-            if (typeof process.send === 'function') process.send({ channel: 'commission:memberbridge-response', id, ok: false, error: error.message });
-        }
-        return;
-    }
     if (message.channel === 'commission:economy-request') {
         const { id, action, payload = {} } = message;
         try {
@@ -4921,8 +4893,7 @@ let shuttingDown = false;
 async function gracefulShutdown(signal) {
     if (shuttingDown) return;
     shuttingDown = true;
-    console.log(`[system] ${signal} received; closing MemberBridge and Discord cleanly.`);
-    try { await memberBridgeIntegration.stop(); } catch (error) { console.error('[MemberBridge shutdown]', error.message); }
+    console.log(`[system] ${signal} received; closing the economy and Discord cleanly.`);
     try { economy.close?.(); } catch (error) { console.error('[Economy shutdown]', error.message); }
     try { client.destroy(); } catch {}
     process.exit(0);

@@ -38,12 +38,6 @@ function purgeLegacyVerificationData(dataDir) {
     removeIfExists(path.join(root, 'memberbridge-backups'));
 }
 
-function memberBridgeCommandData() {
-    // Returning no commands also removes the old membership commands the next
-    // time The Commission refreshes its Discord application command list.
-    return [];
-}
-
 class MemberBridgeIntegration {
     constructor(client, options = {}) {
         this.retired = true;
@@ -93,23 +87,9 @@ class MemberBridgeIntegration {
         if (removed) console.log(`[MemberBridge retired] Deleted ${removed} legacy Discord verification panel${removed === 1 ? '' : 's'}.`);
     }
 
-    async stop() {}
-
-    async handleButton() {
-        return false;
-    }
-
-    async handleCommand() {
-        return false;
-    }
-
-    async admin() {
-        throw new Error('MemberBridge has been retired from The Commission. Membership verification is handled by Safetybot.');
-    }
 }
 
 module.exports = {
     MemberBridgeIntegration,
-    memberBridgeCommandData,
     purgeLegacyVerificationData,
 };

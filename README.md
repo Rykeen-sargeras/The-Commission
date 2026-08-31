@@ -17,8 +17,6 @@ The Commission is a Windows control panel for the existing Discord protection bo
 - Locked monthly REP system: +1 per message after a two-minute cooldown and +10 per 30 qualifying voice minutes with at least two people
 - NSIS installer and portable Windows executable builds
 - Local persistence under the current Windows user's application-data folder
-- Integrated MemberBridge for official YouTube channel-membership verification and permanent level-ID → Discord role-ID mapping
-
 - `/goinglive` Eastern Time stream scheduling with conflict resolution, a persistent Discord board, and a public hosted schedule
 
 ## Going Live schedule
@@ -43,23 +41,13 @@ Configure `GOING_LIVE_GUILD_ID` and `GOING_LIVE_CHANNEL_ID`. The supplied exampl
 
 ## MemberBridge
 
-Version 3 adds MemberBridge inside the same The Commission app and Discord bot. It does not require a second bot token or replace the existing Blood Money database. MemberBridge has its own SQLite database under the existing `bot-data` folder and receives the same start-with-Windows, tray, encrypted-secret, installer, and update-preservation behavior as the rest of The Commission.
-
-Member commands are `/membership-link`, `/membership-status`, `/membership-recheck`, `/membership-unlink`, and `/membership-help`. Administrator commands are `/memberbridge-health`, `/memberbridge-sync`, `/memberbridge-check-user`, and `/memberbridge-reload-commands`.
-
-Start with simulation mode to add fake creator levels and linked test members from the MemberBridge page. Production mode rejects simulated responses and requires an HTTPS public callback URL. Member links use a single-use ten-minute token and Discord OAuth `identify connections` to read a verified YouTube channel ID; members do not sign into Google and their Discord OAuth token is discarded. Approved creators authorize the official creator-memberships scope through a private invitation and receive an isolated web portal for their own current member list. Creator refresh tokens are encrypted before they enter SQLite.
-
-On Railway, `/owner` is a limited password-protected creator manager backed by `WEB_DASHBOARD_PASSWORD`. It adds approved creator sources and generates private creator access links against the live hosted database; it does not expose the full moderation or economy control panel.
-
-Verification batches up to 100 member channel IDs per official `members.list` request. API errors, quota errors, malformed data, revoked creator authorization, Discord outages, and database problems preserve current roles and do not count as missing membership. Confirmed absence requires the configured number of successful checks, then enters grace. Final role removal requires another successful check after the grace deadline. Sudden mass absence automatically pauses removals in safe mode.
-
-Production setup is described in [GOOGLE_SETUP.md](docs/GOOGLE_SETUP.md), [DISCORD_SETUP.md](docs/DISCORD_SETUP.md), and [MEMBERSHIP_VERIFICATION.md](docs/MEMBERSHIP_VERIFICATION.md). YouTube states that the membership endpoints are for individual creators checking their own memberships-enabled channel and that access may require contacting a Google or YouTube representative. The Commission never falls back to scraping, browser cookies, or YouTube Studio automation.
+MemberBridge is retired. YouTube membership verification now runs in the standalone Safetybot project. The Commission retains only a small upgrade migration that removes legacy MemberBridge databases, backups, and bot-authored verification panels; it registers no membership commands or background jobs.
 
 ## Blood Money economy
 
 The **Blood Money** page controls text, media, voice, daily, transfer, gambling, audit, and exclusion settings. Blackjack and video poker each have separate administrator-configured minimum wagers, per-game maximums, and daily wager caps. A global daily wager-amount cap and global gambling-action limits per minute and per hour apply across dice, poker, blackjack (including doubles and splits), and duel stakes. A value of zero disables the corresponding global limit. Wagers over the member's balance, game cap, remaining daily allowance, or rate allowance are rejected.
 
-Member commands include `/balance`, `/daily`, `/leaderboard`, `/economy-stats`, `/pay`, `/dice`, `/higher-lower`, `/dragon-tower`, `/poker`, `/blackjack`, and `/duel`. Administrators use `/economy` for balance adjustments, account freezes, daily resets, channel exclusions, audits, and the gambling switch.
+Member commands include `/balance`, `/daily`, `/leaderboard`, `/economy-stats`, `/pay`, `/gamble`, and `/luck-shop`. Administrators use `/eco` for balance adjustments, account freezes, daily resets, channel exclusions, audits, and the gambling switch.
 
 Daily, weekly, monthly, balance, lifetime, gambling, and voice leaderboards are available. Completed weekly and monthly leaderboards are saved in durable local snapshots and uploaded as text archives. At monthly rollover, every current balance resets to zero while lifetime statistics and the transaction ledger remain intact. Missed rollovers run after the bot starts again, and failed Discord uploads remain queued for retry.
 

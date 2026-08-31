@@ -1,8 +1,5 @@
 'use strict';
 
-const economyModule = require('./economy');
-const { EconomyService } = economyModule;
-
 const SLOT_MULTIPLIERS = Object.freeze([2, 3, 5, 8, 12, 18, 30, 50, 100, 250]);
 const SLOT_WEIGHTS = Object.freeze([250, 200, 150, 120, 90, 70, 50, 35, 25, 10]);
 const SLOT_FALLBACK = Object.freeze(['🍒','🍋','🍊','🍇','🔔','💎','🍀','👑','💰','🃏']);
@@ -56,6 +53,7 @@ function evaluateGrid(grid) {
     };
 }
 
+function installSlots(EconomyService) {
 EconomyService.prototype.slots = function slots(guildId, userId, wager, interactionId, symbols, now = Date.now()) {
     return this.transaction(() => {
         if (this.hasInteraction(guildId, interactionId)) throw new Error('This spin was already processed.');
@@ -94,6 +92,7 @@ EconomyService.prototype.slots = function slots(guildId, userId, wager, interact
         };
     });
 };
+}
 
 module.exports = {
     SLOT_MULTIPLIERS,
@@ -102,5 +101,6 @@ module.exports = {
     PAYLINES,
     serverSymbols,
     evaluateGrid,
+    installSlots,
 };
 

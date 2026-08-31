@@ -4,5 +4,6 @@ $node = if ($env:NODE_EXE) { $env:NODE_EXE } else { 'node' }
 & $node --check desktop/main.js
 & $node --check desktop/preload.js
 & $node --check desktop/renderer.js
-Get-ChildItem memberbridge -Filter *.js | ForEach-Object { & $node --check $_.FullName }
+& $node --check memberbridge/integration.js
+Get-ChildItem economy -Filter *.js | ForEach-Object { & $node --check $_.FullName }
 Write-Host 'The Commission source checks passed.'

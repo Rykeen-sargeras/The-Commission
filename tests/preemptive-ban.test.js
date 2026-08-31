@@ -62,6 +62,9 @@ const discordMock = {
 const originalLoad = Module._load;
 Module._load = function patchedLoad(request, parent, isMain) {
     if (request === 'discord.js') return discordMock;
+    if (request === './discord_features' && parent?.filename?.endsWith('discord_bot.js')) {
+        return { installDiscordFeatures: () => {} };
+    }
     return originalLoad.call(this, request, parent, isMain);
 };
 

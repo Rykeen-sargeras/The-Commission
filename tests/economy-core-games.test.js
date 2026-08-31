@@ -5,13 +5,13 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const patch = require('../economy_balance_patch');
-const { EconomyService } = require('../economy');
+const economy = require('../economy');
+const { EconomyService } = economy;
 
-assert.strictEqual(patch.GAME_HOURLY_LIMIT, 6);
-assert.strictEqual(patch.DICE_PAYOUT_TABLE.reduce((sum, outcome) => sum + outcome.weight, 0), 10000);
-assert.strictEqual(Number(patch.diceExpectedReturn().toFixed(3)), 0.934);
-assert.strictEqual(Number(patch.diceHouseEdge().toFixed(3)), 0.066);
+assert.strictEqual(economy.GAME_HOURLY_LIMIT, 6);
+assert.strictEqual(economy.DICE_PAYOUT_TABLE.reduce((sum, outcome) => sum + outcome.weight, 0), 10000);
+assert.strictEqual(Number(economy.diceExpectedReturn().toFixed(3)), 0.934);
+assert.strictEqual(Number(economy.diceHouseEdge().toFixed(3)), 0.066);
 
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'commission-balance-patch-'));
 const service = new EconomyService({
@@ -65,7 +65,7 @@ try {
         /hourly limit reached: maximum 6 game\(s\) per hour/i,
     );
 
-    console.log('Economy balance patch tests passed.');
+    console.log('Economy core game tests passed.');
 } finally {
     service.close();
     fs.rmSync(temp, { recursive: true, force: true });

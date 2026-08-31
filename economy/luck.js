@@ -1,9 +1,6 @@
 'use strict';
 
 const crypto = require('crypto');
-const Discord = require('discord.js');
-const economyModule = require('./economy');
-const { EconomyService } = economyModule;
 
 const PERSONAL_LUCK_ITEMS = Object.freeze({
     'luck-1': Object.freeze({ key: 'luck-1', name: 'Lucky Break', percent: 1, cost: 5000 }),
@@ -13,6 +10,7 @@ const PERSONAL_LUCK_ITEMS = Object.freeze({
 const GLOBAL_LUCK_COST = 1000;
 const GLOBAL_LUCK_PERCENT = 0.5;
 const GLOBAL_LUCK_DURATION_MS = 24 * 60 * 60 * 1000;
+let economyApi = null;
 
 function boundedInt(value, fallback, minimum = 0, maximum = Number.MAX_SAFE_INTEGER) {
     const parsed = Number.parseInt(value, 10);
@@ -25,7 +23,7 @@ function money(value) {
 }
 
 function blackjackOpeningScore(cards) {
-    const hand = economyModule.blackjackHand(cards);
+    const hand = economyApi.blackjackHand(cards);
     if (hand.blackjack) return 1000;
     return hand.total;
 }
@@ -63,6 +61,8 @@ function dailyRoll(random = Math.random) {
     return 1;
 }
 
+function installEconomyLuck(EconomyService, economyModule) {
+economyApi = economyModule;
 const originalInitialize = EconomyService.prototype.initialize;
 EconomyService.prototype.initialize = function initializeLuckStore() {
     originalInitialize.call(this);
@@ -137,7 +137,9 @@ EconomyService.prototype.totalLuckPercent = function totalLuckPercent(guildId, u
 
 EconomyService.prototype.luckProc = function luckProc(guildId, userId, now = Date.now()) {
     const percent = this.totalLuckPercent(guildId, userId, now);
-    return percent > 0 && (this.random() * 100) < Math.min(100, percent);
+    if (percent <= 0) return false;
+    const roll = crypto.randomInt(0, 1_000_000) / 10_000;
+    return roll < Math.min(100, percent);
 };
 
 EconomyService.prototype.luckShopStatus = function luckShopStatus(guildId, userId, now = Date.now()) {
@@ -359,8 +361,9 @@ EconomyService.prototype.startBlackjack = function startBlackjackWithLuck(guildI
     }
 };
 
-// Patch the Discord integration before discord_bot.js imports it.
-const discordEconomy = require('./economy_discord');
+}
+
+function installLuckCommands(discordEconomy, Discord) {
 const originalCommandData = discordEconomy.economyCommandData;
 discordEconomy.economyCommandData = function luckShopCommandData() {
     const commands = originalCommandData().filter(command => command.name !== 'heist');
@@ -453,6 +456,7 @@ discordEconomy.createEconomyIntegration = function createLuckShopIntegration(cli
 
     return integration;
 };
+}
 
 module.exports = {
     PERSONAL_LUCK_ITEMS,
@@ -461,4 +465,6 @@ module.exports = {
     GLOBAL_LUCK_DURATION_MS,
     DAILY_TIERS,
     dailyRoll,
+    installEconomyLuck,
+    installLuckCommands,
 };

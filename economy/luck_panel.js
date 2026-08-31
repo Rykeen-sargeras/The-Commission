@@ -1,7 +1,6 @@
 'use strict';
 
 const Discord = require('discord.js');
-const discordEconomy = require('./economy_discord');
 
 const LUCK_SHOP_GUILD_ID = '1532503754350264571';
 const LUCK_SHOP_CHANNEL_ID = '1532787416098672750';
@@ -110,6 +109,7 @@ function myLuckPayload(economy, guildId, userId) {
     };
 }
 
+function installLuckPanel(discordEconomy) {
 const previousCreateIntegration = discordEconomy.createEconomyIntegration;
 discordEconomy.createEconomyIntegration = function createPersistentLuckShopIntegration(client, economy, options = {}) {
     const integration = previousCreateIntegration(client, economy, options);
@@ -247,6 +247,7 @@ discordEconomy.createEconomyIntegration = function createPersistentLuckShopInteg
     integration.refreshLuckShopPanel = refreshPanel;
     return integration;
 };
+}
 
 module.exports = {
     LUCK_SHOP_GUILD_ID,
@@ -254,4 +255,5 @@ module.exports = {
     PANEL_SETTING_KEY,
     panelPayload,
     publicLuckState,
+    installLuckPanel,
 };

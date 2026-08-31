@@ -5,18 +5,16 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-require('../economy_balance_patch');
-const luckPatch = require('../economy_luck_store_patch');
-require('../economy_luck_rng_fix');
+const luck = require('../economy/luck');
 const { EconomyService } = require('../economy');
 
-assert.strictEqual(luckPatch.PERSONAL_LUCK_ITEMS['luck-1'].cost, 5000);
-assert.strictEqual(luckPatch.PERSONAL_LUCK_ITEMS['luck-5'].percent, 5);
-assert.strictEqual(luckPatch.PERSONAL_LUCK_ITEMS['luck-10'].cost, 250000);
-assert.strictEqual(luckPatch.GLOBAL_LUCK_COST, 1000);
-assert.strictEqual(luckPatch.GLOBAL_LUCK_PERCENT, 0.5);
-assert.strictEqual(luckPatch.GLOBAL_LUCK_DURATION_MS, 24 * 60 * 60 * 1000);
-assert.strictEqual(luckPatch.DAILY_TIERS.reduce((sum, tier) => sum + tier.weight, 0), 1_000_000);
+assert.strictEqual(luck.PERSONAL_LUCK_ITEMS['luck-1'].cost, 5000);
+assert.strictEqual(luck.PERSONAL_LUCK_ITEMS['luck-5'].percent, 5);
+assert.strictEqual(luck.PERSONAL_LUCK_ITEMS['luck-10'].cost, 250000);
+assert.strictEqual(luck.GLOBAL_LUCK_COST, 1000);
+assert.strictEqual(luck.GLOBAL_LUCK_PERCENT, 0.5);
+assert.strictEqual(luck.GLOBAL_LUCK_DURATION_MS, 24 * 60 * 60 * 1000);
+assert.strictEqual(luck.DAILY_TIERS.reduce((sum, tier) => sum + tier.weight, 0), 1_000_000);
 
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'commission-luck-store-'));
 const sequence = [0, 0, 0, 0, 0, 0, 0, 0];

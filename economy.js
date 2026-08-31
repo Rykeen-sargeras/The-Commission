@@ -74,14 +74,16 @@ const RANKS = [
 ];
 
 const DICE_WEIGHT_TOTAL = 10000;
+const GAME_HOURLY_LIMIT = 6;
+const HIGH_PAYOUT_WAGER_LIMIT = 5000;
 const DICE_PAYOUT_TABLE = Object.freeze([
-    Object.freeze({ name: 'House wins', multiplier: 0, weight: 5738 }),
-    Object.freeze({ name: 'Push', multiplier: 1, weight: 2000 }),
-    Object.freeze({ name: 'Double', multiplier: 2, weight: 1500 }),
-    Object.freeze({ name: 'Triple', multiplier: 3, weight: 500 }),
-    Object.freeze({ name: 'Hot roll', multiplier: 5, weight: 200 }),
-    Object.freeze({ name: 'Big win', multiplier: 10, weight: 50 }),
-    Object.freeze({ name: 'High roller', multiplier: 25, weight: 10 }),
+    Object.freeze({ name: 'House wins', multiplier: 0, weight: 4400 }),
+    Object.freeze({ name: 'Push', multiplier: 1, weight: 3100 }),
+    Object.freeze({ name: 'Double', multiplier: 2, weight: 2000 }),
+    Object.freeze({ name: 'Triple', multiplier: 3, weight: 380 }),
+    Object.freeze({ name: 'Hot roll', multiplier: 5, weight: 80 }),
+    Object.freeze({ name: 'Big win', multiplier: 10, weight: 30 }),
+    Object.freeze({ name: 'High roller', multiplier: 25, weight: 8 }),
     Object.freeze({ name: 'Jackpot', multiplier: 100, weight: 2 }),
 ]);
 
@@ -111,7 +113,8 @@ function randomizedPayout(value, random = Math.random) {
 }
 
 function diceExpectedReturn(table = DICE_PAYOUT_TABLE) {
-    return table.reduce((total, outcome) => total + (outcome.multiplier * outcome.weight), 0) / DICE_WEIGHT_TOTAL;
+    const totalWeight = table.reduce((sum, outcome) => sum + Number(outcome.weight || 0), 0);
+    return table.reduce((total, outcome) => total + (outcome.multiplier * outcome.weight), 0) / totalWeight;
 }
 
 function diceHouseEdge(table = DICE_PAYOUT_TABLE) {
@@ -119,13 +122,28 @@ function diceHouseEdge(table = DICE_PAYOUT_TABLE) {
 }
 
 function diceOutcome(randomValue, table = DICE_PAYOUT_TABLE) {
-    const roll = Math.min(DICE_WEIGHT_TOTAL - 1, Math.max(0, Math.floor(Number(randomValue) * DICE_WEIGHT_TOTAL)));
+    const totalWeight = table.reduce((sum, outcome) => sum + Number(outcome.weight || 0), 0);
+    if (totalWeight <= 0) throw new Error('Dice payout table has no eligible outcomes.');
+    const roll = Math.min(totalWeight - 1, Math.max(0, Math.floor(Number(randomValue) * totalWeight)));
     let threshold = 0;
     for (const outcome of table) {
         threshold += outcome.weight;
-        if (roll < threshold) return { ...outcome, probabilityPercent: outcome.weight / 100, roll };
+        if (roll < threshold) return { ...outcome, probabilityPercent: (outcome.weight / totalWeight) * 100, roll };
     }
-    throw new Error('Dice payout table weights must total exactly 10,000.');
+    throw new Error('Dice payout table weights are invalid.');
+}
+
+function eligibleDiceTable(wager, table = DICE_PAYOUT_TABLE) {
+    if (Number(wager) <= HIGH_PAYOUT_WAGER_LIMIT) return table;
+    return table.filter(outcome => ![50, 100].includes(Number(outcome.multiplier)));
+}
+
+function gameCategory(related) {
+    const value = String(related || '');
+    for (const category of ['dice', 'slots', 'blackjack', 'poker', 'higher-lower', 'dragon-tower', 'duel']) {
+        if (value.startsWith(`${category}:`)) return category;
+    }
+    return '';
 }
 
 function boundedInt(value, fallback, minimum = 0, maximum = Number.MAX_SAFE_INTEGER) {
@@ -707,6 +725,15 @@ class EconomyService {
 
     reserveWager(guildId, userId, wager, interactionId, related, now = Date.now()) {
         const amount = boundedInt(wager, 0, 0);
+        const category = gameCategory(related);
+        if (category) {
+            const count = this.db.prepare(`SELECT COUNT(*) AS total FROM economy_transactions
+                WHERE guild_id=? AND user_id=? AND type='wager' AND related LIKE ? AND created_at>=?`)
+                .get(guildId, userId, `${category}:%`, now - 60 * 60 * 1000).total;
+            if (count >= GAME_HOURLY_LIMIT) {
+                throw new Error(`${category.replaceAll('-', ' ')} hourly limit reached: maximum ${GAME_HOURLY_LIMIT} game(s) per hour.`);
+            }
+        }
         const row = this.ensureMember(guildId, userId, now);
         this.assertUsable(row);
         if (!this.config.gamblingEnabled) throw new Error('Gambling is currently disabled.');
@@ -741,7 +768,8 @@ class EconomyService {
         return this.transaction(() => {
             if (this.hasInteraction(guildId, interactionId)) throw new Error('This wager was already processed.');
             const reserved = this.reserveWager(guildId, userId, wager, interactionId, `dice:${interactionId}`, now);
-            const outcome = diceOutcome(this.random());
+            const table = eligibleDiceTable(reserved.amount);
+            const outcome = diceOutcome(this.random(), table);
             const multiplier = outcome.multiplier;
             const payout = Math.floor(reserved.amount * multiplier);
             let balance = reserved.balance;
@@ -757,7 +785,8 @@ class EconomyService {
                 multiplier,
                 payout,
                 balance,
-                maximumWager: this.config.gamblingHourlyWagerCap,
+                maximumWager: null,
+                highPayoutEligible: reserved.amount <= HIGH_PAYOUT_WAGER_LIMIT,
             };
         });
     }
@@ -1015,9 +1044,12 @@ class EconomyService {
         });
     }
 
-    createDeck() {
+    createDeck(deckCount = 1) {
         const deck = [];
-        for (const suit of ['♠', '♥', '♦', '♣']) for (const rank of ['2','3','4','5','6','7','8','9','10','J','Q','K','A']) deck.push(`${rank}${suit}`);
+        const count = boundedInt(deckCount, 1, 1, 8);
+        for (let copy = 0; copy < count; copy += 1) {
+            for (const suit of ['♠', '♥', '♦', '♣']) for (const rank of ['2','3','4','5','6','7','8','9','10','J','Q','K','A']) deck.push(`${rank}${suit}`);
+        }
         for (let index = deck.length - 1; index > 0; index -= 1) {
             const other = Math.floor(this.random() * (index + 1));
             [deck[index], deck[other]] = [deck[other], deck[index]];
@@ -1032,7 +1064,7 @@ class EconomyService {
             }
             const gameId = crypto.randomUUID();
             const reserved = this.reserveGameWager('poker', guildId, userId, wager, interactionId, `poker:${gameId}`, now);
-            const deck = this.createDeck();
+            const deck = this.createDeck(2);
             const cards = deck.splice(0, 5);
             this.db.prepare(`INSERT INTO poker_games
                 (game_id,guild_id,user_id,wager,initial_cards,held_cards,deck,status,interaction_id,created_at)
@@ -1078,7 +1110,7 @@ class EconomyService {
         const royal = flush && numeric.join(',') === '10,11,12,13,14';
         if (royal) return { name: 'Royal Flush', multiplier: 150 };
         if (flush && straight) return { name: 'Straight Flush', multiplier: 75 };
-        if (counts[0] === 4) return { name: 'Four of a Kind', multiplier: 25 };
+        if (counts[0] >= 4) return { name: counts[0] === 5 ? 'Five of a Kind' : 'Four of a Kind', multiplier: 25 };
         if (counts[0] === 3 && counts[1] === 2) return { name: 'Full House', multiplier: 10 };
         if (flush) return { name: 'Flush', multiplier: 7 };
         if (straight) return { name: 'Straight', multiplier: 5 };
@@ -1203,7 +1235,7 @@ class EconomyService {
             }
             const gameId = crypto.randomUUID();
             const reserved = this.reserveGameWager('blackjack', guildId, userId, amount, interactionId, `blackjack:${gameId}`, now);
-            const deck = this.createDeck();
+            const deck = this.createDeck(3);
             const playerCards = [deck.shift(), deck.shift()];
             const dealerCards = [deck.shift(), deck.shift()];
             this.db.prepare(`INSERT INTO blackjack_games
@@ -1904,6 +1936,8 @@ class EconomyService {
 module.exports = {
     EconomyService,
     DEFAULTS,
+    GAME_HOURLY_LIMIT,
+    HIGH_PAYOUT_WAGER_LIMIT,
     DICE_WEIGHT_TOTAL,
     DICE_PAYOUT_TABLE,
     HOUSE_GAME_RTP,
@@ -1915,6 +1949,7 @@ module.exports = {
     diceExpectedReturn,
     diceHouseEdge,
     diceOutcome,
+    eligibleDiceTable,
     higherLowerSuccessProbability,
     randomizedPayout,
     normalizeMessage,
@@ -1924,3 +1959,8 @@ module.exports = {
     blackjackHand,
     blackjackPayout,
 };
+
+const { installEconomyLuck } = require('./economy/luck');
+const { installSlots } = require('./economy/slots');
+installEconomyLuck(EconomyService, module.exports);
+installSlots(EconomyService);

@@ -14,7 +14,7 @@ const FAMILY_DEFINITIONS = {
     },
     apprentice: {
         roomName: '🟡 Apprentice 1 🟡',
-        waitingName: '⬆️ Apprentice Waiting ⬆️',
+        waitingName: '🟡 Apprentice Waiting 🟡',
     },
 };
 
@@ -212,7 +212,7 @@ class LiveVoicePairManager {
     schedule(guild, delayMs = this.delayMs, ensureFamily = null) {
         if (!guild) return;
         clearTimeout(this.timers.get(guild.id));
-        this.timers.set(guild.id, setTimeout(() => {
+        const timer = setTimeout(() => {
             this.timers.delete(guild.id);
             const previous = this.guildQueues.get(guild.id) || Promise.resolve();
             const next = previous
@@ -220,7 +220,9 @@ class LiveVoicePairManager {
                 .then(() => this.reconcile(guild, ensureFamily))
                 .catch(error => this.logger.error(`[voice-pairs] ${guild.id}:`, error));
             this.guildQueues.set(guild.id, next);
-        }, delayMs));
+        }, delayMs);
+        timer.unref?.();
+        this.timers.set(guild.id, timer);
     }
 
     cleanupKey(guildId, family, number) {
@@ -237,12 +239,14 @@ class LiveVoicePairManager {
         if (!guild || number <= 1) return;
         const key = this.cleanupKey(guild.id, family, number);
         clearTimeout(this.cleanupTimers.get(key));
-        this.cleanupTimers.set(key, setTimeout(() => {
+        const timer = setTimeout(() => {
             this.cleanupTimers.delete(key);
             this.deletePairIfEmpty(guild, family, number).catch(error => {
                 this.logger.error(`[voice-pairs] cleanup ${guild.id}:${family}:${number}:`, error);
             });
-        }, this.cleanupDelayMs));
+        }, this.cleanupDelayMs);
+        timer.unref?.();
+        this.cleanupTimers.set(key, timer);
     }
 
     async collectPairs(guild) {
