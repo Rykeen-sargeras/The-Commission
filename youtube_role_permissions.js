@@ -106,6 +106,10 @@ function permissionProfileForChannel(channel) {
     }
 
     if (categoryId === CATEGORY_IDS.liveOnAir) {
+        // OPEN PANEL has its own dedicated permission manager. Leave it alone here
+        // so the two managers cannot continually overwrite each other.
+        if (name === 'open panel') return null;
+
         const namesWithoutConnect = new Set(['live 1', 'live 2']);
         const permissions = namesWithoutConnect.has(name)
             ? STANDARD_PERMISSION_NAMES.filter(permission => permission !== 'Connect')
