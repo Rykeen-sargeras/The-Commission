@@ -50,8 +50,13 @@ function createTicketNumberAllocator(dataDir, options = {}) {
 function findOpenTicketChannel(channels, userId, categoryId) {
     return [...channels.values()].find(channel => (
         String(channel.parentId || '') === String(categoryId || '')
-        && String(channel.name || '').startsWith('ticket-')
-        && channel.topic === `${TICKET_TOPIC_PREFIX}${userId}`
+        && (
+            channel.topic === `${TICKET_TOPIC_PREFIX}${userId}`
+            || (
+                String(channel.name || '').startsWith('report-')
+                && channel.permissionOverwrites?.cache?.has?.(userId)
+            )
+        )
     )) || null;
 }
 
@@ -120,6 +125,12 @@ function createDMTicketSystem(client, config = defaultConfig(), options = {}) {
         const summary = messageSummary(message);
         const existingChannel = findOpenTicketChannel(channels, user.id, categoryId);
         if (existingChannel) {
+            if (existingChannel.topic !== `${TICKET_TOPIC_PREFIX}${user.id}` && existingChannel.setTopic) {
+                await existingChannel.setTopic(
+                    `${TICKET_TOPIC_PREFIX}${user.id}`,
+                    'Adopt legacy DM report as the member\'s active ticket',
+                );
+            }
             const embed = new Discord.EmbedBuilder()
                 .setColor('#5865F2')
                 .setTitle(`New DM from ${user.username}`)

@@ -12,6 +12,6 @@ assert.match(accessSource, /function configuredStaffRoleIds\(guild\)/);
 assert.match(accessSource, /guild\.roles\.cache\.has\(id\)/);
 assert.doesNotMatch(source, /\.\.\.staffPermissionOverwrites\(\)/);
 assert.doesNotMatch(source, /staffMentions\((?:userId|user\.id|reporter\.id|targetUser\.id)\)/);
-assert.strictEqual((source.match(/\.\.\.staffPermissionOverwrites\(guild\)/g) || []).length, 5);
+assert.strictEqual((source.match(/\.\.\.staffPermissionOverwrites\(guild\)/g) || []).length, 4);
 
 console.log('discord jail role-cache tests passed');

@@ -1072,9 +1072,8 @@ client.on('messageCreate', async (message) => {
     // Ignore bots
     if (message.author.bot) return;
 
-    // DM handling - report system
+    // DMs are handled exclusively by dm_ticket_system.js.
     if (!message.guild) {
-        await handleDMReport(message);
         return;
     }
 
@@ -1651,95 +1650,6 @@ async function handleAddressDetection(message, addressText, apiResult) {
 
     } catch (error) {
         console.error('❌ Error handling address detection:', error);
-    }
-}
-
-// ======================
-// DM REPORT SYSTEM
-// ======================
-
-const dmReportStates = new Map(); // userId -> { step, who, reason }
-
-async function handleDMReport(message) {
-    const userId = message.author.id;
-    const state = dmReportStates.get(userId);
-
-    try {
-        if (!state) {
-            await message.reply('👤 **Who are you reporting?** (Username or @mention)');
-            dmReportStates.set(userId, { step: 'who' });
-            console.log(`📝 DM Report started by ${message.author.tag}`);
-            return;
-        }
-
-        if (state.step === 'who') {
-            state.who = message.content;
-            state.step = 'reason';
-            await message.reply('📄 **Why are you reporting them?** (Describe what happened)');
-            return;
-        }
-
-        if (state.step === 'reason') {
-            state.reason = message.content;
-            dmReportStates.delete(userId);
-            await createDMReport(message.author, state);
-            return;
-        }
-    } catch (error) {
-        console.error('❌ Error in DM report system:', error);
-        dmReportStates.delete(userId);
-        try {
-            await message.reply('❌ Something went wrong. Please try again or use `/report` in the server.');
-        } catch (e) {}
-    }
-}
-
-async function createDMReport(user, state) {
-    const guild = client.guilds.cache.first();
-    if (!guild) {
-        await user.send('❌ Error creating report. Bot is not connected to a server.');
-        return;
-    }
-
-    const ticketNumber = Math.floor(Math.random() * 9999);
-    const channelName = `report-${ticketNumber}`;
-
-    try {
-        const channel = await guild.channels.create({
-            name: channelName,
-            type: Discord.ChannelType.GuildText,
-            parent: REPORT_CATEGORY_ID,
-            permissionOverwrites: [
-                { id: guild.id, deny: [Discord.PermissionFlagsBits.ViewChannel] },
-                { id: user.id, allow: [Discord.PermissionFlagsBits.ViewChannel, Discord.PermissionFlagsBits.SendMessages, Discord.PermissionFlagsBits.ReadMessageHistory] },
-                ...staffPermissionOverwrites(guild),
-            ],
-        });
-
-        const embed = new Discord.EmbedBuilder()
-            .setColor('#FF0000')
-            .setTitle('🚨 New User Report (via DM)')
-            .setThumbnail(user.displayAvatarURL())
-            .addFields(
-                { name: 'Reported By', value: `${user.tag} (${user.id})`, inline: true },
-                { name: 'Reporting', value: state.who, inline: true },
-                { name: 'Reason', value: state.reason },
-                { name: 'Status', value: '🔍 Awaiting mod review', inline: true }
-            )
-            .setFooter({ text: 'Use !close or /close to archive this report' })
-            .setTimestamp();
-
-        await channel.send({ content: `${staffMentions(guild, user.id)}\n\nMods will be with you shortly. You can chat here.`, embeds: [embed] });
-
-        addAuditLog('DM Report Created', { tag: user.tag, id: user.id }, `Report #${ticketNumber} against ${state.who}`, 'warning');
-
-        await user.send(`✅ Your report has been created! Head to <#${channel.id}> to chat with the mods.`);
-
-    } catch (error) {
-        console.error('❌ Error creating DM report:', error);
-        try {
-            await user.send('❌ Error creating the report. Please try `/report` in the server.');
-        } catch (e) {}
     }
 }
 

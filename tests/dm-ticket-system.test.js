@@ -1,7 +1,9 @@
 'use strict';
 
 const assert = require('assert');
+const fs = require('fs');
 const Module = require('module');
+const path = require('path');
 
 class EmbedBuilder {
     setColor() { return this; }
@@ -44,6 +46,8 @@ const {
 Module._load = originalLoad;
 
 assert.strictEqual(Client.prototype.login, originalLogin, 'importing the module must not patch Discord.Client.login');
+const botSource = fs.readFileSync(path.join(__dirname, '..', 'discord_bot.js'), 'utf8');
+assert.doesNotMatch(botSource, /handleDMReport|createDMReport|dmReportStates/, 'the retired DM report listener must stay removed');
 
 function createMemoryFileSystem() {
     const files = new Map();
@@ -58,6 +62,18 @@ function createMemoryFileSystem() {
 }
 
 assert.strictEqual(safeChannelPart('Some User_Name!'), 'some-user-name');
+const legacyReport = {
+    id: 'legacy-report',
+    name: 'report-1597',
+    parentId: 'mod-category',
+    topic: '',
+    permissionOverwrites: { cache: new Map([['member', {}]]) },
+};
+assert.strictEqual(
+    findOpenTicketChannel(new Map([[legacyReport.id, legacyReport]]), 'member', 'mod-category'),
+    legacyReport,
+    'legacy report channels should be reused during migration',
+);
 const memoryFileSystem = createMemoryFileSystem();
 let allocate = createTicketNumberAllocator('/data', { fileSystem: memoryFileSystem });
 assert.strictEqual(allocate(), 30001);
