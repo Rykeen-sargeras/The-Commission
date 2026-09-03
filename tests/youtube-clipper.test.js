@@ -22,7 +22,7 @@ const {
 Module._load = originalLoad;
 
 assert.strictEqual(DISCORD_CHANNEL_ID, '1543329276735266926');
-assert.strictEqual(MAX_CLIP_SECONDS, 120);
+assert.strictEqual(MAX_CLIP_SECONDS, 900);
 process.env.CLIPPER_PASSWORD = 'clipper-only-test-password';
 assert.strictEqual(clipperPassword(), 'clipper-only-test-password');
 delete process.env.CLIPPER_PASSWORD;
