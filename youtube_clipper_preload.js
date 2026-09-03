@@ -14,13 +14,26 @@ const MAX_CLIP_SECONDS = 120;
 const MAX_BODY_BYTES = 64 * 1024;
 const dataDir = process.env.DATA_DIR || path.join(process.cwd(), 'data');
 const clipDir = process.env.CLIP_STORAGE_DIR || path.join(dataDir, 'youtube-clips');
-const dashboardPassword = String(process.env.WEB_DASHBOARD_PASSWORD || '');
-const cookieSecret = crypto.createHash('sha256')
-  .update(dashboardPassword + '|' + (process.env.DISCORD_TOKEN || '') + '|commission-clipper-v1')
-  .digest();
-const authToken = crypto.createHmac('sha256', cookieSecret).update('youtube-clipper').digest('hex');
 const jobs = new Map();
 let queue = Promise.resolve();
+
+function clipperPassword() {
+  const environmentPassword = String(process.env.CLIPPER_PASSWORD || '').trim();
+  if (environmentPassword) return environmentPassword;
+  try {
+    const config = JSON.parse(fs.readFileSync(path.join(dataDir, 'commission-web-config.json'), 'utf8'));
+    return String(config?.env?.CLIPPER_PASSWORD || '').trim();
+  } catch {
+    return '';
+  }
+}
+
+function authToken() {
+  const secret = crypto.createHash('sha256')
+    .update(clipperPassword() + '|' + (process.env.DISCORD_TOKEN || '') + '|commission-clipper-v2')
+    .digest();
+  return crypto.createHmac('sha256', secret).update('youtube-clipper').digest('hex');
+}
 
 function safeEqual(a, b) {
   const aa = Buffer.from(String(a));
@@ -39,7 +52,7 @@ function cookies(req) {
 
 function authed(req) {
   const token = cookies(req).commission_clipper;
-  return Boolean(token && safeEqual(token, authToken));
+  return Boolean(token && clipperPassword() && safeEqual(token, authToken()));
 }
 
 function send(res, status, type, body, headers = {}) {
@@ -259,7 +272,7 @@ function enqueue(request) {
 
 function loginPage(error = '') {
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Clipper — The Commission</title><style>
-  :root{color-scheme:dark;font-family:Segoe UI,Inter,sans-serif}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#090a0d;color:#f4f1eb}.card{width:min(420px,92vw);padding:34px;border:1px solid #30343c;border-radius:18px;background:#12151a}h1{font:700 34px Georgia,serif}input,button{width:100%;box-sizing:border-box;padding:12px;border-radius:9px;font:inherit}input{background:#090b0e;color:#fff;border:1px solid #343943}button{margin-top:10px;border:0;background:#9d1d35;color:#fff;font-weight:800}.err{color:#ff8b9b}</style></head><body><form class="card" method="post" action="/clipper/login"><div>THE COMMISSION</div><h1>YouTube Clipper</h1><p>Use the control-room password.</p>${error ? '<p class="err">' + String(error).replace(/[&<>]/g, '') + '</p>' : ''}<input type="password" name="password" required autofocus><button>Open Clipper</button></form></body></html>`;
+  :root{color-scheme:dark;font-family:Segoe UI,Inter,sans-serif}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#090a0d;color:#f4f1eb}.card{width:min(420px,92vw);padding:34px;border:1px solid #30343c;border-radius:18px;background:#12151a}h1{font:700 34px Georgia,serif}input,button{width:100%;box-sizing:border-box;padding:12px;border-radius:9px;font:inherit}input{background:#090b0e;color:#fff;border:1px solid #343943}button{margin-top:10px;border:0;background:#9d1d35;color:#fff;font-weight:800}.err{color:#ff8b9b}</style></head><body><form class="card" method="post" action="/clipper/login"><div>THE COMMISSION</div><h1>YouTube Clipper</h1><p>Enter the shared clipper password.</p>${error ? '<p class="err">' + String(error).replace(/[&<>]/g, '') + '</p>' : ''}<input type="password" name="password" required autofocus><button>Open Clipper</button></form></body></html>`;
 }
 
 function clipperPage() {
@@ -312,9 +325,10 @@ http.createServer = function patchedClipperServer(...args) {
       }
       if (url.pathname === '/clipper/login' && req.method === 'POST') {
         const supplied = new URLSearchParams(await readBody(req)).get('password') || '';
-        if (!dashboardPassword) return send(res, 500, 'text/html; charset=utf-8', loginPage('WEB_DASHBOARD_PASSWORD is not configured.'));
-        if (!safeEqual(supplied, dashboardPassword)) return send(res, 401, 'text/html; charset=utf-8', loginPage('Wrong password.'));
-        return redirect(res, '/clipper', { 'Set-Cookie': 'commission_clipper=' + authToken + '; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=43200' });
+        const password = clipperPassword();
+        if (!password) return send(res, 500, 'text/html; charset=utf-8', loginPage('CLIPPER_PASSWORD is not configured yet.'));
+        if (!safeEqual(supplied, password)) return send(res, 401, 'text/html; charset=utf-8', loginPage('Wrong password.'));
+        return redirect(res, '/clipper', { 'Set-Cookie': 'commission_clipper=' + authToken() + '; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=43200' });
       }
       if (url.pathname === '/clipper/logout' && req.method === 'POST') {
         return redirect(res, '/clipper', { 'Set-Cookie': 'commission_clipper=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0' });
@@ -351,6 +365,7 @@ http.createServer = function patchedClipperServer(...args) {
 module.exports = {
   DISCORD_CHANNEL_ID,
   MAX_CLIP_SECONDS,
+  clipperPassword,
   formatTimestamp,
   parseTimestamp,
   parseYouTubeVideoId,
