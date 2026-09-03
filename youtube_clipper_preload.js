@@ -12,7 +12,6 @@ const ffmpegPath = require('ffmpeg-static');
 const DISCORD_CHANNEL_ID = '1543329276735266926';
 const MAX_CLIP_SECONDS = 120;
 const MAX_BODY_BYTES = 64 * 1024;
-const MAX_UPLOAD_BYTES = 250 * 1024 * 1024;
 const dataDir = process.env.DATA_DIR || path.join(process.cwd(), 'data');
 const clipDir = process.env.CLIP_STORAGE_DIR || path.join(dataDir, 'youtube-clips');
 const jobs = new Map();
@@ -88,36 +87,6 @@ function readBody(req) {
     });
     req.on('end', () => resolve(body));
     req.on('error', reject);
-  });
-}
-
-function saveUpload(req, destination) {
-  return new Promise((resolve, reject) => {
-    const declared = Number(req.headers['content-length'] || 0);
-    if (declared > MAX_UPLOAD_BYTES) return reject(new Error('The captured clip is larger than 250 MB.'));
-    const output = fs.createWriteStream(destination, { flags: 'wx' });
-    let received = 0;
-    let settled = false;
-    const finish = error => {
-      if (settled) return;
-      settled = true;
-      if (error) reject(error);
-      else resolve(received);
-    };
-    req.on('data', chunk => {
-      received += chunk.length;
-      if (received > MAX_UPLOAD_BYTES) {
-        req.unpipe(output);
-        output.destroy();
-        req.resume();
-        finish(new Error('The captured clip is larger than 250 MB.'));
-      }
-    });
-    req.once('aborted', () => finish(new Error('The clip upload was interrupted.')));
-    req.once('error', finish);
-    output.once('error', finish);
-    output.once('finish', () => finish(received ? null : new Error('The uploaded clip was empty.')));
-    req.pipe(output);
   });
 }
 
@@ -257,28 +226,6 @@ function runFfmpegFromStream(stream, outputFile, start, duration, job) {
   });
 }
 
-function transcodeCapturedFile(inputFile, outputFile) {
-  return new Promise((resolve, reject) => {
-    const child = childProcess.spawn(ffmpegPath, [
-      '-hide_banner', '-loglevel', 'warning',
-      '-i', inputFile,
-      '-map_metadata', '-1',
-      '-vf', 'scale=w=min(1280\\,iw):h=-2',
-      '-c:v', 'libx264', '-preset', 'veryfast',
-      '-b:v', '1100k', '-maxrate', '1400k', '-bufsize', '2800k',
-      '-c:a', 'aac', '-b:a', '96k',
-      '-movflags', '+faststart',
-      '-y', outputFile,
-    ], { windowsHide: true });
-    let stderr = '';
-    child.stderr.on('data', chunk => { stderr = (stderr + chunk.toString()).slice(-8000); });
-    child.once('error', reject);
-    child.once('close', code => code === 0
-      ? resolve()
-      : reject(new Error('Could not convert the captured clip: ' + (stderr.trim() || 'FFmpeg exit code ' + code))));
-  });
-}
-
 async function postToDiscord(payload) {
   const token = String(process.env.DISCORD_TOKEN || '').trim();
   if (!token) throw new Error('DISCORD_TOKEN is not configured on Railway.');
@@ -346,41 +293,6 @@ async function createClip(job, request) {
   }
 }
 
-async function acceptCapturedClip(req, publicUrl) {
-  const sourceUrl = decodeURIComponent(String(req.headers['x-clip-source'] || '')).slice(0, 500);
-  parseYouTubeVideoId(sourceUrl);
-  const title = decodeURIComponent(String(req.headers['x-clip-name'] || 'YouTube clip')).trim().slice(0, 100) || 'YouTube clip';
-  const start = parseTimestamp(decodeURIComponent(String(req.headers['x-clip-start'] || '0')));
-  const end = parseTimestamp(decodeURIComponent(String(req.headers['x-clip-end'] || '0')));
-  if (end <= start || end - start > MAX_CLIP_SECONDS + 2) throw new Error('The captured clip timestamps are invalid.');
-  await fsp.mkdir(clipDir, { recursive: true });
-  const baseName = safeFilename(title) + '-' + Date.now() + '-' + crypto.randomBytes(6).toString('hex');
-  const uploadFile = path.join(clipDir, baseName + '.upload.webm');
-  const partialFile = path.join(clipDir, baseName + '.part.mp4');
-  const fileName = baseName + '.mp4';
-  const finalFile = path.join(clipDir, fileName);
-  try {
-    await saveUpload(req, uploadFile);
-    await transcodeCapturedFile(uploadFile, partialFile);
-    await fsp.rename(partialFile, finalFile);
-    const clipUrl = publicUrl + '/clips/' + encodeURIComponent(fileName);
-    await postToDiscord({
-      clipUrl,
-      sourceUrl,
-      title,
-      start: formatTimestamp(start),
-      end: formatTimestamp(end),
-    });
-    return { clipUrl };
-  } catch (error) {
-    await fsp.rm(finalFile, { force: true }).catch(() => null);
-    throw error;
-  } finally {
-    await fsp.rm(uploadFile, { force: true }).catch(() => null);
-    await fsp.rm(partialFile, { force: true }).catch(() => null);
-  }
-}
-
 function enqueue(request) {
   const id = Date.now() + '-' + crypto.randomBytes(3).toString('hex');
   const job = { id, status: 'queued', stage: 'Waiting', progress: 0, error: '', clipUrl: '' };
@@ -404,8 +316,8 @@ function loginPage(error = '') {
 
 function clipperPage() {
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Clipper — The Commission</title><style>
-  :root{color-scheme:dark;--bg:#08090c;--panel:#11141a;--panel2:#171a21;--line:#2f343e;--red:#b5203f;--red2:#e03a59;--gold:#d5b16c;--muted:#a5a9b2;font-family:Inter,Segoe UI,sans-serif}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 88% -10%,#3a111d 0,transparent 35%),var(--bg);color:#f5f2ec}button,input{font:inherit}button{cursor:pointer}.top{height:72px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 max(24px,calc((100vw - 1180px)/2));background:#0a0c10d9;position:sticky;top:0;z-index:5;backdrop-filter:blur(12px)}.brand{display:flex;align-items:center;gap:12px;font:700 20px Georgia,serif}.mark{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:linear-gradient(145deg,#6f1428,#bd2848);font-family:Inter}.nav{display:flex;gap:8px;align-items:center}.nav a,.ghost{color:#d4d4d4;text-decoration:none;padding:10px 13px;border-radius:9px;border:1px solid transparent;background:transparent}.nav a:hover,.ghost:hover{border-color:var(--line);background:#151820}.shell{width:min(1180px,94vw);margin:0 auto}.hero{text-align:center;padding:76px 0 55px}.eyebrow{color:var(--gold);letter-spacing:.18em;text-transform:uppercase;font-weight:800;font-size:11px}.hero h1{font:700 clamp(39px,6vw,66px) Georgia,serif;margin:13px auto 12px;max-width:850px}.hero p{color:var(--muted);font-size:18px;margin:0 auto 28px;max-width:650px;line-height:1.6}.urlbar{max-width:850px;margin:auto;display:flex;gap:10px;padding:9px;background:#11141a;border:1px solid #343945;border-radius:15px;box-shadow:0 24px 70px #0008}.urlbar input,.field input{width:100%;min-width:0;border:1px solid #343945;background:#090b0f;color:white;border-radius:9px;padding:13px 14px;outline:none}.urlbar input{border:0;background:transparent;font-size:16px}.primary{border:0;border-radius:9px;background:linear-gradient(135deg,var(--red),var(--red2));color:white;font-weight:800;padding:13px 19px;white-space:nowrap}.primary:disabled,.secondary:disabled{opacity:.4;cursor:not-allowed}.features{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:42px;text-align:left}.feature,.card{background:linear-gradient(145deg,#13161c,#0f1116);border:1px solid var(--line);border-radius:16px}.feature{padding:20px}.feature b{display:block;margin-bottom:7px}.feature span{color:var(--muted);font-size:14px;line-height:1.5}.workspace{display:none;padding:28px 0 60px}.workspace.open{display:block}.workspaceHead{display:flex;align-items:end;justify-content:space-between;gap:18px;margin-bottom:18px}.workspace h2{font:700 34px Georgia,serif;margin:5px 0}.workspaceHead p{color:var(--muted);margin:0}.grid{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(310px,.8fr);gap:16px}.card{padding:18px}.playerWrap{overflow:hidden;border-radius:12px;background:#000;aspect-ratio:16/9}.playerWrap #player{width:100%;height:100%}.source{display:flex;gap:9px;margin-bottom:12px}.source input{flex:1}.modes{display:flex;gap:7px;margin:15px 0 12px;padding:5px;background:#090b0f;border-radius:10px}.mode{flex:1;padding:10px;border:0;border-radius:7px;background:transparent;color:#9fa4ae;font-weight:700}.mode.on{background:#292e38;color:white}.timer{font:700 29px ui-monospace,SFMono-Regular,Consolas,monospace;text-align:center;margin:18px 0}.actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}.secondary{border:1px solid #3b414d;border-radius:9px;background:#20242d;color:#fff;font-weight:750;padding:12px}.secondary.live{border-color:#d5b16c;color:#f1cd87}.manual{display:none;grid-template-columns:1fr 1fr;gap:10px}.manual.open{display:grid}.field label{display:block;color:#b2b6bf;font-size:12px;font-weight:700;margin:14px 0 6px}.wide{grid-column:1/-1}.add{width:100%;margin-top:14px}.sideTitle{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}.sideTitle h3{margin:0}.count{font-size:12px;color:var(--muted);background:#252932;padding:5px 8px;border-radius:20px}.empty{padding:37px 15px;text-align:center;border:1px dashed #343a45;border-radius:11px;color:#8f949e}.clip{padding:12px;border:1px solid #333844;border-radius:10px;background:#0b0d11;margin-bottom:9px}.clipTop{display:flex;justify-content:space-between;gap:8px}.clip b{overflow:hidden;text-overflow:ellipsis}.clip small{display:block;color:var(--muted);margin-top:6px}.remove{border:0;background:transparent;color:#ff7890;font-size:18px}.export{width:100%;margin-top:13px}.status{margin-top:13px;padding:12px;background:#090b0e;border-radius:9px;white-space:pre-wrap;color:#c8cbd1;min-height:44px}.bar{height:7px;background:#292d35;border-radius:6px;overflow:hidden;margin-top:9px}.bar span{height:100%;display:block;background:linear-gradient(90deg,var(--red),#e6b966);width:0;transition:width .25s}.result{display:block;color:#e1bd77;margin-top:5px}.fine{color:#7f858f;font-size:12px;text-align:center;margin-top:22px}body.capturing{background:#000;overflow:hidden}body.capturing .top,body.capturing .workspaceHead,body.capturing aside,body.capturing .source,body.capturing .modes,body.capturing .timer,body.capturing .actions,body.capturing .manual,body.capturing .add,body.capturing .fine{display:none!important}body.capturing .shell,body.capturing .workspace,body.capturing .grid,body.capturing .card{display:block;width:100%;height:100%;max-width:none;margin:0;padding:0;border:0;border-radius:0;background:#000}body.capturing .playerWrap{position:fixed;inset:0;width:100vw;height:100vh;aspect-ratio:auto;border-radius:0;z-index:9999}@media(max-width:820px){.grid{grid-template-columns:1fr}.features{grid-template-columns:1fr}.nav a:first-child{display:none}.hero{padding-top:48px}.urlbar{flex-direction:column}.workspaceHead{align-items:start;flex-direction:column}.top{padding:0 3vw}}
-  </style></head><body><header class="top"><div class="brand"><span class="mark">TC</span>The Commission Clipper</div><nav class="nav"><a href="/">Control room</a><form method="post" action="/clipper/logout"><button class="ghost">Sign out</button></form></nav></header><main class="shell"><section class="hero" id="hero"><div class="eyebrow">Private clipping studio</div><h1>Turn the best moment into a shareable clip.</h1><p>Paste a YouTube link, play to the moment you want, mark its start and end, then publish it directly to your Discord clip channel.</p><div class="urlbar"><input id="heroUrl" aria-label="YouTube URL" placeholder="Paste a YouTube video or livestream URL"><button class="primary" id="openStudio">Start clipping</button></div><div class="features"><div class="feature"><b>1 · Load the video</b><span>The YouTube player stays beside the clipping controls.</span></div><div class="feature"><b>2 · Mark the moment</b><span>Use the playhead buttons or enter exact timestamps.</span></div><div class="feature"><b>3 · Record this tab</b><span>Select this browser tab and turn on Share tab audio when prompted.</span></div></div></section><section class="workspace" id="workspace"><div class="workspaceHead"><div><div class="eyebrow">Clip workspace</div><h2>Mark your highlights</h2><p>Each selection can be up to 2 minutes.</p></div><button class="ghost" id="newVideo">Use another video</button></div><div class="grid"><section class="card"><div class="source"><input id="url" aria-label="Current YouTube URL"><button class="secondary" id="load">Load</button></div><div class="playerWrap"><div id="player"></div></div><div class="modes"><button class="mode on" data-mode="traditional">Playhead mode</button><button class="mode" data-mode="precise">Exact timestamps</button></div><div class="timer" id="timer">0:00</div><div class="actions" id="playheadControls"><button class="secondary" id="markStart">Mark start</button><button class="secondary" id="markEnd" disabled>Mark end</button></div><div class="manual" id="manual"><div class="field"><label for="start">Start</label><input id="start" value="0:00" placeholder="MM:SS"></div><div class="field"><label for="end">End</label><input id="end" value="0:30" placeholder="MM:SS"></div></div><div class="manual open"><div class="field wide"><label for="name">Clip title</label><input id="name" maxlength="100" placeholder="What happened in this moment?"></div></div><button class="primary add" id="add">Add selection</button></section><aside class="card"><div class="sideTitle"><h3>Your clips</h3><span class="count" id="count">0 selected</span></div><div id="clips"><div class="empty">Mark a start and end point to add your first clip.</div></div><button class="primary export" id="export" disabled>Record and post clips</button><div class="status" id="status">When prompted, choose This Tab and enable Share tab audio. Nothing is downloaded to your computer.</div><div class="bar"><span id="progress"></span></div></aside></div><div class="fine">Capture stays in browser memory, Railway stores the finished MP4, and the bot posts its link to Discord. Only clip content you have permission to use.</div></section></main><script src="https://www.youtube.com/iframe_api"></script><script>
+  :root{color-scheme:dark;--bg:#08090c;--panel:#11141a;--panel2:#171a21;--line:#2f343e;--red:#b5203f;--red2:#e03a59;--gold:#d5b16c;--muted:#a5a9b2;font-family:Inter,Segoe UI,sans-serif}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 88% -10%,#3a111d 0,transparent 35%),var(--bg);color:#f5f2ec}button,input{font:inherit}button{cursor:pointer}.top{height:72px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 max(24px,calc((100vw - 1180px)/2));background:#0a0c10d9;position:sticky;top:0;z-index:5;backdrop-filter:blur(12px)}.brand{display:flex;align-items:center;gap:12px;font:700 20px Georgia,serif}.mark{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:linear-gradient(145deg,#6f1428,#bd2848);font-family:Inter}.nav{display:flex;gap:8px;align-items:center}.nav a,.ghost{color:#d4d4d4;text-decoration:none;padding:10px 13px;border-radius:9px;border:1px solid transparent;background:transparent}.nav a:hover,.ghost:hover{border-color:var(--line);background:#151820}.shell{width:min(1180px,94vw);margin:0 auto}.hero{text-align:center;padding:76px 0 55px}.eyebrow{color:var(--gold);letter-spacing:.18em;text-transform:uppercase;font-weight:800;font-size:11px}.hero h1{font:700 clamp(39px,6vw,66px) Georgia,serif;margin:13px auto 12px;max-width:850px}.hero p{color:var(--muted);font-size:18px;margin:0 auto 28px;max-width:650px;line-height:1.6}.urlbar{max-width:850px;margin:auto;display:flex;gap:10px;padding:9px;background:#11141a;border:1px solid #343945;border-radius:15px;box-shadow:0 24px 70px #0008}.urlbar input,.field input{width:100%;min-width:0;border:1px solid #343945;background:#090b0f;color:white;border-radius:9px;padding:13px 14px;outline:none}.urlbar input{border:0;background:transparent;font-size:16px}.primary{border:0;border-radius:9px;background:linear-gradient(135deg,var(--red),var(--red2));color:white;font-weight:800;padding:13px 19px;white-space:nowrap}.primary:disabled,.secondary:disabled{opacity:.4;cursor:not-allowed}.features{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:42px;text-align:left}.feature,.card{background:linear-gradient(145deg,#13161c,#0f1116);border:1px solid var(--line);border-radius:16px}.feature{padding:20px}.feature b{display:block;margin-bottom:7px}.feature span{color:var(--muted);font-size:14px;line-height:1.5}.workspace{display:none;padding:28px 0 60px}.workspace.open{display:block}.workspaceHead{display:flex;align-items:end;justify-content:space-between;gap:18px;margin-bottom:18px}.workspace h2{font:700 34px Georgia,serif;margin:5px 0}.workspaceHead p{color:var(--muted);margin:0}.grid{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(310px,.8fr);gap:16px}.card{padding:18px}.playerWrap{overflow:hidden;border-radius:12px;background:#000;aspect-ratio:16/9}.playerWrap #player{width:100%;height:100%}.source{display:flex;gap:9px;margin-bottom:12px}.source input{flex:1}.modes{display:flex;gap:7px;margin:15px 0 12px;padding:5px;background:#090b0f;border-radius:10px}.mode{flex:1;padding:10px;border:0;border-radius:7px;background:transparent;color:#9fa4ae;font-weight:700}.mode.on{background:#292e38;color:white}.timer{font:700 29px ui-monospace,SFMono-Regular,Consolas,monospace;text-align:center;margin:18px 0}.actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}.secondary{border:1px solid #3b414d;border-radius:9px;background:#20242d;color:#fff;font-weight:750;padding:12px}.secondary.live{border-color:#d5b16c;color:#f1cd87}.manual{display:none;grid-template-columns:1fr 1fr;gap:10px}.manual.open{display:grid}.field label{display:block;color:#b2b6bf;font-size:12px;font-weight:700;margin:14px 0 6px}.wide{grid-column:1/-1}.add{width:100%;margin-top:14px}.sideTitle{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}.sideTitle h3{margin:0}.count{font-size:12px;color:var(--muted);background:#252932;padding:5px 8px;border-radius:20px}.empty{padding:37px 15px;text-align:center;border:1px dashed #343a45;border-radius:11px;color:#8f949e}.clip{padding:12px;border:1px solid #333844;border-radius:10px;background:#0b0d11;margin-bottom:9px}.clipTop{display:flex;justify-content:space-between;gap:8px}.clip b{overflow:hidden;text-overflow:ellipsis}.clip small{display:block;color:var(--muted);margin-top:6px}.remove{border:0;background:transparent;color:#ff7890;font-size:18px}.export{width:100%;margin-top:13px}.status{margin-top:13px;padding:12px;background:#090b0e;border-radius:9px;white-space:pre-wrap;color:#c8cbd1;min-height:44px}.bar{height:7px;background:#292d35;border-radius:6px;overflow:hidden;margin-top:9px}.bar span{height:100%;display:block;background:linear-gradient(90deg,var(--red),#e6b966);width:0;transition:width .25s}.result{display:block;color:#e1bd77;margin-top:5px}.fine{color:#7f858f;font-size:12px;text-align:center;margin-top:22px}@media(max-width:820px){.grid{grid-template-columns:1fr}.features{grid-template-columns:1fr}.nav a:first-child{display:none}.hero{padding-top:48px}.urlbar{flex-direction:column}.workspaceHead{align-items:start;flex-direction:column}.top{padding:0 3vw}}
+  </style></head><body><header class="top"><div class="brand"><span class="mark">TC</span>The Commission Clipper</div><nav class="nav"><a href="/">Control room</a><form method="post" action="/clipper/logout"><button class="ghost">Sign out</button></form></nav></header><main class="shell"><section class="hero" id="hero"><div class="eyebrow">Private clipping studio</div><h1>Turn the best moment into a shareable clip.</h1><p>Paste a YouTube link, play to the moment you want, mark its start and end, then publish it directly to your Discord clip channel.</p><div class="urlbar"><input id="heroUrl" aria-label="YouTube URL" placeholder="Paste a YouTube video or livestream URL"><button class="primary" id="openStudio">Start clipping</button></div><div class="features"><div class="feature"><b>1 · Load the video</b><span>The YouTube player stays beside the clipping controls.</span></div><div class="feature"><b>2 · Mark the moment</b><span>Use the playhead buttons or enter exact timestamps.</span></div><div class="feature"><b>3 · Publish the clips</b><span>Railway creates the files and posts their hosted links to Discord.</span></div></div></section><section class="workspace" id="workspace"><div class="workspaceHead"><div><div class="eyebrow">Clip workspace</div><h2>Mark your highlights</h2><p>Each selection can be up to 2 minutes.</p></div><button class="ghost" id="newVideo">Use another video</button></div><div class="grid"><section class="card"><div class="source"><input id="url" aria-label="Current YouTube URL"><button class="secondary" id="load">Load</button></div><div class="playerWrap"><div id="player"></div></div><div class="modes"><button class="mode on" data-mode="traditional">Playhead mode</button><button class="mode" data-mode="precise">Exact timestamps</button></div><div class="timer" id="timer">0:00</div><div class="actions" id="playheadControls"><button class="secondary" id="markStart">Mark start</button><button class="secondary" id="markEnd" disabled>Mark end</button></div><div class="manual" id="manual"><div class="field"><label for="start">Start</label><input id="start" value="0:00" placeholder="MM:SS"></div><div class="field"><label for="end">End</label><input id="end" value="0:30" placeholder="MM:SS"></div></div><div class="manual open"><div class="field wide"><label for="name">Clip title</label><input id="name" maxlength="100" placeholder="What happened in this moment?"></div></div><button class="primary add" id="add">Add selection</button></section><aside class="card"><div class="sideTitle"><h3>Your clips</h3><span class="count" id="count">0 selected</span></div><div id="clips"><div class="empty">Mark a start and end point to add your first clip.</div></div><button class="primary export" id="export" disabled>Create and post clips</button><div class="status" id="status">Nothing is uploaded until you click create and post.</div><div class="bar"><span id="progress"></span></div></aside></div><div class="fine">Finished clips are stored on Railway, not on your computer. Only clip content you have permission to use.</div></section></main><script src="https://www.youtube.com/iframe_api"></script><script>
   let player=null,playerReady=false,marking=false,markedStart=0,timerHandle=null,clips=[];
   const q=s=>document.querySelector(s),qa=s=>Array.from(document.querySelectorAll(s));
   function videoId(v){try{const u=new URL(v),h=u.hostname.replace(/^www\\./,'');if(h==='youtu.be')return u.pathname.split('/').filter(Boolean)[0];if(u.pathname==='/watch')return u.searchParams.get('v');return u.pathname.match(/^\\/(?:shorts|live|embed)\\/([^/?#]+)/)?.[1]}catch{return''}}
@@ -421,41 +333,8 @@ function clipperPage() {
   q('#markEnd').onclick=()=>{if(!marking)return;const end=current();q('#end').value=stamp(end);addSelection(markedStart,end)};q('#add').onclick=()=>addSelection(seconds(q('#start').value),seconds(q('#end').value));
   qa('[data-mode]').forEach(b=>b.onclick=()=>{qa('[data-mode]').forEach(x=>x.classList.toggle('on',x===b));const precise=b.dataset.mode==='precise';q('#manual').classList.toggle('open',precise);q('#playheadControls').style.display=precise?'none':'grid'});
   async function api(url,opt={}){const r=await fetch(url,{...opt,headers:{'Content-Type':'application/json',...(opt.headers||{})}});const d=await r.json();if(!r.ok)throw new Error(d.error||'Request failed');return d}
-  function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
-  function recorderType(){return['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'].find(t=>MediaRecorder.isTypeSupported(t))||''}
-  async function recordSegment(stream,clip){
-    player.pauseVideo();player.seekTo(Math.max(0,clip.start-1.5),true);await sleep(900);player.seekTo(clip.start,true);await sleep(450);
-    document.body.classList.add('capturing');await sleep(250);
-    const chunks=[],type=recorderType();
-    const recorder=new MediaRecorder(stream,type?{mimeType:type,videoBitsPerSecond:4000000}:undefined);
-    const stopped=new Promise((resolve,reject)=>{recorder.ondataavailable=e=>{if(e.data?.size)chunks.push(e.data)};recorder.onerror=e=>reject(e.error||new Error('Browser recording failed.'));recorder.onstop=resolve});
-    recorder.start(500);player.playVideo();
-    await new Promise((resolve,reject)=>{const started=Date.now();const check=setInterval(()=>{if(stream.getVideoTracks()[0]?.readyState==='ended'){clearInterval(check);reject(new Error('Tab sharing stopped before the clip finished.'));return}if(current()>=clip.end||Date.now()-started>(clip.end-clip.start+8)*1000){clearInterval(check);resolve()}},50)});
-    player.pauseVideo();recorder.stop();await stopped;document.body.classList.remove('capturing');
-    return new Blob(chunks,{type:type||'video/webm'});
-  }
-  async function uploadCapture(blob,clip,index,total){
-    q('#status').textContent='Clip '+(index+1)+' of '+total+' · Uploading to Railway and posting to Discord…';
-    q('#progress').style.width=Math.round(((index+.75)/total)*100)+'%';
-    const response=await fetch('/api/clipper/upload',{method:'POST',headers:{'Content-Type':blob.type||'video/webm','X-Clip-Source':encodeURIComponent(q('#url').value),'X-Clip-Name':encodeURIComponent(clip.name),'X-Clip-Start':String(clip.start),'X-Clip-End':String(clip.end)},body:blob});
-    const data=await response.json();if(!response.ok)throw new Error(data.error||'Railway rejected the captured clip.');return data;
-  }
-  q('#export').onclick=async()=>{
-    const pending=clips.slice();q('#export').disabled=true;const links=[];let stream=null;
-    try{
-      if(!navigator.mediaDevices?.getDisplayMedia||!window.MediaRecorder)throw new Error('Tab capture is not supported in this browser. Use desktop Chrome or Edge.');
-      q('#status').textContent='In the browser prompt, choose This Tab and turn on Share tab audio.';
-      stream=await navigator.mediaDevices.getDisplayMedia({video:{displaySurface:'browser',frameRate:{ideal:30,max:60}},audio:{suppressLocalAudioPlayback:false},preferCurrentTab:true,selfBrowserSurface:'include',surfaceSwitching:'exclude'});
-      if(!stream.getAudioTracks().length)throw new Error('No tab audio was shared. Try again and enable Share tab audio in the browser prompt.');
-      for(let i=0;i<pending.length;i++){
-        q('#status').textContent='Clip '+(i+1)+' of '+pending.length+' · Recording '+stamp(pending[i].start)+' – '+stamp(pending[i].end);
-        q('#progress').style.width=Math.round((i/pending.length)*100)+'%';
-        const blob=await recordSegment(stream,pending[i]);const done=await uploadCapture(blob,pending[i],i,pending.length);links.push(done.clipUrl);
-      }
-      clips=[];render();q('#progress').style.width='100%';q('#status').innerHTML='All clips were recorded, hosted, and posted to Discord.'+links.map((url,i)=>'<a class="result" href="'+url+'" target="_blank" rel="noopener">Open clip '+(i+1)+'</a>').join('');
-    }catch(e){document.body.classList.remove('capturing');q('#status').textContent=e.name==='NotAllowedError'?'Tab sharing was cancelled.':e.message;q('#export').disabled=false}
-    finally{if(stream)stream.getTracks().forEach(track=>track.stop())}
-  }
+  async function waitForJob(id,index,total){for(;;){const j=await api('/api/clipper/jobs/'+id);const overall=Math.round(((index+(j.progress||0)/100)/total)*100);q('#progress').style.width=overall+'%';q('#status').textContent='Clip '+(index+1)+' of '+total+' · '+j.stage+(j.error?'\\n'+j.error:'');if(j.status==='complete')return j;if(j.status==='failed')throw new Error(j.error||'Clip creation failed.');await new Promise(r=>setTimeout(r,900))}}
+  q('#export').onclick=async()=>{const pending=clips.slice();q('#export').disabled=true;const links=[];try{for(let i=0;i<pending.length;i++){const c=pending[i];const j=await api('/api/clipper/jobs',{method:'POST',body:JSON.stringify({url:q('#url').value,start:c.start,end:c.end,name:c.name})});const done=await waitForJob(j.id,i,pending.length);links.push(done.clipUrl)}clips=[];render();q('#progress').style.width='100%';q('#status').innerHTML='All clips were hosted and posted to Discord.'+links.map((url,i)=>'<a class="result" href="'+url+'" target="_blank" rel="noopener">Open clip '+(i+1)+'</a>').join('')}catch(e){q('#status').textContent=e.message;q('#export').disabled=false}}
   render();
   </script></body></html>`;
 }
@@ -507,10 +386,6 @@ http.createServer = function patchedClipperServer(...args) {
       }
       if (url.pathname.startsWith('/api/clipper/')) {
         if (!authed(req)) return json(res, 401, { error: 'Not authenticated.' });
-        if (url.pathname === '/api/clipper/upload' && req.method === 'POST') {
-          const result = await acceptCapturedClip(req, publicBaseUrl(req));
-          return json(res, 201, result);
-        }
         if (url.pathname === '/api/clipper/jobs' && req.method === 'POST') {
           const payload = JSON.parse(await readBody(req) || '{}');
           parseYouTubeVideoId(payload.url);
