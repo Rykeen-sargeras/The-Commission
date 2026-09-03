@@ -20,9 +20,7 @@ const cookieSecret = crypto.createHash('sha256')
   .digest();
 const authToken = crypto.createHmac('sha256', cookieSecret).update('youtube-clipper').digest('hex');
 const jobs = new Map();
-const pending = new Map();
 let queue = Promise.resolve();
-let discordChild = null;
 
 function safeEqual(a, b) {
   const aa = Buffer.from(String(a));
@@ -177,17 +175,25 @@ function runFfmpegFromStream(stream, outputFile, start, duration, job) {
   });
 }
 
-function childRequest(payload, timeoutMs = 30000) {
-  if (!discordChild?.connected) return Promise.reject(new Error('The Discord bot is not running.'));
-  const id = crypto.randomUUID();
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => {
-      pending.delete(id);
-      reject(new Error('Discord posting timed out.'));
-    }, timeoutMs);
-    pending.set(id, { resolve, reject, timer });
-    discordChild.send({ channel: 'commission:clipper-post', id, payload });
+async function postToDiscord(payload) {
+  const token = String(process.env.DISCORD_TOKEN || '').trim();
+  if (!token) throw new Error('DISCORD_TOKEN is not configured on Railway.');
+  const response = await fetch('https://discord.com/api/v10/channels/' + DISCORD_CHANNEL_ID + '/messages', {
+    method: 'POST',
+    headers: { Authorization: 'Bot ' + token, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      content: [
+        '🎬 **' + String(payload.title || 'YouTube clip').slice(0, 100) + '**',
+        payload.clipUrl,
+        'Source: ' + payload.sourceUrl,
+        'Clip: ' + payload.start + '–' + payload.end,
+      ].join('\n'),
+    }),
   });
+  if (!response.ok) {
+    const details = (await response.text()).slice(0, 500);
+    throw new Error('Discord rejected the clip post (' + response.status + '): ' + details);
+  }
 }
 
 async function createClip(job, request) {
@@ -218,8 +224,7 @@ async function createClip(job, request) {
     job.progress = 90;
     job.stage = 'Posting to Discord';
     const clipUrl = request.publicBaseUrl + '/clips/' + encodeURIComponent(fileName);
-    await childRequest({
-      channelId: DISCORD_CHANNEL_ID,
+    await postToDiscord({
       clipUrl,
       sourceUrl,
       title: String(request.name || info.videoDetails?.title || 'YouTube clip').trim().slice(0, 100),
@@ -250,26 +255,6 @@ function enqueue(request) {
     }
   });
   return job;
-}
-
-function attachChild(child) {
-  discordChild = child;
-  child.on('message', message => {
-    if (message?.channel !== 'commission:clipper-response' || !message.id) return;
-    const request = pending.get(message.id);
-    if (!request) return;
-    clearTimeout(request.timer);
-    pending.delete(message.id);
-    message.ok ? request.resolve(message.data) : request.reject(new Error(message.error || 'Discord post failed.'));
-  });
-  child.once('exit', () => {
-    if (discordChild === child) discordChild = null;
-    for (const request of pending.values()) {
-      clearTimeout(request.timer);
-      request.reject(new Error('The Discord bot stopped.'));
-    }
-    pending.clear();
-  });
 }
 
 function loginPage(error = '') {
@@ -313,14 +298,6 @@ async function serveClip(req, res, fileName) {
   res.writeHead(200, { 'Content-Type': 'video/mp4', 'Accept-Ranges': 'bytes', 'Content-Length': stat.size, 'Cache-Control': 'public, max-age=31536000, immutable' });
   fs.createReadStream(file).pipe(res);
 }
-
-const originalFork = childProcess.fork;
-childProcess.fork = function patchedClipperFork(modulePath, args, options) {
-  const child = originalFork.call(childProcess, modulePath, args, options);
-  const base = path.basename(String(modulePath));
-  if (base === 'discord_bootstrap.js' || base === 'discord_bot.js') attachChild(child);
-  return child;
-};
 
 const originalCreateServer = http.createServer;
 http.createServer = function patchedClipperServer(...args) {
