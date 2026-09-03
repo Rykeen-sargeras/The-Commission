@@ -148,6 +148,44 @@ function publicBaseUrl(req) {
   return proto + '://' + req.headers.host;
 }
 
+function downloaderOptions(playerClients) {
+  const options = { playerClients };
+  const proxyUrl = String(process.env.YOUTUBE_PROXY_URL || '').trim();
+  if (proxyUrl) {
+    try { options.agent = ytdl.createProxyAgent(proxyUrl); }
+    catch { options.agent = ytdl.createProxyAgent({ uri: proxyUrl }); }
+  }
+  return options;
+}
+
+function wait(milliseconds) {
+  return new Promise(resolve => setTimeout(resolve, milliseconds));
+}
+
+async function getYouTubeInfo(sourceUrl) {
+  const attempts = [
+    ['WEB_EMBEDDED'],
+    ['TV'],
+    ['ANDROID'],
+    ['IOS'],
+  ];
+  let lastError = null;
+  for (let index = 0; index < attempts.length; index += 1) {
+    const options = downloaderOptions(attempts[index]);
+    try {
+      return { info: await ytdl.getInfo(sourceUrl, options), options };
+    } catch (error) {
+      lastError = error;
+      if (index < attempts.length - 1) await wait(500 * (index + 1));
+    }
+  }
+  const message = String(lastError?.message || lastError || 'unknown YouTube error');
+  if (/429|too many requests/i.test(message)) {
+    throw new Error('YouTube rate-limited Railway (HTTP 429). Set YOUTUBE_PROXY_URL in Connection settings to a stable proxy, then retry.');
+  }
+  throw lastError || new Error('YouTube could not load this video.');
+}
+
 function runFfmpegFromStream(stream, outputFile, start, duration, job) {
   return new Promise((resolve, reject) => {
     const child = childProcess.spawn(ffmpegPath, [
@@ -219,7 +257,8 @@ async function createClip(job, request) {
     throw new Error('Clips are limited to ' + MAX_CLIP_SECONDS + ' seconds.');
   }
   await fsp.mkdir(clipDir, { recursive: true });
-  const info = await ytdl.getInfo(sourceUrl);
+  job.stage = 'Connecting to YouTube';
+  const { info, options: downloadOptions } = await getYouTubeInfo(sourceUrl);
   const format = ytdl.chooseFormat(info.formats, {
     quality: 'highest',
     filter: candidate => candidate.hasAudio && candidate.hasVideo && candidate.container === 'mp4',
@@ -231,7 +270,7 @@ async function createClip(job, request) {
   const partialFile = finalFile.replace(/\.mp4$/i, '.part.mp4');
   try {
     job.stage = 'Streaming and encoding';
-    const stream = ytdl.downloadFromInfo(info, { format });
+    const stream = ytdl.downloadFromInfo(info, { format, agent: downloadOptions.agent });
     await runFfmpegFromStream(stream, partialFile, start, end - start, job);
     await fsp.rename(partialFile, finalFile);
     job.progress = 90;
@@ -367,6 +406,7 @@ module.exports = {
   MAX_CLIP_SECONDS,
   clipperPassword,
   formatTimestamp,
+  getYouTubeInfo,
   parseTimestamp,
   parseYouTubeVideoId,
   publicBaseUrl,
