@@ -3,6 +3,7 @@
 const BASE_FIELDS = [
   ['DISCORD_TOKEN','Discord bot token','password','Connection'],
   ['CLIPPER_PASSWORD','Clipper shared password','password','Connection'],
+  ['YOUTUBE_PROXY_URL','YouTube proxy URL (optional)','password','Connection'],
   ['OWNER_USER_ID','Owner user ID','text','Connection'],
   ['STAFF_ROLE_IDS','Staff role IDs','text','Connection'],
   ['MAIN_CHAT_CHANNEL_ID','Main chat channel ID','text','Channels'],
