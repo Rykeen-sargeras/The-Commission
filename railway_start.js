@@ -2,6 +2,7 @@
 
 // Load Railway web-board routes and Discord bootstrap patches relative to this file.
 require('./going_live_preload');
+require('./youtube_clipper_preload');
 
 const http = require('http');
 const crypto = require('crypto');
