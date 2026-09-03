@@ -2,6 +2,7 @@
 
 const childProcess = require('child_process');
 const crypto = require('crypto');
+const dns = require('dns');
 const fs = require('fs');
 const fsp = fs.promises;
 const http = require('http');
@@ -17,6 +18,7 @@ const dataDir = process.env.DATA_DIR || path.join(process.cwd(), 'data');
 const clipDir = process.env.CLIP_STORAGE_DIR || path.join(dataDir, 'youtube-clips');
 const jobs = new Map();
 let queue = Promise.resolve();
+let cachedIpv6Agent = null;
 
 function clipperPassword() {
   const environmentPassword = String(process.env.CLIPPER_PASSWORD || '').trim();
@@ -149,12 +151,24 @@ function publicBaseUrl(req) {
   return proto + '://' + req.headers.host;
 }
 
-function downloaderOptions(playerClients) {
+function downloaderOptions(playerClients, forceIpv6 = false) {
   const options = { playerClients };
   const proxyUrl = String(process.env.YOUTUBE_PROXY_URL || '').trim();
   if (proxyUrl) {
     try { options.agent = ytdl.createProxyAgent(proxyUrl); }
     catch { options.agent = ytdl.createProxyAgent({ uri: proxyUrl }); }
+  } else if (forceIpv6) {
+    if (!cachedIpv6Agent) {
+      cachedIpv6Agent = ytdl.createAgent([], {
+        connect: {
+          lookup(hostname, lookupOptions, callback) {
+            const normalized = typeof lookupOptions === 'object' ? lookupOptions : {};
+            dns.lookup(hostname, { ...normalized, family: 6, all: false }, callback);
+          },
+        },
+      });
+    }
+    options.agent = cachedIpv6Agent;
   }
   return options;
 }
@@ -164,15 +178,21 @@ function wait(milliseconds) {
 }
 
 async function getYouTubeInfo(sourceUrl) {
-  const attempts = [
+  const clients = [
     ['WEB_EMBEDDED'],
     ['TV'],
     ['ANDROID'],
     ['IOS'],
   ];
+  const proxyConfigured = Boolean(String(process.env.YOUTUBE_PROXY_URL || '').trim());
+  const ipv6Enabled = !proxyConfigured && String(process.env.YOUTUBE_FORCE_IPV6 || 'true').toLowerCase() !== 'false';
+  const attempts = ipv6Enabled
+    ? clients.map(playerClients => ({ playerClients, forceIpv6: true }))
+      .concat(clients.map(playerClients => ({ playerClients, forceIpv6: false })))
+    : clients.map(playerClients => ({ playerClients, forceIpv6: false }));
   let lastError = null;
   for (let index = 0; index < attempts.length; index += 1) {
-    const options = downloaderOptions(attempts[index]);
+    const options = downloaderOptions(attempts[index].playerClients, attempts[index].forceIpv6);
     try {
       return { info: await ytdl.getInfo(sourceUrl, options), options };
     } catch (error) {
