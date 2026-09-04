@@ -20,7 +20,8 @@
     "discord.js": "^14.21.0",
     "ffmpeg-static": "^5.2.0",
     "libsodium-wrappers": "^0.7.15",
-    "play-dl": "^1.9.7"
+    "play-dl": "^1.9.7",
+    "sharp": "^0.34.5"
   },
   "devDependencies": {
     "electron": "^37.2.3",
@@ -54,6 +55,10 @@
       "going_live_command_guard.js",
       "open_panel_preload.js",
       "youtube_role_permissions.js",
+      "membership_store.js",
+      "membership_youtube.js",
+      "membership_web.js",
+      "membership_discord.js",
       "dm_ticket_system.js",
       "permissions_bridge.js",
       "permissions_web_preload.js",
@@ -63,6 +68,7 @@
       "docs/**/*",
       "assets/commission-mark.png",
       "assets/app-icon.ico",
+      "assets/going-live-schedule.png",
       "live_voice_pairs.js",
       "discord_bot.js",
       "package.json"
@@ -103,4 +109,3 @@
     }
   }
 }
-

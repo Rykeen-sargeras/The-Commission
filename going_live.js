@@ -4,9 +4,11 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const Discord = require('discord.js');
+const sharp = require('sharp');
 const {
   ZONE,
   easternParts,
+  operationalDate,
   pruneForDailyReset,
   normalizeDate,
   normalizeTime,
@@ -17,6 +19,8 @@ const GUILD_ID = process.env.GOING_LIVE_GUILD_ID || '1532503754350264571';
 const BOARD_CHANNEL_ID = process.env.GOING_LIVE_CHANNEL_ID || '1532513768855175279';
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const FILE = path.join(DATA_DIR, 'going-live-schedule.json');
+const SCHEDULE_ARTWORK = path.join(__dirname, 'assets', 'going-live-schedule.png');
+const ROW_CENTERS = [399, 463, 527, 591, 655];
 const INTERACTION_CREATE = Discord.Events?.InteractionCreate || 'interactionCreate';
 const CLIENT_READY = Discord.Events?.ClientReady || 'ready';
 
@@ -58,7 +62,70 @@ function safeLink(value) {
   try { return normalizeLink(value); } catch { return ''; }
 }
 
-function boardEmbed(entries) {
+function xml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, character => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;',
+  })[character]);
+}
+
+function shorten(value, maximum) {
+  const text = String(value || '').trim();
+  return text.length <= maximum ? text : text.slice(0, Math.max(1, maximum - 1)).trimEnd() + '…';
+}
+
+function textSize(value, normal, minimum, threshold) {
+  const length = Math.max(1, String(value || '').length);
+  return Math.max(minimum, Math.min(normal, Math.floor(normal * threshold / length)));
+}
+
+function schedulePages(entries) {
+  const groups = new Map();
+  for (const entry of entries) {
+    const date = entry.date || operationalDate();
+    if (!groups.has(date)) groups.set(date, []);
+    groups.get(date).push(entry);
+  }
+  if (!groups.size) groups.set(operationalDate(), []);
+  return [...groups.entries()].flatMap(([date, rows]) => {
+    if (!rows.length) return [{ date, rows: [] }];
+    const pages = [];
+    for (let index = 0; index < rows.length; index += ROW_CENTERS.length) {
+      pages.push({ date, rows: rows.slice(index, index + ROW_CENTERS.length) });
+    }
+    return pages;
+  });
+}
+
+async function renderScheduleImages(entries) {
+  const pages = schedulePages(entries);
+  return Promise.all(pages.slice(0, 10).map(async (page, pageIndex) => {
+    const dateTitle = (prettyDate(page.date) + ' SHOW SCHEDULE').toUpperCase();
+    const rowMarkup = ROW_CENTERS.map((center, index) => {
+      const entry = page.rows[index];
+      const name = entry ? shorten(entry.username || 'Streamer', 24) : '';
+      const title = entry ? shorten(entry.title || 'Scheduled stream', 44) : '';
+      const time = entry ? shorten((entry.displayTime || '') + ' ET', 18) : '';
+      return `
+        <rect x="130" y="${center - 25}" width="234" height="50" rx="3" fill="#260506"/>
+        <rect x="375" y="${center - 25}" width="550" height="50" rx="3" fill="#0b0b0c"/>
+        <rect x="927" y="${center - 25}" width="216" height="50" rx="3" fill="#28282a"/>
+        <text x="249" y="${center + 10}" text-anchor="middle" class="row" font-size="${textSize(name, 28, 17, 16)}">${xml(name)}</text>
+        <text x="652" y="${center + 10}" text-anchor="middle" class="row" font-size="${textSize(title, 28, 16, 31)}">${xml(title)}</text>
+        <text x="1045" y="${center + 9}" text-anchor="middle" class="row" font-size="${textSize(time, 27, 18, 13)}">${xml(time)}</text>`;
+    }).join('');
+    const empty = page.rows.length ? '' : '<text x="640" y="535" text-anchor="middle" class="empty" font-size="25">NO STREAMS SCHEDULED YET</text>';
+    const pageLabel = pages.length > 1 ? `<text x="1152" y="345" text-anchor="end" class="page" font-size="15">PAGE ${pageIndex + 1} OF ${Math.min(pages.length, 10)}</text>` : '';
+    const overlay = Buffer.from(`<svg width="1280" height="720" xmlns="http://www.w3.org/2000/svg">
+      <style>.heading{font-family:Arial,DejaVu Sans,sans-serif;font-weight:900;letter-spacing:2px;fill:white;stroke:#111;stroke-width:2px;paint-order:stroke}.row{font-family:Arial,DejaVu Sans,sans-serif;font-weight:800;fill:white}.empty,.page{font-family:Arial,DejaVu Sans,sans-serif;font-weight:800;fill:#ddd}</style>
+      <rect x="280" y="307" width="720" height="55" rx="4" fill="#09090a"/>
+      <text x="640" y="348" text-anchor="middle" class="heading" font-size="35">${xml(dateTitle)}</text>
+      ${rowMarkup}${empty}${pageLabel}
+    </svg>`);
+    return sharp(SCHEDULE_ARTWORK).composite([{ input: overlay }]).jpeg({ quality: 88, chromaSubsampling: '4:4:4' }).toBuffer();
+  }));
+}
+
+function boardEmbed(entries, imageName = '') {
   const lines = entries.map((e, i) => {
     const conflict = entries.some((x,j) => j !== i && x.date === e.date && x.hm === e.hm) ? ' ⚠️' : '';
     const linkUrl = safeLink(e.link);
@@ -75,12 +142,22 @@ function boardEmbed(entries) {
   }
   if (visible.length < lines.length) visible.push(`*…and ${lines.length - visible.length} more scheduled stream(s).*`);
 
-  return new Discord.EmbedBuilder()
+  const embed = new Discord.EmbedBuilder()
     .setColor('#b21f38')
     .setTitle('📺 Who’s Going Live')
     .setDescription(visible.length ? visible.join('\n\n') : 'No upcoming streams are scheduled yet. Use **/goinglive** to claim a time.')
     .setFooter({ text: 'All schedule times are Eastern Time • Board resets daily at 5:00 AM ET' })
     .setTimestamp();
+  if (imageName) embed.setImage('attachment://' + imageName);
+  return embed;
+}
+
+async function boardPayload(entries, editing = false) {
+  const images = await renderScheduleImages(entries);
+  const files = images.map((attachment, index) => new Discord.AttachmentBuilder(attachment, { name: `whos-live-${index + 1}.jpg` }));
+  const payload = { embeds: [boardEmbed(entries, files[0]?.name || '')], files, allowedMentions: { parse: [] } };
+  if (editing) payload.attachments = [];
+  return payload;
 }
 
 async function refreshBoard(client) {
@@ -94,14 +171,13 @@ async function refreshBoard(client) {
     console.error(`[Going Live] Board channel ${BOARD_CHANNEL_ID} is unavailable or not text based.`);
     return;
   }
-  const payload = { embeds: [boardEmbed(entries)], allowedMentions: { parse: [] } };
   let message = null;
   if (store.boardMessageId) message = await channel.messages.fetch(store.boardMessageId).catch(() => null);
   if (message) {
-    await message.edit(payload);
+    await message.edit(await boardPayload(entries, true));
     console.log(`[Going Live] Board refreshed in #${channel.name}.`);
   } else {
-    message = await channel.send(payload);
+    message = await channel.send(await boardPayload(entries));
     store.boardMessageId = message.id;
     writeStore(store);
     console.log(`[Going Live] Board created in #${channel.name} (${BOARD_CHANNEL_ID}), message ${message.id}.`);
@@ -130,10 +206,7 @@ async function repostBoardNow(client) {
     }
   }
 
-  const message = await channel.send({
-    embeds: [boardEmbed(entries)],
-    allowedMentions: { parse: [] },
-  });
+  const message = await channel.send(await boardPayload(entries));
   store.boardMessageId = message.id;
   writeStore(store);
   console.log(`[Going Live] Board reposted in #${channel.name} (${message.id}).`);
@@ -150,20 +223,24 @@ const GOING_LIVE_COMMAND = {
   name: 'goinglive',
   description: 'Add your upcoming stream to the Misfit Mafia live schedule',
   options: [
-    { type: 3, name: 'date', description: 'Date: MM/DD or YYYY-MM-DD', required: true },
+    { type: 3, name: 'streamer', description: 'Your name or show name as it should appear', required: true, max_length: 40 },
+    { type: 3, name: 'title', description: 'Title of your stream', required: true, max_length: 80 },
     { type: 3, name: 'time', description: 'Time: 7, 7:30, 11:45, etc.', required: true },
     { type: 3, name: 'am_pm', description: 'AM or PM (Eastern Time)', required: true, choices: [{name:'AM',value:'AM'},{name:'PM',value:'PM'}] },
-    { type: 3, name: 'show', description: 'Stream/show title', required: false, max_length: 80 },
+    { type: 3, name: 'date', description: 'Optional date: MM/DD or YYYY-MM-DD (defaults to today)', required: false },
     { type: 3, name: 'link', description: 'YouTube, Kick, Twitch, etc. stream/channel URL', required: false, max_length: 250 }
   ]
 };
 
 const WHO_COMMAND = {
-  name: 'who',
+  name: 'whoslive',
   description: 'Repost the Who’s Going Live schedule board',
 };
 
+let commandsRegistered = false;
+
 async function registerCommand(client) {
+  if (commandsRegistered) return true;
   const guild = await client.guilds.fetch(GUILD_ID).catch(error => {
     console.error(`[Going Live] Could not fetch Misfit Mafia guild ${GUILD_ID}: ${error.message}`);
     return null;
@@ -175,11 +252,13 @@ async function registerCommand(client) {
   });
   for (const command of [GOING_LIVE_COMMAND, WHO_COMMAND]) {
     const found = existing?.find(c => c.name === command.name);
-    if (!found) {
-      await guild.commands.create(command);
-      console.log(`✅ /${command.name} command registered directly in ${guild.name} (${GUILD_ID})`);
-    }
+    if (found) await found.edit(command);
+    else await guild.commands.create(command);
+    console.log(`✅ /${command.name} command registered directly in ${guild.name} (${GUILD_ID})`);
   }
+  const oldWho = existing?.find(c => c.name === 'who');
+  if (oldWho) await oldWho.delete().catch(() => null);
+  commandsRegistered = true;
   return true;
 }
 
@@ -237,7 +316,8 @@ async function handleWho(interaction, client) {
 async function handleGoingLive(interaction, client) {
   try {
     await interaction.deferReply({ ephemeral: true });
-    const date = normalizeDate(interaction.options.getString('date'));
+    const dateInput = interaction.options.getString('date');
+    const date = dateInput ? normalizeDate(dateInput) : easternParts().date;
     const time = normalizeTime(interaction.options.getString('time'), interaction.options.getString('am_pm'));
     const now = easternParts();
     if (`${date} ${time.hm}` < `${now.date} ${now.hm}`) return interaction.editReply({ content: 'That time has already passed in Eastern Time. Pick an upcoming time.' });
@@ -245,9 +325,9 @@ async function handleGoingLive(interaction, client) {
     const store = cleanup(readStore());
     const entry = {
       id: crypto.randomUUID().slice(0,12), userId: interaction.user.id,
-      username: interaction.user.globalName || interaction.user.username,
+      username: String(interaction.options.getString('streamer') || interaction.user.globalName || interaction.user.username).trim(),
       date, hm: time.hm, displayTime: time.display,
-      title: String(interaction.options.getString('show') || '').trim(),
+      title: String(interaction.options.getString('title') || '').trim(),
       link: normalizeLink(interaction.options.getString('link')),
       createdAt: new Date().toISOString(), status: 'active'
     };
@@ -348,7 +428,7 @@ function install(client) {
     try {
       if (interaction.guildId !== GUILD_ID && interaction.guildId) return;
       if (interaction.isChatInputCommand() && interaction.commandName === 'goinglive') return await handleGoingLive(interaction, client);
-      if (interaction.isChatInputCommand() && interaction.commandName === 'who') return await handleWho(interaction, client);
+      if (interaction.isChatInputCommand() && interaction.commandName === 'whoslive') return await handleWho(interaction, client);
       if (interaction.isButton() && interaction.customId.startsWith('gl:')) return await handleButton(interaction, client);
     } catch (error) {
       console.error('[Going Live] Interaction failed:', error);
@@ -373,4 +453,4 @@ function install(client) {
   });
 }
 
-module.exports = { install, upcomingEntries, refreshBoard, repostBoard, registerCommand, GOING_LIVE_COMMAND, WHO_COMMAND, FILE, GUILD_ID, BOARD_CHANNEL_ID, ZONE };
+module.exports = { install, upcomingEntries, refreshBoard, repostBoard, registerCommand, renderScheduleImages, schedulePages, GOING_LIVE_COMMAND, WHO_COMMAND, FILE, GUILD_ID, BOARD_CHANNEL_ID, ZONE };

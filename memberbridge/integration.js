@@ -6,10 +6,9 @@ const path = require('path');
 /**
  * MemberBridge has been retired from The Commission.
  *
- * Membership verification now lives in the standalone Safetybot service.
- * This compatibility module remains only so older Commission code can load
- * without crashing while all MemberBridge commands, web callbacks, OAuth,
- * synchronization, role handling, and background jobs stay disabled.
+ * This compatibility module only removes the legacy MemberBridge database and
+ * panels. The replacement Commission verifier is implemented separately in
+ * membership_store.js, membership_web.js, and membership_discord.js.
  */
 
 function removeIfExists(target) {
@@ -47,7 +46,7 @@ class MemberBridgeIntegration {
     }
 
     async start() {
-        console.log('[MemberBridge retired] Membership verification is disabled in The Commission. Use Safetybot instead.');
+        console.log('[MemberBridge retired] Cleaning up legacy panels; the replacement Commission verifier is active separately.');
         await this.removeLegacyVerificationPanels();
     }
 

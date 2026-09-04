@@ -9,6 +9,7 @@ const { isDoxWord } = require('./moderation_word_policy');
 const { verifyAddressWithFreeGeocoders } = require('./address_verification');
 const { MemberBridgeIntegration } = require('./memberbridge/integration');
 const { installDiscordFeatures } = require('./discord_features');
+const { VERIFY_COMMAND } = require('./membership_discord');
 const { installLiveVoicePairs } = require('./live_voice_pairs');
 const { installManualJailRoleWorkflow } = require('./manual_jail_role');
 const { generateDashboardHTML } = require('./discord/dashboard_page');
@@ -576,6 +577,7 @@ client.on('ready', async () => {
                 .setDescription('Clear the entire music queue')
                 .toJSON(),
             goingLive.GOING_LIVE_COMMAND,
+            VERIFY_COMMAND,
             ...economyCommandData(),
         ];
 

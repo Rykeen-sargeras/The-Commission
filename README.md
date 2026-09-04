@@ -18,16 +18,23 @@ The Commission is a Windows control panel for the existing Discord protection bo
 - NSIS installer and portable Windows executable builds
 - Local persistence under the current Windows user's application-data folder
 - `/goinglive` Eastern Time stream scheduling with conflict resolution, a persistent Discord board, and a public hosted schedule
+- Password-protected hosted YouTube clipper at `/clipper` with direct MP4 downloads
 
 ## Going Live schedule
 
-Streamers use `/goinglive` with a date, time, required AM/PM choice, and optional show title and stream link. Times are interpreted in `America/New_York`, so EST/EDT daylight-saving changes are handled automatically.
+Streamers use `/goinglive` and provide their streamer/show name, stream title, time, required AM/PM choice, an optional date, and an optional stream link. The date defaults to the current Eastern calendar day. Times are interpreted in `America/New_York`, so EST/EDT daylight-saving changes are handled automatically. `/whoslive` reposts the latest schedule using the supplied Misfit Mafia artwork; schedules longer than five rows automatically continue on another image.
 
 The bot maintains one persistent schedule message in the configured Going Live channel. When a streamer requests an occupied time, the person already scheduled receives a direct-message choice to keep the slot or adjust it. The requester can keep the overlap or remove the pending request and choose another time. If the original streamer adjusts and no other conflict remains, the waiting request is confirmed automatically.
 
 The public Railway display is available at `/going-live` (for example, `https://YOUR-DOMAIN.up.railway.app/going-live`) and refreshes every 30 seconds. Its JSON feed is `/api/going-live`. The Discord board and web display roll over at 5:00 AM Eastern every day; stale active and pending entries from the previous schedule day are removed.
 
 Configure `GOING_LIVE_GUILD_ID` and `GOING_LIVE_CHANNEL_ID`. The supplied examples target guild `1532503754350264571` and channel `1532513768855175279`. On Railway, mount a persistent volume at `DATA_DIR=/data` so the schedule and persistent board message ID survive redeploys.
+
+## Hosted YouTube clipper
+
+The Railway website includes a private clipper at `/clipper`. Friends sign in with the shared `CLIPPER_PASSWORD`, paste a YouTube video or livestream URL, enter start and end timestamps such as `01:00` and `01:01:05`, and download the finished MP4 in their browser. Clips are temporary downloads only: there is no clip library, Discord upload, Google Drive copy, or permanent-storage option.
+
+Set `CLIPPER_PASSWORD` in Railway Variables. `MAX_CLIP_MINUTES` controls the maximum clip length (default 15). Every MP4 expires after three hours and is deleted automatically; there is no permanent-storage setting. Mount Railway persistent storage at `DATA_DIR=/data` if downloads should survive a deployment during their three-hour window. Only clip content you have permission to use.
 
 ## First run
 
@@ -39,9 +46,9 @@ Configure `GOING_LIVE_GUILD_ID` and `GOING_LIVE_CHANNEL_ID`. The supplied exampl
 6. Select **Start protection** and review **Live logs**.
 7. The Commission starts with Windows and closes to the system tray by default. Use the tray menu to reopen or exit it.
 
-## MemberBridge
+## YouTube membership verification
 
-MemberBridge is retired. YouTube membership verification now runs in the standalone Safetybot project. The Commission retains only a small upgrade migration that removes legacy MemberBridge databases, backups, and bot-authored verification panels; it registers no membership commands or background jobs.
+The Commission includes a replacement for the retired MemberBridge implementation. In the hosted dashboard, use **Membership Setup** for the Google and Discord OAuth credentials, then open **YouTube Members** to choose supported streamers, create each streamer's single-use connection link, set a grace period, and map YouTube tiers to Discord roles. Members run `/verify`; the bot reads the YouTube account already connected to their Discord account and never asks them for a Google password. See [docs/YOUTUBE_MEMBERSHIPS.md](docs/YOUTUBE_MEMBERSHIPS.md) and [docs/GOOGLE_OAUTH_APPROVAL.md](docs/GOOGLE_OAUTH_APPROVAL.md).
 
 ## Blood Money economy
 

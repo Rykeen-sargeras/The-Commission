@@ -5,6 +5,9 @@ bot-data/
 *.db
 *.db-wal
 *.db-shm
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
 *.log
 commission-config.json
 .env

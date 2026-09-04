@@ -5,6 +5,7 @@ allowBuilds:
   electron: true
   electron-winstaller: true
   ffmpeg-static: true
+  sharp: true
 onlyBuiltDependencies:
   - electron
   - electron-winstaller

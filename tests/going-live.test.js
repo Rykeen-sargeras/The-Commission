@@ -74,11 +74,21 @@ test('stream links only allow complete HTTP(S) URLs', () => {
 });
 
 
-test('/who is registered as the board repost command', () => {
+test('/whoslive is registered as the graphic board repost command', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'going_live.js'), 'utf8');
-  assert.match(source, /name:\s*'who'/);
-  assert.match(source, /interaction\.commandName === 'who'/);
+  assert.match(source, /name:\s*'whoslive'/);
+  assert.match(source, /interaction\.commandName === 'whoslive'/);
   assert.match(source, /async function handleWho[\s\S]*await repostBoard\(client\)/);
+  assert.match(source, /renderScheduleImages/);
+});
+
+test('graphic schedules paginate after five streamers', () => {
+  const { schedulePages } = require('../going_live');
+  const entries = Array.from({ length: 6 }, (_, index) => ({ date: '2026-09-04', username: `Streamer ${index + 1}` }));
+  const pages = schedulePages(entries);
+  assert.strictEqual(pages.length, 2);
+  assert.strictEqual(pages[0].rows.length, 5);
+  assert.strictEqual(pages[1].rows.length, 1);
 });
 
 test('confirmed schedule additions repost instead of only editing the board', () => {

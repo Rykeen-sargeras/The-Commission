@@ -9,11 +9,11 @@ The Commission runs one Discord.js worker from either the Electron desktop contr
 - `discord_bot.js` owns the Discord gateway client and coordinates moderation, economy, REP, tickets, and voice systems.
 - `economy.js` owns economy persistence and core game behavior.
 - `economy/` contains Luck Shop and slots modules; `economy_discord.js` owns Discord commands and panels.
-- `memberbridge/integration.js` is a temporary retirement migration only. It removes legacy MemberBridge data and panels and exposes no commands or active verification service.
+- `memberbridge/integration.js` remains a temporary retirement migration for the old MemberBridge data and panels. The replacement verifier uses the separate `membership_*` modules and `commission-memberships.sqlite`.
 
 ## Membership verification
 
-MemberBridge is retired. YouTube membership verification is owned by the standalone Safetybot project. The Commission must not start OAuth callbacks, YouTube polling, membership schedulers, or role reconciliation.
+The retired MemberBridge implementation must not be revived. The Commission's replacement verifier uses creator Google OAuth, member Discord Connections OAuth, encrypted credentials, a safe scheduler, and tier-specific role reconciliation. A failed YouTube/API request must never be treated as a lapsed membership.
 
 The small retirement integration remains so upgrades can remove legacy SQLite files, backups, and bot-authored verification panels safely. It should be removed only after all deployed installations have completed that migration.
 

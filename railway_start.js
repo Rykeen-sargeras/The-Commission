@@ -30,6 +30,7 @@ let desiredRunning = true;
 
 const { BASE_FIELDS, ECON_FIELDS } = require('./railway/fields');
 const { loginPage, dashboardPage } = require('./railway/ui');
+const { MembershipWeb } = require('./membership_web');
 
 function readJson(file, fallback) { try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return fallback; } }
 function parseEconomyEnv() { try { return JSON.parse(process.env.ECONOMY_CONFIG_JSON || '{}'); } catch { return {}; } }
@@ -52,6 +53,7 @@ function startBot(){
 }
 function stopBot(restart=false){ return new Promise(resolve=>{ desiredRunning=restart; if(!bot){botState='stopped'; if(restart) startBot(); return resolve();} const current=bot; botState='stopping'; const timer=setTimeout(()=>{try{current.kill('SIGKILL')}catch{}},8000); current.once('exit',()=>{clearTimeout(timer); if(restart) setTimeout(startBot,350); resolve();}); try{current.kill('SIGTERM')}catch{resolve();} }); }
 function botRequest(channel,action,payload={},timeoutMs=30000){ if(!bot?.connected) return Promise.reject(new Error('Bot is not running.')); const id=crypto.randomUUID(); return new Promise((resolve,reject)=>{const timer=setTimeout(()=>{pending.delete(id);reject(new Error(`${action} timed out.`));},timeoutMs); pending.set(id,{resolve,reject,timer}); bot.send({channel,id,action,payload});}); }
+const membershipWeb = new MembershipWeb({ dataDir, configProvider: () => ({ ...process.env, ...mergedConfig().env }), botRequest });
 
 function cookies(req){const out={};for(const p of String(req.headers.cookie||'').split(';')){const [k,...v]=p.trim().split('=');if(k)out[k]=decodeURIComponent(v.join('='));}return out;}
 function newSession(){const token=crypto.randomBytes(24).toString('hex');sessions.set(token,Date.now()+12*3600000);return token;}
@@ -70,6 +72,7 @@ const server=http.createServer(async(req,res)=>{
     if(url.pathname==='/health') return json(res,200,{ok:true,service:'the-commission',webapp:true,botState});
     if(url.pathname==='/login'&&req.method==='POST'){const raw=await body(req);const p=new URLSearchParams(raw).get('password')||'';if(!dashboardPassword)return send(res,500,'text/html; charset=utf-8',loginPage('WEB_DASHBOARD_PASSWORD is not configured.'));if(!safeEqual(p,dashboardPassword))return send(res,401,'text/html; charset=utf-8',loginPage('Wrong password.'));const token=newSession();return redirect(res,'/',{'Set-Cookie':`commission_session=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=43200`});}
     if(url.pathname==='/logout'&&req.method==='POST'){const t=cookies(req).commission_session;if(t)sessions.delete(t);return redirect(res,'/',{'Set-Cookie':'commission_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0'});}
+    if(await membershipWeb.handle(req,res,url,authed(req))) return;
     if(!authed(req)){if(url.pathname.startsWith('/api/'))return json(res,401,{error:'Not authenticated'});return send(res,200,'text/html; charset=utf-8',loginPage());}
     if(url.pathname==='/'&&req.method==='GET') return send(res,200,'text/html; charset=utf-8',dashboardPage());
     if(url.pathname==='/api/state'&&req.method==='GET') return json(res,200,{state:botState,pid:bot?.pid||null,logs:logs.slice(-500),config:maskConfig(mergedConfig())});

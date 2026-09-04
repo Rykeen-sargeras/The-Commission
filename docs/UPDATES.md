@@ -10,6 +10,6 @@ Before installing an update:
 4. Start the app and protection worker.
 5. Check Live logs, Discord connectivity, economy panels, tickets, and Going Live.
 
-MemberBridge is retired. An upgrade may remove its legacy databases, backups, and bot-authored verification panels; membership verification is handled by Safetybot.
+The old MemberBridge database and bot-authored panels may be removed during upgrade. The replacement verifier stores its data separately in `commission-memberships.sqlite`.
 
 The source repository does not contain production signing credentials or an update-manifest URL. Configure Windows code signing and any hosted update feed outside the repository.
