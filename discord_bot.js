@@ -69,7 +69,9 @@ const CONFIG = {
     JAIL_CATEGORY_IDS: (process.env.JAIL_CATEGORY_IDS || '').split(',').filter(Boolean),
     JAIL_CATEGORY_ID: process.env.JAIL_CATEGORY_ID || '',
     JAIL_ROLE_ID: process.env.JAIL_ROLE_ID || '',
-    JAIL_LOG_CHANNEL_ID: process.env.JAIL_LOG_CHANNEL_ID || '1532513789159669835',
+    // This is the server's dedicated jail audit/transcript channel. Keep it
+    // authoritative so a stale Railway variable cannot route records elsewhere.
+    JAIL_LOG_CHANNEL_ID: '1532513789159669835',
     PREEMPTIVE_BAN_USER_IDS: (process.env.PREEMPTIVE_BAN_USER_IDS || '').split(/[\s,]+/).filter(Boolean),
     PREEMPTIVE_BAN_REASON: process.env.PREEMPTIVE_BAN_REASON || 'Listed in The Commission preemptive ban list',
     LIVE_VOICE_CATEGORY_ID: process.env.LIVE_VOICE_CATEGORY_ID || '1532513765701189683',
@@ -1961,8 +1963,12 @@ function discordDate(timestamp) {
 }
 
 async function sendJailStartedLog(guild, user, actor, reason, duration, jailChannel, jailedAt = Date.now()) {
-    const logChannel = await guild.channels.fetch(JAIL_LOG_CHANNEL_ID).catch(() => null);
-    if (!logChannel?.isTextBased()) return null;
+    const logChannel = await guild.channels.fetch(JAIL_LOG_CHANNEL_ID).catch(error => {
+        throw new Error(`Could not fetch jail audit channel ${JAIL_LOG_CHANNEL_ID}: ${error.message}`);
+    });
+    if (!logChannel?.isTextBased()) {
+        throw new Error(`Jail audit channel ${JAIL_LOG_CHANNEL_ID} is missing or is not a text channel.`);
+    }
     const embed = new Discord.EmbedBuilder()
         .setColor('#FF0000')
         .setTitle(`🔒 User Jailed: ${user.tag}`)
