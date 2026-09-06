@@ -7,21 +7,25 @@ const { EconomyService } = require('./economy');
 const { economyCommandData, createEconomyIntegration } = require('./economy_discord');
 const { isDoxWord } = require('./moderation_word_policy');
 const { verifyAddressWithFreeGeocoders } = require('./address_verification');
-const { MemberBridgeIntegration } = require('./memberbridge/integration');
-const { installDiscordFeatures } = require('./discord_features');
-const { VERIFY_COMMAND } = require('./membership_discord');
+const { MemberBridgeIntegration, memberBridgeCommandData } = require('./memberbridge/integration');
+const goingLive = require('./going_live');
 const { installLiveVoicePairs } = require('./live_voice_pairs');
 const { installManualJailRoleWorkflow } = require('./manual_jail_role');
-const { generateDashboardHTML } = require('./discord/dashboard_page');
-const { loadDiscordConfig } = require('./discord/config');
-const { loadMusicDependencies } = require('./discord/music_dependencies');
-const { createStaffAccess } = require('./discord/staff_access');
 
 // Music dependencies
 // play-dl is used for YouTube searching/metadata.
 // @distube/ytdl-core is used for the actual audio stream because play-dl.stream()
 // can return ERR_INVALID_URL/input undefined on some Railway/YouTube results.
-const { voice, playDl, ytdl } = loadMusicDependencies();
+let voice, playDl, ytdl;
+try {
+    voice = require('@discordjs/voice');
+    playDl = require('play-dl');
+    ytdl = require('@distube/ytdl-core');
+    console.log('✅ Music dependencies loaded');
+} catch (e) {
+    console.warn('⚠️ Music dependencies not installed. Run: npm install @discordjs/voice play-dl @distube/ytdl-core libsodium-wrappers ffmpeg-static');
+    console.warn(e.message);
+}
 
 const client = new Discord.Client({
     intents: [
@@ -41,10 +45,35 @@ const client = new Discord.Client({
         Discord.Partials.GuildMember,
     ]
 });
-installDiscordFeatures(client);
+goingLive.install(client);
 
 // Configuration - supplied by Railway or the Windows control panel.
-const CONFIG = loadDiscordConfig();
+const CONFIG = {
+    MAIN_CHAT_CHANNEL_ID: process.env.MAIN_CHAT_CHANNEL_ID || '',
+    ANNOUNCEMENT_CHANNEL_ID: process.env.ANNOUNCEMENT_CHANNEL_ID || '',
+    MOD_CHANNEL_ID: process.env.MOD_CHANNEL_ID || '1532529016479682774',
+    LOG_CHANNEL_ID: process.env.LOG_CHANNEL_ID || '',
+    TICKET_CATEGORY_ID: process.env.TICKET_CATEGORY_ID || '',
+    STAFF_ROLE_IDS: (process.env.STAFF_ROLE_IDS || '').split(',').filter(Boolean),
+    OWNER_USER_ID: process.env.OWNER_USER_ID || '',
+    WEB_DASHBOARD_PASSWORD: process.env.WEB_DASHBOARD_PASSWORD || '',
+    ALT_DETECTION_ENABLED: process.env.ALT_DETECTION_ENABLED !== 'false', // Default enabled
+    ALT_ACCOUNT_AGE_DAYS: parseInt(process.env.ALT_ACCOUNT_AGE_DAYS || '14'), // Auto-jail accounts newer than 14 days
+    PATROL_CHANNEL_ID: process.env.PATROL_CHANNEL_ID || '',
+    LOCATIONIQ_API_KEY: process.env.LOCATIONIQ_API_KEY || '',
+    POSITIONSTACK_API_KEY: process.env.POSITIONSTACK_API_KEY || '',
+    MUSIC_CHANNEL_ID: process.env.MUSIC_CHANNEL_ID || '',
+    MUSIC_VOICE_CHANNEL_ID: process.env.MUSIC_VOICE_CHANNEL_ID || '',
+    REPORT_CATEGORY_ID: process.env.REPORT_CATEGORY_ID || '',
+    OLD_REPORTS_CHANNEL_ID: process.env.OLD_REPORTS_CHANNEL_ID || '',
+    JAIL_CATEGORY_IDS: (process.env.JAIL_CATEGORY_IDS || '').split(',').filter(Boolean),
+    JAIL_CATEGORY_ID: process.env.JAIL_CATEGORY_ID || '',
+    JAIL_ROLE_ID: process.env.JAIL_ROLE_ID || '',
+    JAIL_LOG_CHANNEL_ID: process.env.JAIL_LOG_CHANNEL_ID || '1532513789159669835',
+    PREEMPTIVE_BAN_USER_IDS: (process.env.PREEMPTIVE_BAN_USER_IDS || '').split(/[\s,]+/).filter(Boolean),
+    PREEMPTIVE_BAN_REASON: process.env.PREEMPTIVE_BAN_REASON || 'Listed in The Commission preemptive ban list',
+    LIVE_VOICE_CATEGORY_ID: process.env.LIVE_VOICE_CATEGORY_ID || '1532513765701189683',
+};
 
 const PREEMPTIVE_BAN_USER_IDS = new Set(CONFIG.PREEMPTIVE_BAN_USER_IDS);
 installLiveVoicePairs(client, { categoryId: CONFIG.LIVE_VOICE_CATEGORY_ID });
@@ -52,6 +81,7 @@ installManualJailRoleWorkflow(client, Discord, {
     jailRoleId: CONFIG.JAIL_ROLE_ID,
     jailCategoryId: CONFIG.JAIL_CATEGORY_ID,
     modChannelId: CONFIG.MOD_CHANNEL_ID,
+    jailLogChannelId: CONFIG.JAIL_LOG_CHANNEL_ID,
     staffRoleIds: CONFIG.STAFF_ROLE_IDS,
 });
 
@@ -59,7 +89,38 @@ installManualJailRoleWorkflow(client, Discord, {
 const MUSIC_CHANNEL_ID = CONFIG.MUSIC_CHANNEL_ID;
 const MUSIC_VOICE_CHANNEL_ID = CONFIG.MUSIC_VOICE_CHANNEL_ID;
 
-const { configuredStaffRoleIds, staffPermissionOverwrites, staffMentions } = createStaffAccess(Discord, CONFIG);
+const STAFF_CHANNEL_PERMISSIONS = [
+    Discord.PermissionFlagsBits.ViewChannel,
+    Discord.PermissionFlagsBits.SendMessages,
+    Discord.PermissionFlagsBits.ReadMessageHistory,
+];
+
+function configuredStaffRoleIds(guild) {
+    const configuredIds = [...new Set(CONFIG.STAFF_ROLE_IDS.map(id => String(id).trim()).filter(Boolean))];
+    const validIds = configuredIds.filter(id => guild.roles.cache.has(id));
+    const invalidIds = configuredIds.filter(id => !guild.roles.cache.has(id));
+
+    if (invalidIds.length) {
+        console.warn(`[Discord permissions] Ignoring staff role IDs that do not exist in guild ${guild.id}: ${invalidIds.join(', ')}`);
+    }
+
+    return validIds;
+}
+
+function staffPermissionOverwrites(guild) {
+    return configuredStaffRoleIds(guild).map(id => ({
+        id,
+        allow: STAFF_CHANNEL_PERMISSIONS,
+    }));
+}
+
+function staffMentions(guild, extraUserId = '') {
+    const mentions = [];
+    if (CONFIG.OWNER_USER_ID) mentions.push(`<@${CONFIG.OWNER_USER_ID}>`);
+    mentions.push(...configuredStaffRoleIds(guild).map(id => `<@&${id}>`));
+    if (extraUserId) mentions.push(`<@${extraUserId}>`);
+    return mentions.join(' ');
+}
 
 // Patrol channel tracking
 const patrolCooldowns = new Map(); // userId -> lastPostTimestamp
@@ -88,15 +149,28 @@ let memberBridgeConfig = {};
 try {
     memberBridgeConfig = JSON.parse(process.env.MEMBERBRIDGE_CONFIG_JSON || '{}');
 } catch (error) {
-    console.error('Invalid legacy MemberBridge configuration; panel cleanup will use defaults:', error.message);
+    console.error('Invalid MemberBridge configuration; the feature will stay disabled:', error.message);
 }
 const RAILWAY_MODE = Boolean(
     process.env.RAILWAY_ENVIRONMENT_ID
     || process.env.COMMISSION_RAILWAY_MODE === 'true'
     || process.env.COMMISSION_RAILWAY_MODE === '1'
 );
+if (RAILWAY_MODE) {
+    memberBridgeConfig.callbackHost = '0.0.0.0';
+    memberBridgeConfig.callbackPort = Number(process.env.PORT || memberBridgeConfig.callbackPort || 17842);
+    if (process.env.RAILWAY_PUBLIC_DOMAIN) {
+        memberBridgeConfig.publicBaseUrl = `https://${String(process.env.RAILWAY_PUBLIC_DOMAIN).replace(/^https?:\/\//, '').replace(/\/$/, '')}`;
+    }
+}
+const memberBridgeEncryptionKey = process.env.MEMBERBRIDGE_ENCRYPTION_KEY
+    || require('crypto').createHash('sha256').update(process.env.DISCORD_TOKEN || 'memberbridge-development-only').digest('base64');
 const memberBridgeIntegration = new MemberBridgeIntegration(client, {
     dataDir: DATA_DIR,
+    encryptionKey: memberBridgeEncryptionKey,
+    googleClientSecret: process.env.MEMBERBRIDGE_GOOGLE_CLIENT_SECRET || '',
+    discordClientSecret: process.env.MEMBERBRIDGE_DISCORD_CLIENT_SECRET || '',
+    ownerPassword: CONFIG.WEB_DASHBOARD_PASSWORD,
     config: memberBridgeConfig,
 });
 
@@ -577,8 +651,8 @@ client.on('ready', async () => {
                 .setDescription('Clear the entire music queue')
                 .toJSON(),
             goingLive.GOING_LIVE_COMMAND,
-            VERIFY_COMMAND,
             ...economyCommandData(),
+            ...memberBridgeCommandData(),
         ];
 
         // Clear old global commands (removes duplicates)
@@ -612,7 +686,8 @@ client.on('ready', async () => {
     setInterval(checkBirthdays, 60000);
     checkBirthdays(); // Check immediately on startup
 
-    // Railway owns the hosted HTTP port; the legacy moderation dashboard is local-only.
+    // Railway exposes one HTTP port. MemberBridge owns it there; the legacy
+    // moderation dashboard remains available only inside the Windows app.
     if (!RAILWAY_MODE) startKeepAliveServer();
     await memberBridgeIntegration.start();
 });
@@ -1074,8 +1149,9 @@ client.on('messageCreate', async (message) => {
     // Ignore bots
     if (message.author.bot) return;
 
-    // DMs are handled exclusively by dm_ticket_system.js.
+    // DM handling - report system
     if (!message.guild) {
+        await handleDMReport(message);
         return;
     }
 
@@ -1379,12 +1455,14 @@ async function handleBannedWord(message, triggeredWord) {
         // Create jail channel
         const ticketNumber = Math.floor(Math.random() * 9999);
         const channelName = `jail-${message.author.username.substring(0, 15)}-${ticketNumber}`;
+        const jailedAt = Date.now();
 
         try {
             const jailChannel = await guild.channels.create({
                 name: channelName,
                 type: Discord.ChannelType.GuildText,
                 parent: JAIL_CATEGORY_ID,
+                topic: jailChannelTopic(userId, jailedAt),
                 permissionOverwrites: [
                     { id: guild.id, deny: [Discord.PermissionFlagsBits.ViewChannel] },
                     { id: userId, allow: [Discord.PermissionFlagsBits.ViewChannel, Discord.PermissionFlagsBits.SendMessages, Discord.PermissionFlagsBits.ReadMessageHistory] },
@@ -1410,6 +1488,8 @@ async function handleBannedWord(message, triggeredWord) {
                 .setTimestamp();
 
             await jailChannel.send({ content: staffMentions(guild, userId), embeds: [embed] });
+            await sendJailStartedLog(guild, message.author, null, `Banned word: ${triggeredWord}`, jailLabel, jailChannel, jailedAt)
+                .catch(error => console.error('Could not send auto-jail start log:', error));
             console.log(`✅ Jail channel created: #${jailChannel.name}`);
 
         } catch (err) {
@@ -1451,18 +1531,15 @@ async function handleBannedWord(message, triggeredWord) {
 
                                 const logChannel = await client.channels.fetch(JAIL_LOG_CHANNEL_ID);
                                 if (logChannel) {
-                                    const buf = Buffer.from(transcript, 'utf-8');
-                                    const att = new Discord.AttachmentBuilder(buf, { name: `${jailChan.name}-transcript.txt` });
-                                    const logEmbed = new Discord.EmbedBuilder()
-                                        .setColor('#00FF00')
-                                        .setTitle(`🔓 Auto-Unjailed: ${message.author.tag}`)
-                                        .addFields(
-                                            { name: 'User', value: `${message.author.tag} (${userId})`, inline: true },
-                                            { name: 'Duration', value: jailLabel, inline: true },
-                                        )
-                                        .setFooter({ text: 'Transcript attached below' })
-                                        .setTimestamp();
-                                    await logChannel.send({ embeds: [logEmbed], files: [att] });
+                                    await sendJailClosedLog(logChannel, {
+                                        user: message.author,
+                                        actor: null,
+                                        outcome: 'unjailed',
+                                        jailedAt: jailStartedAt(jailChan),
+                                        closedAt: Date.now(),
+                                        transcript,
+                                        fileName: `${jailChan.name}-transcript.txt`,
+                                    });
                                 }
 
                                 await jailChan.send('🔓 Auto-unjail complete. This channel will be deleted in 5 seconds...');
@@ -1611,11 +1688,13 @@ async function handleAddressDetection(message, addressText, apiResult) {
             // Create jail channel
             const ticketNumber = Math.floor(Math.random() * 9999);
             const channelName = `jail-doxx-${message.author.username.substring(0, 10)}-${ticketNumber}`;
+            const jailedAt = Date.now();
 
             const jailChannel = await guild.channels.create({
                 name: channelName,
                 type: Discord.ChannelType.GuildText,
                 parent: JAIL_CATEGORY_ID,
+                topic: jailChannelTopic(userId, jailedAt),
                 permissionOverwrites: [
                     { id: guild.id, deny: [Discord.PermissionFlagsBits.ViewChannel] },
                     { id: userId, allow: [Discord.PermissionFlagsBits.ViewChannel, Discord.PermissionFlagsBits.SendMessages, Discord.PermissionFlagsBits.ReadMessageHistory] },
@@ -1641,6 +1720,8 @@ async function handleAddressDetection(message, addressText, apiResult) {
                 .setTimestamp();
 
             await jailChannel.send({ content: staffMentions(guild, userId), embeds: [embed] });
+            await sendJailStartedLog(guild, message.author, null, 'Verified address posted', 'Permanent', jailChannel, jailedAt)
+                .catch(error => console.error('Could not send address jail start log:', error));
 
             console.log(`✅ User ${message.author.tag} jailed for posting address`);
 
@@ -1656,6 +1737,95 @@ async function handleAddressDetection(message, addressText, apiResult) {
 }
 
 // ======================
+// DM REPORT SYSTEM
+// ======================
+
+const dmReportStates = new Map(); // userId -> { step, who, reason }
+
+async function handleDMReport(message) {
+    const userId = message.author.id;
+    const state = dmReportStates.get(userId);
+
+    try {
+        if (!state) {
+            await message.reply('👤 **Who are you reporting?** (Username or @mention)');
+            dmReportStates.set(userId, { step: 'who' });
+            console.log(`📝 DM Report started by ${message.author.tag}`);
+            return;
+        }
+
+        if (state.step === 'who') {
+            state.who = message.content;
+            state.step = 'reason';
+            await message.reply('📄 **Why are you reporting them?** (Describe what happened)');
+            return;
+        }
+
+        if (state.step === 'reason') {
+            state.reason = message.content;
+            dmReportStates.delete(userId);
+            await createDMReport(message.author, state);
+            return;
+        }
+    } catch (error) {
+        console.error('❌ Error in DM report system:', error);
+        dmReportStates.delete(userId);
+        try {
+            await message.reply('❌ Something went wrong. Please try again or use `/report` in the server.');
+        } catch (e) {}
+    }
+}
+
+async function createDMReport(user, state) {
+    const guild = client.guilds.cache.first();
+    if (!guild) {
+        await user.send('❌ Error creating report. Bot is not connected to a server.');
+        return;
+    }
+
+    const ticketNumber = Math.floor(Math.random() * 9999);
+    const channelName = `report-${ticketNumber}`;
+
+    try {
+        const channel = await guild.channels.create({
+            name: channelName,
+            type: Discord.ChannelType.GuildText,
+            parent: REPORT_CATEGORY_ID,
+            permissionOverwrites: [
+                { id: guild.id, deny: [Discord.PermissionFlagsBits.ViewChannel] },
+                { id: user.id, allow: [Discord.PermissionFlagsBits.ViewChannel, Discord.PermissionFlagsBits.SendMessages, Discord.PermissionFlagsBits.ReadMessageHistory] },
+                ...staffPermissionOverwrites(guild),
+            ],
+        });
+
+        const embed = new Discord.EmbedBuilder()
+            .setColor('#FF0000')
+            .setTitle('🚨 New User Report (via DM)')
+            .setThumbnail(user.displayAvatarURL())
+            .addFields(
+                { name: 'Reported By', value: `${user.tag} (${user.id})`, inline: true },
+                { name: 'Reporting', value: state.who, inline: true },
+                { name: 'Reason', value: state.reason },
+                { name: 'Status', value: '🔍 Awaiting mod review', inline: true }
+            )
+            .setFooter({ text: 'Use !close or /close to archive this report' })
+            .setTimestamp();
+
+        await channel.send({ content: `${staffMentions(guild, user.id)}\n\nMods will be with you shortly. You can chat here.`, embeds: [embed] });
+
+        addAuditLog('DM Report Created', { tag: user.tag, id: user.id }, `Report #${ticketNumber} against ${state.who}`, 'warning');
+
+        await user.send(`✅ Your report has been created! Head to <#${channel.id}> to chat with the mods.`);
+
+    } catch (error) {
+        console.error('❌ Error creating DM report:', error);
+        try {
+            await user.send('❌ Error creating the report. Please try `/report` in the server.');
+        } catch (e) {}
+    }
+}
+
+// ======================
 // /REPORT SLASH COMMAND
 // ======================
 
@@ -1666,8 +1836,10 @@ const JAIL_CATEGORY_IDS = CONFIG.JAIL_CATEGORY_IDS;
 
 client.on('interactionCreate', async (interaction) => {
     try {
+        if (await memberBridgeIntegration.handleButton(interaction)) return;
         if (await economyIntegration.handleButton(interaction)) return;
         if (!interaction.isChatInputCommand()) return;
+        if (await memberBridgeIntegration.handleCommand(interaction)) return;
         if (await economyIntegration.handleCommand(interaction)) return;
 
         if (interaction.commandName === 'report') {
@@ -1769,6 +1941,66 @@ const JAIL_LOG_CHANNEL_ID = CONFIG.JAIL_LOG_CHANNEL_ID;
 // Track jail channels: userId -> channelId
 const jailChannels = new Map();
 
+function jailChannelTopic(userId, jailedAt = Date.now()) {
+    return `commission-jail-user:${userId};jailed-at:${jailedAt}`;
+}
+
+function jailStartedAt(channel) {
+    const topicTimestamp = String(channel?.topic || '').match(/jailed-at:(\d+)/)?.[1];
+    return Number(topicTimestamp) || channel?.createdTimestamp || Date.now();
+}
+
+function jailedUserId(channel) {
+    return String(channel?.topic || '').match(/commission-jail-user:(\d+)/)?.[1] || '';
+}
+
+function discordDate(timestamp) {
+    return `<t:${Math.floor(Number(timestamp || Date.now()) / 1000)}:F>`;
+}
+
+async function sendJailStartedLog(guild, user, actor, reason, duration, jailChannel, jailedAt = Date.now()) {
+    const logChannel = await guild.channels.fetch(JAIL_LOG_CHANNEL_ID).catch(() => null);
+    if (!logChannel?.isTextBased()) return null;
+    const embed = new Discord.EmbedBuilder()
+        .setColor('#FF0000')
+        .setTitle(`🔒 User Jailed: ${user.tag}`)
+        .setThumbnail(user.displayAvatarURL())
+        .addFields(
+            { name: 'User', value: `<@${user.id}> (${user.id})`, inline: true },
+            { name: 'Jailed By', value: actor ? `<@${actor.id}> (${actor.tag})` : 'Automated system', inline: true },
+            { name: 'User jailed at', value: discordDate(jailedAt), inline: false },
+            { name: 'Reason', value: String(reason || 'No reason provided').slice(0, 1024), inline: false },
+            { name: 'Duration', value: String(duration || 'Permanent'), inline: true },
+            { name: 'Jail Channel', value: jailChannel ? `<#${jailChannel.id}>` : 'Channel unavailable', inline: true },
+        )
+        .setTimestamp(jailedAt);
+    return logChannel.send({ embeds: [embed] });
+}
+
+async function sendJailClosedLog(logChannel, details) {
+    if (!logChannel?.isTextBased()) return null;
+    const attachment = new Discord.AttachmentBuilder(Buffer.from(details.transcript, 'utf8'), {
+        name: details.fileName,
+    });
+    const outcomeLabel = details.outcome === 'banned' ? 'User banned at' : 'User unjailed at';
+    const embed = new Discord.EmbedBuilder()
+        .setColor(details.outcome === 'banned' ? '#FF4500' : '#00AA55')
+        .setTitle(`${details.outcome === 'banned' ? '⛔ Banned' : '🔓 Unjailed'}: ${details.user.tag}`)
+        .addFields(
+            { name: 'User', value: `<@${details.user.id}> (${details.user.id})`, inline: true },
+            { name: details.outcome === 'banned' ? 'Closed By' : 'Unjailed By', value: details.actor ? `<@${details.actor.id}> (${details.actor.tag})` : 'Automated system', inline: true },
+            { name: 'User jailed at', value: discordDate(details.jailedAt), inline: false },
+            { name: outcomeLabel, value: discordDate(details.closedAt), inline: false },
+        )
+        .setFooter({ text: 'Jail transcript attached' })
+        .setTimestamp(details.closedAt);
+    const sent = await logChannel.send({ embeds: [embed], files: [attachment] });
+    const transcriptUrl = sent.attachments.first()?.url || sent.url;
+    embed.addFields({ name: 'Transcript', value: `[Open transcript](${transcriptUrl})`, inline: false });
+    await sent.edit({ embeds: [embed] }).catch(() => null);
+    return sent;
+}
+
 async function handleJailCommand(interaction) {
     const isStaff = interaction.member.roles.cache.some(role =>
         CONFIG.STAFF_ROLE_IDS.includes(role.id)
@@ -1843,13 +2075,14 @@ async function handleJailCommand(interaction) {
     // Create jail channel under jail category
     const ticketNumber = Math.floor(Math.random() * 9999);
     const channelName = `jail-${targetUser.username.substring(0, 15)}-${ticketNumber}`;
+    const jailedAt = Date.now();
 
     try {
         const jailChannel = await guild.channels.create({
             name: channelName,
             type: Discord.ChannelType.GuildText,
             parent: jailParent.id,
-            topic: `commission-jail-user:${targetUser.id}`,
+            topic: jailChannelTopic(targetUser.id, jailedAt),
             permissionOverwrites: [
                 { id: guild.id, deny: [Discord.PermissionFlagsBits.ViewChannel] },
                 { id: targetUser.id, allow: [Discord.PermissionFlagsBits.ViewChannel, Discord.PermissionFlagsBits.SendMessages, Discord.PermissionFlagsBits.ReadMessageHistory] },
@@ -1875,6 +2108,8 @@ async function handleJailCommand(interaction) {
             .setTimestamp();
 
         await jailChannel.send({ content: staffMentions(guild, targetUser.id), embeds: [embed] });
+        await sendJailStartedLog(guild, targetUser, interaction.user, reason, duration.label, jailChannel, jailedAt)
+            .catch(error => console.error('Could not send jail start log:', error));
 
         console.log(`✅ Jail channel created: #${jailChannel.name}`);
 
@@ -1914,18 +2149,15 @@ async function handleJailCommand(interaction) {
 
                                 const logCh = await client.channels.fetch(JAIL_LOG_CHANNEL_ID);
                                 if (logCh) {
-                                    const buf = Buffer.from(transcript, 'utf-8');
-                                    const att = new Discord.AttachmentBuilder(buf, { name: `${jChan.name}-transcript.txt` });
-                                    const logEmbed = new Discord.EmbedBuilder()
-                                        .setColor('#00FF00')
-                                        .setTitle(`🔓 Auto-Unjailed: ${targetUser.tag}`)
-                                        .addFields(
-                                            { name: 'User', value: `${targetUser.tag} (${targetUser.id})`, inline: true },
-                                            { name: 'Duration', value: duration.label, inline: true },
-                                        )
-                                        .setFooter({ text: 'Transcript attached' })
-                                        .setTimestamp();
-                                    await logCh.send({ embeds: [logEmbed], files: [att] });
+                                    await sendJailClosedLog(logCh, {
+                                        user: targetUser,
+                                        actor: null,
+                                        outcome: 'unjailed',
+                                        jailedAt: jailStartedAt(jChan),
+                                        closedAt: Date.now(),
+                                        transcript,
+                                        fileName: `${jChan.name}-transcript.txt`,
+                                    });
                                 }
 
                                 await jChan.send('🔓 Jail time expired. This channel will be deleted in 5 seconds...');
@@ -2144,7 +2376,7 @@ async function handleUnjailCommandV2(interaction) {
     const jailChannelCandidates = guild.channels.cache.filter(channel =>
         channel.parentId === JAIL_CATEGORY_ID && channel.isTextBased() && (
             channel.id === trackedId
-            || channel.topic === `commission-jail-user:${targetUser.id}`
+            || String(channel.topic || '').startsWith(`commission-jail-user:${targetUser.id}`)
             || (channel.name.startsWith('jail-') && channel.permissionOverwrites?.cache.has(targetUser.id))
         )
     );
@@ -2172,12 +2404,14 @@ async function handleUnjailCommandV2(interaction) {
                 }
             });
             if (logChannel?.isTextBased()) {
-                const attachment = new Discord.AttachmentBuilder(Buffer.from(transcriptLines.join('\n'), 'utf8'), {
-                    name: `${jailChannel.name}-transcript.txt`,
-                });
-                await logChannel.send({
-                    content: `Unjailed ${targetUser.tag} (${targetUser.id}) by ${interaction.user.tag}.`,
-                    files: [attachment],
+                await sendJailClosedLog(logChannel, {
+                    user: targetUser,
+                    actor: interaction.user,
+                    outcome: 'unjailed',
+                    jailedAt: jailStartedAt(jailChannel),
+                    closedAt: Date.now(),
+                    transcript: transcriptLines.join('\n'),
+                    fileName: `${jailChannel.name}-transcript.txt`,
                 });
                 transcriptsSaved += 1;
             } else {
@@ -2263,20 +2497,32 @@ async function handleCloseCommand(interaction) {
         // Send transcript to log channel
         const logChannel = await client.channels.fetch(JAIL_LOG_CHANNEL_ID);
         if (logChannel) {
-            const transcriptBuffer = Buffer.from(transcript, 'utf-8');
-            const attachment = new Discord.AttachmentBuilder(transcriptBuffer, { name: `${channel.name}-transcript.txt` });
-
-            const logEmbed = new Discord.EmbedBuilder()
-                .setColor('#FFA500')
-                .setTitle(`🗃️ Channel Closed: ${channel.name}`)
-                .addFields(
-                    { name: 'Closed By', value: `${interaction.user.tag}`, inline: true },
-                    { name: 'Type', value: channel.name.startsWith('jail-') ? 'Jail Channel' : 'Report Channel', inline: true },
-                )
-                .setFooter({ text: 'Transcript attached below' })
-                .setTimestamp();
-
-            await logChannel.send({ embeds: [logEmbed], files: [attachment] });
+            const userId = channel.name.startsWith('jail-') ? jailedUserId(channel) : '';
+            const jailedUser = userId ? await client.users.fetch(userId).catch(() => null) : null;
+            if (jailedUser) {
+                await sendJailClosedLog(logChannel, {
+                    user: jailedUser,
+                    actor: interaction.user,
+                    outcome: 'banned',
+                    jailedAt: jailStartedAt(channel),
+                    closedAt: Date.now(),
+                    transcript,
+                    fileName: `${channel.name}-transcript.txt`,
+                });
+            } else {
+                const transcriptBuffer = Buffer.from(transcript, 'utf-8');
+                const attachment = new Discord.AttachmentBuilder(transcriptBuffer, { name: `${channel.name}-transcript.txt` });
+                const logEmbed = new Discord.EmbedBuilder()
+                    .setColor('#FFA500')
+                    .setTitle(`🗃️ Channel Closed: ${channel.name}`)
+                    .addFields(
+                        { name: 'Closed By', value: `${interaction.user.tag}`, inline: true },
+                        { name: 'Type', value: channel.name.startsWith('jail-') ? 'Jail Channel' : 'Report Channel', inline: true },
+                    )
+                    .setFooter({ text: 'Transcript attached below' })
+                    .setTimestamp();
+                await logChannel.send({ embeds: [logEmbed], files: [attachment] });
+            }
         }
 
         addAuditLog('Channel Closed', interaction.user, `Closed ${channel.name}`, 'info');
@@ -3869,6 +4115,792 @@ function startKeepAliveServer() {
     });
 }
 
+// Dashboard HTML function
+function generateDashboardHTML() {
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Commission Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-primary: #090a0c;
+            --bg-secondary: #121419;
+            --bg-tertiary: #1a1d23;
+            --bg-hover: #23272f;
+            --accent: #a9172f;
+            --accent-hover: #cc2440;
+            --success: #45a675;
+            --warning: #d39a42;
+            --danger: #c93646;
+            --text-primary: #f1eee7;
+            --text-secondary: #b8b2a7;
+            --text-muted: #79766f;
+            --border: #30343c;
+        }
+
+        body {
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+
+        .login-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+        .login-box { background: var(--bg-secondary); border-radius: 16px; padding: 40px; width: 100%; max-width: 420px; border: 1px solid var(--border); }
+        .login-box h1 { font-size: 28px; margin-bottom: 8px; font-weight: 700; }
+        .login-box p { color: var(--text-secondary); margin-bottom: 24px; }
+
+        .header { background: var(--bg-secondary); border-radius: 12px; padding: 20px 24px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--border); }
+        .header-left { display: flex; align-items: center; gap: 16px; }
+        .bot-status { display: flex; align-items: center; gap: 8px; background: var(--bg-tertiary); padding: 8px 16px; border-radius: 8px; }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--success); animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+        .tabs { display: flex; gap: 8px; margin-bottom: 24px; background: var(--bg-secondary); padding: 8px; border-radius: 12px; border: 1px solid var(--border); overflow-x: auto; }
+        .tab { padding: 12px 24px; background: transparent; border: none; color: var(--text-secondary); cursor: pointer; border-radius: 8px; font-weight: 500; transition: all 0.2s; white-space: nowrap; font-size: 14px; }
+        .tab:hover { background: var(--bg-hover); color: var(--text-primary); }
+        .tab.active { background: var(--accent); color: white; }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .card { background: var(--bg-secondary); border-radius: 12px; padding: 24px; margin-bottom: 20px; border: 1px solid var(--border); }
+        .card h2 { font-size: 18px; margin-bottom: 16px; font-weight: 600; }
+
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; color: var(--text-secondary); font-size: 14px; font-weight: 500; }
+
+        input[type="text"], input[type="password"], input[type="number"], textarea, select {
+            width: 100%; padding: 12px 16px; background: var(--bg-tertiary); border: 1px solid var(--border);
+            border-radius: 8px; color: var(--text-primary); font-family: inherit; font-size: 14px; transition: all 0.2s;
+        }
+        input:focus, textarea:focus, select:focus { outline: none; border-color: var(--accent); background: var(--bg-primary); }
+        textarea { resize: vertical; min-height: 120px; }
+
+        .btn { padding: 12px 24px; border: none; border-radius: 8px; font-weight: 500; cursor: pointer; transition: all 0.2s; font-size: 14px; font-family: inherit; }
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-primary:hover { background: var(--accent-hover); }
+        .btn-success { background: var(--success); color: white; }
+        .btn-warning { background: var(--warning); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-secondary { background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border); }
+        .btn-secondary:hover { background: var(--bg-hover); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .alert { padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; display: none; }
+        .alert.show { display: block; }
+        .alert-success { background: rgba(59, 165, 93, 0.1); border: 1px solid var(--success); color: var(--success); }
+        .alert-error { background: rgba(237, 66, 69, 0.1); border: 1px solid var(--danger); color: var(--danger); }
+
+        .audit-entry { background: var(--bg-tertiary); padding: 16px; border-radius: 8px; margin-bottom: 12px; border-left: 3px solid var(--accent); }
+        .audit-entry.warning { border-left-color: var(--warning); }
+        .audit-entry.error { border-left-color: var(--danger); }
+        .audit-entry.success { border-left-color: var(--success); }
+        .audit-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
+        .audit-time { color: var(--text-muted); font-size: 12px; }
+        .audit-action { font-weight: 600; font-size: 14px; }
+        .audit-user { color: var(--text-secondary); font-size: 13px; }
+        .audit-details { color: var(--text-secondary); font-size: 13px; margin-top: 4px; }
+
+        .user-card { background: var(--bg-tertiary); border-radius: 8px; padding: 16px; margin-bottom: 12px; display: flex; gap: 16px; align-items: flex-start; }
+        .user-avatar { width: 64px; height: 64px; border-radius: 50%; flex-shrink: 0; }
+        .user-info { flex: 1; }
+        .user-tag { font-weight: 600; font-size: 16px; margin-bottom: 4px; }
+        .user-id { color: var(--text-muted); font-size: 12px; margin-bottom: 8px; }
+        .user-meta { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
+        .user-meta-item { font-size: 13px; color: var(--text-secondary); }
+        .user-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+        .user-actions .btn { padding: 8px 16px; font-size: 13px; }
+
+        .quick-actions-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+        .quick-action-btn { background: var(--bg-tertiary); border: 1px solid var(--border); padding: 20px; border-radius: 8px; cursor: pointer; transition: all 0.2s; text-align: center; }
+        .quick-action-btn:hover { background: var(--bg-hover); border-color: var(--accent); }
+        .quick-action-icon { font-size: 32px; margin-bottom: 8px; }
+        .quick-action-label { font-weight: 500; font-size: 14px; }
+
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; margin-top: 20px; }
+        .stat-card { background: var(--bg-tertiary); padding: 20px; border-radius: 8px; text-align: center; }
+        .stat-value { font-size: 28px; font-weight: 700; color: var(--accent); }
+        .stat-label { color: var(--text-secondary); font-size: 13px; margin-top: 4px; }
+
+        .role-item { background: var(--bg-tertiary); padding: 16px; border-radius: 8px; margin-bottom: 12px; }
+        .role-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .role-name { font-weight: 600; display: flex; align-items: center; gap: 8px; }
+        .role-badge { width: 12px; height: 12px; border-radius: 50%; }
+        .role-members { color: var(--text-muted); font-size: 13px; }
+        .permissions-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; margin-top: 12px; }
+        .permission-item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary); }
+
+        .hidden { display: none !important; }
+        .text-success { color: var(--success); }
+        .text-warning { color: var(--warning); }
+        .text-danger { color: var(--danger); }
+        .mt-2 { margin-top: 8px; }
+        .mb-2 { margin-bottom: 8px; }
+
+        .loading { text-align: center; padding: 40px; color: var(--text-muted); }
+
+        @media (max-width: 768px) {
+            .container { padding: 12px; }
+            .header { flex-direction: column; gap: 12px; }
+            .tabs { overflow-x: scroll; }
+            .quick-actions-grid { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div id="loginScreen" class="login-screen">
+        <div class="login-box">
+            <h1>The Commission</h1>
+            <p>Enter password to access dashboard</p>
+            <div id="loginAlert" class="alert"></div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="loginPassword" placeholder="Enter dashboard password">
+            </div>
+            <button class="btn btn-primary" onclick="login()" style="width: 100%;">Login</button>
+        </div>
+    </div>
+
+    <div id="dashboard" class="hidden container">
+        <div class="header">
+            <div class="header-left">
+                <h1>The Commission Dashboard</h1>
+                <div class="bot-status">
+                    <div class="status-dot"></div>
+                    <span id="botStatus">Online</span>
+                </div>
+            </div>
+            <button class="btn btn-secondary" onclick="logout()">Logout</button>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('messages', this)">📨 Messages</button>
+            <button class="tab" onclick="showTab('users', this)">👥 Users</button>
+            <button class="tab" onclick="showTab('actions', this)">⚡ Quick Actions</button>
+            <button class="tab" onclick="showTab('audit', this)">📋 Audit Log</button>
+            <button class="tab" onclick="showTab('roles', this)">🔐 Roles</button>
+            <button class="tab" onclick="showTab('words', this)">🚫 Banned Words</button>
+            <button class="tab" onclick="showTab('activity', this)">📋 Join/Leave Audits</button>
+        </div>
+
+        <div id="tab-messages" class="tab-content active">
+            <div class="card">
+                <h2>Send Message to Main Chat</h2>
+                <div id="messageAlert" class="alert"></div>
+                <div class="form-group">
+                    <label>Message</label>
+                    <textarea id="messageText" placeholder="Type your message here..."></textarea>
+                </div>
+                <button class="btn btn-primary" onclick="sendMessage()">Send to Main Chat</button>
+            </div>
+        </div>
+
+        <div id="tab-users" class="tab-content">
+            <div class="card">
+                <h2>User Management</h2>
+                <div id="userAlert" class="alert"></div>
+                <div class="form-group">
+                    <label>Search Users</label>
+                    <input type="text" id="userSearch" placeholder="Enter username, tag, or ID...">
+                </div>
+                <button class="btn btn-primary" onclick="searchUsers()">Search</button>
+                <div id="userResults" class="mt-2"></div>
+            </div>
+        </div>
+
+        <div id="tab-actions" class="tab-content">
+            <div class="card">
+                <h2>Quick Actions</h2>
+                <div id="actionAlert" class="alert"></div>
+                <div class="quick-actions-grid">
+                    <div class="quick-action-btn" onclick="quickAction('set-online')">
+                        <div class="quick-action-icon">🟢</div>
+                        <div class="quick-action-label">Set Online</div>
+                    </div>
+                    <div class="quick-action-btn" onclick="quickAction('set-offline')">
+                        <div class="quick-action-icon">⚫</div>
+                        <div class="quick-action-label">Set Offline</div>
+                    </div>
+                    <div class="quick-action-btn" onclick="quickAction('clear-audit')">
+                        <div class="quick-action-icon">🗑️</div>
+                        <div class="quick-action-label">Clear Audit</div>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <h2>Server Statistics</h2>
+                <button class="btn btn-secondary mb-2" onclick="loadStats()">Refresh Stats</button>
+                <div id="statsContainer" class="stats-grid"></div>
+            </div>
+        </div>
+
+        <div id="tab-audit" class="tab-content">
+            <div class="card">
+                <h2>Audit Log</h2>
+                <button class="btn btn-secondary mb-2" onclick="loadAuditLog()">Refresh</button>
+                <div id="auditLog"></div>
+            </div>
+        </div>
+
+        <div id="tab-roles" class="tab-content">
+            <div class="card">
+                <h2>Server Roles & Permissions</h2>
+                <button class="btn btn-secondary mb-2" onclick="loadRoles()">Refresh</button>
+                <div id="rolesContainer"></div>
+            </div>
+        </div>
+
+        <div id="tab-words" class="tab-content">
+            <div class="card">
+                <h2>🚫 Banned Words (Auto-Jail)</h2>
+                <p style="color: var(--text-secondary); margin-bottom: 16px;">1st offense = 5 min jail | 2nd offense = 30 min jail | 3rd+ = permanent jail</p>
+                <div id="wordsAlert" class="alert"></div>
+                <div class="form-group" style="display: flex; gap: 8px;">
+                    <input type="text" id="newWord" placeholder="Add a new banned word or phrase..." style="flex: 1;">
+                    <button class="btn btn-danger" onclick="addBannedWord()">Add</button>
+                </div>
+                <button class="btn btn-secondary mb-2" onclick="loadBannedWords()">Refresh</button>
+                <div id="bannedWordsList" style="margin-top: 12px;"></div>
+            </div>
+            <div class="card">
+                <h2>Offense Tracker</h2>
+                <p style="color: var(--text-secondary); margin-bottom: 16px;">Users who have triggered banned words</p>
+                <div id="offensesList"></div>
+            </div>
+        </div>
+
+        <div id="tab-activity" class="tab-content">
+            <div class="card">
+                <h2>📋 Join/Leave Audits</h2>
+                <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 16px;">
+                    <label style="color: var(--text-secondary); font-size: 14px;">Select Date:</label>
+                    <select id="activityDate" onchange="loadActivity()" style="padding: 8px 12px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary); font-size: 14px;">
+                        <option value="">Today</option>
+                    </select>
+                    <button class="btn btn-secondary" onclick="loadActivity()" style="padding: 8px 16px;">Refresh</button>
+                    <span id="activityDateLabel" style="color: var(--text-muted); font-size: 13px;"></span>
+                </div>
+            </div>
+            <div class="card">
+                <h2>🎤 Voice Chat Join / Leave Log</h2>
+                <div id="voiceLogContainer" style="max-height: 500px; overflow-y: auto;"></div>
+            </div>
+            <div class="card">
+                <h2>📥 Server Join / Leave Log</h2>
+                <div id="memberLogContainer" style="max-height: 500px; overflow-y: auto;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let password = '';
+
+        function login() {
+            password = document.getElementById('loginPassword').value;
+            if (!password) {
+                showAlert('loginAlert', 'Please enter password', 'error');
+                return;
+            }
+            fetch('/api/audit-log?password=' + encodeURIComponent(password))
+                .then(r => r.json())
+                .then(data => {
+                    if (data.error) {
+                        showAlert('loginAlert', 'Invalid password', 'error');
+                    } else {
+                        document.getElementById('loginScreen').classList.add('hidden');
+                        document.getElementById('dashboard').classList.remove('hidden');
+                        document.getElementById('botStatus').textContent = data.botTag || 'Online';
+                        loadAuditLog();
+                    }
+                })
+                .catch(err => showAlert('loginAlert', 'Error: ' + err.message, 'error'));
+        }
+
+        function logout() {
+            password = '';
+            document.getElementById('loginScreen').classList.remove('hidden');
+            document.getElementById('dashboard').classList.add('hidden');
+            document.getElementById('loginPassword').value = '';
+        }
+
+        function showTab(tabName, el) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.getElementById('tab-' + tabName).classList.add('active');
+            el.classList.add('active');
+            if (tabName === 'audit') loadAuditLog();
+            if (tabName === 'roles') loadRoles();
+            if (tabName === 'actions') loadStats();
+            if (tabName === 'words') loadBannedWords();
+            if (tabName === 'activity') loadActivity();
+        }
+
+        function showAlert(id, message, type) {
+            const alert = document.getElementById(id);
+            alert.textContent = message;
+            alert.className = 'alert alert-' + type + ' show';
+            setTimeout(() => alert.classList.remove('show'), 5000);
+        }
+
+        async function sendMessage() {
+            const message = document.getElementById('messageText').value;
+            if (!message) return showAlert('messageAlert', 'Please enter a message', 'error');
+            try {
+                const res = await fetch('/api/send-message', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password, message })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showAlert('messageAlert', 'Message sent!', 'success');
+                    document.getElementById('messageText').value = '';
+                } else {
+                    showAlert('messageAlert', data.error || 'Error', 'error');
+                }
+            } catch (err) {
+                showAlert('messageAlert', 'Error: ' + err.message, 'error');
+            }
+        }
+
+        async function searchUsers() {
+            const query = document.getElementById('userSearch').value;
+            if (!query) return showAlert('userAlert', 'Enter search term', 'error');
+            try {
+                const res = await fetch('/api/users/search?password=' + encodeURIComponent(password) + '&query=' + encodeURIComponent(query));
+                const data = await res.json();
+                if (data.error) return showAlert('userAlert', data.error, 'error');
+                const container = document.getElementById('userResults');
+                if (data.users.length === 0) {
+                    container.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 20px;">No users found</p>';
+                    return;
+                }
+                container.innerHTML = data.users.map(user =>
+                    '<div class="user-card">' +
+                        '<img src="' + user.avatar + '" class="user-avatar" alt="Avatar">' +
+                        '<div class="user-info">' +
+                            '<div class="user-tag">' + user.tag + '</div>' +
+                            '<div class="user-id">ID: ' + user.id + '</div>' +
+                            '<div class="user-meta">' +
+                                '<span class="user-meta-item">Joined: ' + new Date(user.joinedAt).toLocaleDateString() + '</span>' +
+                                '<span class="user-meta-item">Account: ' + new Date(user.accountCreatedAt).toLocaleDateString() + '</span>' +
+                                '<span class="user-meta-item ' + (user.timedOut ? 'text-warning' : '') + '">' + (user.timedOut ? '⏱️ Timed Out' : '✅ Active') + '</span>' +
+                            '</div>' +
+                            '<div class="user-actions">' +
+                                '<button class="btn btn-warning" onclick="timeoutUser(\\'' + user.id + '\\', \\'' + user.tag + '\\')">Timeout</button>' +
+                                (user.timedOut ? '<button class="btn btn-success" onclick="untimeoutUser(\\'' + user.id + '\\', \\'' + user.tag + '\\')">Remove Timeout</button>' : '') +
+                                '<button class="btn btn-danger" onclick="kickUser(\\'' + user.id + '\\', \\'' + user.tag + '\\')">Kick</button>' +
+                                '<button class="btn btn-danger" onclick="banUser(\\'' + user.id + '\\', \\'' + user.tag + '\\')">Ban</button>' +
+                            '</div>' +
+                        '</div>' +
+                    '</div>'
+                ).join('');
+            } catch (err) {
+                showAlert('userAlert', 'Error: ' + err.message, 'error');
+            }
+        }
+
+        async function timeoutUser(userId, tag) {
+            const duration = prompt('Timeout duration in minutes:', '60');
+            if (!duration) return;
+            const reason = prompt('Reason (optional):', '');
+            try {
+                const res = await fetch('/api/users/action', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password, userId, action: 'timeout', duration, reason })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showAlert('userAlert', tag + ' timed out for ' + duration + ' minutes', 'success');
+                    searchUsers();
+                } else {
+                    showAlert('userAlert', data.error, 'error');
+                }
+            } catch (err) {
+                showAlert('userAlert', 'Error: ' + err.message, 'error');
+            }
+        }
+
+        async function untimeoutUser(userId, tag) {
+            try {
+                const res = await fetch('/api/users/action', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password, userId, action: 'untimeout' })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showAlert('userAlert', tag + ' timeout removed', 'success');
+                    searchUsers();
+                } else {
+                    showAlert('userAlert', data.error, 'error');
+                }
+            } catch (err) {
+                showAlert('userAlert', 'Error: ' + err.message, 'error');
+            }
+        }
+
+        async function kickUser(userId, tag) {
+            if (!confirm('Kick ' + tag + '?')) return;
+            const reason = prompt('Reason (optional):', '');
+            try {
+                const res = await fetch('/api/users/action', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password, userId, action: 'kick', reason })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showAlert('userAlert', tag + ' kicked', 'success');
+                    searchUsers();
+                } else {
+                    showAlert('userAlert', data.error, 'error');
+                }
+            } catch (err) {
+                showAlert('userAlert', 'Error: ' + err.message, 'error');
+            }
+        }
+
+        async function banUser(userId, tag) {
+            if (!confirm('Ban ' + tag + '? This is permanent.')) return;
+            const reason = prompt('Reason (optional):', '');
+            try {
+                const res = await fetch('/api/users/action', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password, userId, action: 'ban', reason })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showAlert('userAlert', tag + ' banned', 'success');
+                    searchUsers();
+                } else {
+                    showAlert('userAlert', data.error, 'error');
+                }
+            } catch (err) {
+                showAlert('userAlert', 'Error: ' + err.message, 'error');
+            }
+        }
+
+        async function quickAction(action) {
+            try {
+                const res = await fetch('/api/quick-action', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password, action })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showAlert('actionAlert', data.message || 'Action completed', 'success');
+                    if (action === 'get-stats') displayStats(data.stats);
+                } else {
+                    showAlert('actionAlert', data.error, 'error');
+                }
+            } catch (err) {
+                showAlert('actionAlert', 'Error: ' + err.message, 'error');
+            }
+        }
+
+        async function loadStats() {
+            try {
+                const res = await fetch('/api/quick-action', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password, action: 'get-stats' })
+                });
+                const data = await res.json();
+                if (data.success && data.stats) displayStats(data.stats);
+            } catch (err) {
+                console.error('Error loading stats:', err);
+            }
+        }
+
+        function displayStats(stats) {
+            const container = document.getElementById('statsContainer');
+            const uptimeHours = Math.floor(stats.botUptime / 3600);
+            const uptimeMins = Math.floor((stats.botUptime % 3600) / 60);
+            container.innerHTML =
+                '<div class="stat-card"><div class="stat-value">' + stats.totalMembers + '</div><div class="stat-label">Total Members</div></div>' +
+                '<div class="stat-card"><div class="stat-value">' + stats.onlineMembers + '</div><div class="stat-label">Online Now</div></div>' +
+                '<div class="stat-card"><div class="stat-value">' + stats.roles + '</div><div class="stat-label">Roles</div></div>' +
+                '<div class="stat-card"><div class="stat-value">' + stats.channels + '</div><div class="stat-label">Channels</div></div>' +
+                '<div class="stat-card"><div class="stat-value">' + stats.auditEntries + '</div><div class="stat-label">Audit Entries</div></div>' +
+                '<div class="stat-card"><div class="stat-value">' + uptimeHours + 'h ' + uptimeMins + 'm</div><div class="stat-label">Bot Uptime</div></div>' +
+                '<div class="stat-card"><div class="stat-value">' + (stats.triviaEnabled ? '✅ ON' : '❌ OFF') + '</div><div class="stat-label">Trivia System</div></div>';
+        }
+
+        async function loadAuditLog() {
+            try {
+                const res = await fetch('/api/audit-log?password=' + encodeURIComponent(password));
+                const data = await res.json();
+                if (data.error) return;
+                const container = document.getElementById('auditLog');
+                if (data.logs.length === 0) {
+                    container.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 20px;">No audit entries</p>';
+                    return;
+                }
+                container.innerHTML = data.logs.map(function(log) {
+                    const time = new Date(log.timestamp).toLocaleString();
+                    const severity = log.severity || 'info';
+                    return '<div class="audit-entry ' + severity + '">' +
+                        '<div class="audit-header">' +
+                            '<span class="audit-action">' + log.action + '</span>' +
+                            '<span class="audit-time">' + time + '</span>' +
+                        '</div>' +
+                        '<div class="audit-user">By: ' + log.user + '</div>' +
+                        '<div class="audit-details">' + log.details + '</div>' +
+                    '</div>';
+                }).join('');
+            } catch (err) {
+                console.error('Error loading audit log:', err);
+            }
+        }
+
+        async function loadRoles() {
+            try {
+                const res = await fetch('/api/roles?password=' + encodeURIComponent(password));
+                const data = await res.json();
+                if (data.error) {
+                    document.getElementById('rolesContainer').innerHTML = '<p style="color: var(--text-danger);">' + data.error + '</p>';
+                    return;
+                }
+                const container = document.getElementById('rolesContainer');
+                if (!data.roles || data.roles.length === 0) {
+                    container.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 20px;">No roles found</p>';
+                    return;
+                }
+                container.innerHTML = data.roles.map(function(role) {
+                    return '<div class="role-item">' +
+                        '<div class="role-header">' +
+                            '<div class="role-name">' +
+                                '<span class="role-badge" style="background-color: ' + role.color + '"></span>' +
+                                role.name +
+                            '</div>' +
+                            '<div class="role-members">' + role.members + ' members</div>' +
+                        '</div>' +
+                        '<div class="permissions-grid">' +
+                            Object.entries(role.permissions).map(function(entry) {
+                                return '<div class="permission-item">' +
+                                    '<span>' + (entry[1] ? '✅' : '❌') + '</span>' +
+                                    '<span>' + formatPermissionName(entry[0]) + '</span>' +
+                                '</div>';
+                            }).join('') +
+                        '</div>' +
+                    '</div>';
+                }).join('');
+            } catch (err) {
+                console.error('Error loading roles:', err);
+            }
+        }
+
+        function formatPermissionName(key) {
+            return key.replace(/([A-Z])/g, ' $1').trim().split(' ').map(function(word) { return word.charAt(0).toUpperCase() + word.slice(1); }).join(' ');
+        }
+
+        // Banned Words functions
+        async function loadBannedWords() {
+            try {
+                const res = await fetch('/api/banned-words?password=' + encodeURIComponent(password));
+                const data = await res.json();
+                if (data.error) return;
+
+                var container = document.getElementById('bannedWordsList');
+                if (data.words.length === 0) {
+                    container.innerHTML = '<p style="color: var(--text-muted);">No banned words configured</p>';
+                } else {
+                    container.innerHTML = data.words.map(function(word) {
+                        return '<div style="display: inline-flex; align-items: center; gap: 8px; background: var(--bg-tertiary); padding: 8px 12px; border-radius: 6px; margin: 4px; border: 1px solid var(--border);">' +
+                            '<span>' + word + '</span>' +
+                            '<button onclick="removeBannedWord(\\'' + word.replace(/'/g, "\\\\'") + '\\')" style="background: var(--danger); color: white; border: none; border-radius: 4px; padding: 2px 8px; cursor: pointer; font-size: 12px;">X</button>' +
+                        '</div>';
+                    }).join('');
+                }
+
+                var offContainer = document.getElementById('offensesList');
+                var offEntries = Object.entries(data.offenses || {});
+                if (offEntries.length === 0) {
+                    offContainer.innerHTML = '<p style="color: var(--text-muted);">No offenses recorded</p>';
+                } else {
+                    offContainer.innerHTML = offEntries.map(function(entry) {
+                        var uid = entry[0];
+                        var count = entry[1];
+                        var label = count === 1 ? '5 min jail' : count === 2 ? '30 min jail' : 'Permanent jail';
+                        return '<div style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-tertiary); padding: 12px; border-radius: 8px; margin-bottom: 8px; border-left: 3px solid var(--warning);">' +
+                            '<div><span style="font-weight: 600;">User ID: ' + uid + '</span><br><span style="color: var(--text-secondary); font-size: 13px;">Offenses: ' + count + ' (' + label + ')</span></div>' +
+                            '<button onclick="resetOffenses(\\'' + uid + '\\')" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">Reset</button>' +
+                        '</div>';
+                    }).join('');
+                }
+            } catch (err) {
+                console.error('Error loading banned words:', err);
+            }
+        }
+
+        async function addBannedWord() {
+            var word = document.getElementById('newWord').value.trim();
+            if (!word) return showAlert('wordsAlert', 'Enter a word or phrase', 'error');
+            try {
+                var res = await fetch('/api/banned-words', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password: password, action: 'add', word: word })
+                });
+                var data = await res.json();
+                if (data.success) {
+                    showAlert('wordsAlert', 'Added: ' + word, 'success');
+                    document.getElementById('newWord').value = '';
+                    loadBannedWords();
+                } else {
+                    showAlert('wordsAlert', data.error, 'error');
+                }
+            } catch (err) {
+                showAlert('wordsAlert', 'Error: ' + err.message, 'error');
+            }
+        }
+
+        async function removeBannedWord(word) {
+            try {
+                var res = await fetch('/api/banned-words', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password: password, action: 'remove', word: word })
+                });
+                var data = await res.json();
+                if (data.success) {
+                    showAlert('wordsAlert', 'Removed: ' + word, 'success');
+                    loadBannedWords();
+                }
+            } catch (err) {
+                showAlert('wordsAlert', 'Error: ' + err.message, 'error');
+            }
+        }
+
+        async function resetOffenses(userId) {
+            try {
+                var res = await fetch('/api/banned-words', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password: password, action: 'reset-offenses', userId: userId })
+                });
+                var data = await res.json();
+                if (data.success) {
+                    showAlert('wordsAlert', 'Offenses reset for ' + userId, 'success');
+                    loadBannedWords();
+                }
+            } catch (err) {
+                showAlert('wordsAlert', 'Error: ' + err.message, 'error');
+            }
+        }
+
+        // Activity tab functions
+        async function loadActivity() {
+            try {
+                var dateSelect = document.getElementById('activityDate');
+                var selectedDate = dateSelect.value;
+                var url = '/api/voice-log?password=' + encodeURIComponent(password);
+                if (selectedDate) url += '&date=' + selectedDate;
+
+                var res = await fetch(url);
+                var data = await res.json();
+                if (data.error) return;
+
+                // Update date dropdown
+                var currentVal = dateSelect.value;
+                dateSelect.innerHTML = '';
+
+                // Add today option
+                var todayKey = new Date().toISOString().split('T')[0];
+                var todayOpt = document.createElement('option');
+                todayOpt.value = '';
+                todayOpt.textContent = 'Today (' + todayKey + ')';
+                dateSelect.appendChild(todayOpt);
+
+                // Add available dates
+                if (data.dates) {
+                    data.dates.forEach(function(d) {
+                        if (d !== todayKey) {
+                            var opt = document.createElement('option');
+                            opt.value = d;
+                            var dateObj = new Date(d + 'T12:00:00');
+                            opt.textContent = dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+                            dateSelect.appendChild(opt);
+                        }
+                    });
+                }
+
+                dateSelect.value = currentVal;
+
+                // Show selected date
+                document.getElementById('activityDateLabel').textContent = 'Showing: ' + (data.selectedDate || todayKey) + ' (' + (data.voiceLog.length) + ' voice / ' + (data.memberLog.length) + ' member entries)';
+
+                // Voice log
+                var vContainer = document.getElementById('voiceLogContainer');
+                if (!data.voiceLog || data.voiceLog.length === 0) {
+                    vContainer.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 20px;">No voice activity for this date</p>';
+                } else {
+                    vContainer.innerHTML = data.voiceLog.map(function(entry) {
+                        var color, icon, actionText;
+                        if (entry.action === 'joined') {
+                            color = 'var(--success)'; icon = '🟢'; actionText = 'joined';
+                        } else if (entry.action === 'switched') {
+                            color = 'var(--warning)'; icon = '🔄'; actionText = 'switched from';
+                        } else {
+                            color = 'var(--danger)'; icon = '🔴'; actionText = 'left';
+                        }
+                        var durText = entry.duration ? ' — <strong>' + entry.duration + '</strong>' : '';
+                        var toText = entry.toChannel ? ' → <strong>#' + entry.toChannel + '</strong>' : '';
+                        return '<div style="background: var(--bg-tertiary); padding: 10px 14px; border-radius: 6px; margin-bottom: 4px; border-left: 3px solid ' + color + '; font-size: 13px;">' +
+                            '<span style="color: var(--text-muted); font-size: 11px; float: right;">' + entry.timeStr + '</span>' +
+                            icon + ' <strong>' + entry.username + '</strong> ' +
+                            '<span style="color: ' + color + ';">' + actionText + '</span> ' +
+                            '<strong>#' + entry.channelName + '</strong>' + toText + durText +
+                        '</div>';
+                    }).join('');
+                }
+
+                // Member log
+                var mContainer = document.getElementById('memberLogContainer');
+                if (!data.memberLog || data.memberLog.length === 0) {
+                    mContainer.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 20px;">No member activity for this date</p>';
+                } else {
+                    mContainer.innerHTML = data.memberLog.map(function(entry) {
+                        var color = entry.action === 'joined' ? 'var(--success)' : 'var(--danger)';
+                        var icon = entry.action === 'joined' ? '📥' : '📤';
+                        var actionText = entry.action === 'joined' ? 'joined the server' : 'left the server';
+                        return '<div style="background: var(--bg-tertiary); padding: 10px 14px; border-radius: 6px; margin-bottom: 4px; border-left: 3px solid ' + color + '; font-size: 13px;">' +
+                            '<span style="color: var(--text-muted); font-size: 11px; float: right;">' + entry.timeStr + '</span>' +
+                            icon + ' <strong>' + entry.username + '</strong> ' +
+                            '<span style="color: ' + color + ';">' + actionText + '</span> at ' + entry.timeStr +
+                        '</div>';
+                    }).join('');
+                }
+            } catch (err) {
+                console.error('Error loading activity:', err);
+            }
+        }
+
+        setInterval(function() {
+            if (document.getElementById('tab-audit').classList.contains('active')) loadAuditLog();
+            if (document.getElementById('tab-activity').classList.contains('active')) loadActivity();
+        }, 10000);
+
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('loginPassword').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') login();
+            });
+        });
+    </script>
+</body>
+</html>`;
+}
 
 function sendBlueprintMessage(message) {
     if (typeof process.send === 'function') process.send(message);
@@ -3876,6 +4908,17 @@ function sendBlueprintMessage(message) {
 
 process.on('message', async message => {
     if (!message) return;
+    if (message.channel === 'commission:memberbridge-request') {
+        const { id, action, payload = {} } = message;
+        try {
+            if (!client.isReady()) throw new Error('Start the bot and wait for Discord to connect first.');
+            const data = await memberBridgeIntegration.admin(action, payload);
+            if (typeof process.send === 'function') process.send({ channel: 'commission:memberbridge-response', id, ok: true, data });
+        } catch (error) {
+            if (typeof process.send === 'function') process.send({ channel: 'commission:memberbridge-response', id, ok: false, error: error.message });
+        }
+        return;
+    }
     if (message.channel === 'commission:economy-request') {
         const { id, action, payload = {} } = message;
         try {
@@ -3958,7 +5001,8 @@ let shuttingDown = false;
 async function gracefulShutdown(signal) {
     if (shuttingDown) return;
     shuttingDown = true;
-    console.log(`[system] ${signal} received; closing the economy and Discord cleanly.`);
+    console.log(`[system] ${signal} received; closing MemberBridge and Discord cleanly.`);
+    try { await memberBridgeIntegration.stop(); } catch (error) { console.error('[MemberBridge shutdown]', error.message); }
     try { economy.close?.(); } catch (error) { console.error('[Economy shutdown]', error.message); }
     try { client.destroy(); } catch {}
     process.exit(0);
