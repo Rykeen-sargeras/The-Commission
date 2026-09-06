@@ -2020,6 +2020,7 @@ async function handleJailCommand(interaction) {
     }
 
     await interaction.deferReply({ ephemeral: true });
+    await interaction.editReply({ content: '🔒 Starting the jail workflow…' });
 
     const targetUser = interaction.options.getUser('user');
     const reason = interaction.options.getString('reason') || 'No reason provided';
@@ -2058,27 +2059,37 @@ async function handleJailCommand(interaction) {
     }
 
     // Deny view on text & voice categories
-    let categoriesUpdated = 0;
-    for (const categoryId of JAIL_CATEGORY_IDS) {
-        try {
-            const category = await guild.channels.fetch(categoryId);
-            if (!category) continue;
+    const categoryResults = await Promise.allSettled(JAIL_CATEGORY_IDS.map(async categoryId => {
+        const category = await guild.channels.fetch(categoryId);
+        if (!category) return false;
 
-            await category.permissionOverwrites.edit(targetUser.id, {
+        await category.permissionOverwrites.edit(targetUser.id, {
+            ViewChannel: false, SendMessages: false, Connect: false,
+        });
+
+        // Synchronized children inherit the category edit automatically. Only
+        // touch unsynchronized channels, and update those concurrently.
+        const unsyncedChildren = [...guild.channels.cache
+            .filter(ch => ch.parentId === categoryId && ch.permissionsLocked !== true)
+            .values()];
+        const childResults = await Promise.allSettled(unsyncedChildren.map(child => (
+            child.permissionOverwrites.edit(targetUser.id, {
                 ViewChannel: false, SendMessages: false, Connect: false,
-            });
-
-            const children = guild.channels.cache.filter(ch => ch.parentId === categoryId);
-            for (const [, child] of children) {
-                await child.permissionOverwrites.edit(targetUser.id, {
-                    ViewChannel: false, SendMessages: false, Connect: false,
-                });
+            })
+        )));
+        childResults.forEach((result, index) => {
+            if (result.status === 'rejected') {
+                console.error(`❌ Error jailing from #${unsyncedChildren[index].name}:`, result.reason);
             }
-            categoriesUpdated++;
-        } catch (error) {
-            console.error(`❌ Error jailing from category ${categoryId}:`, error);
+        });
+        return true;
+    }));
+    const categoriesUpdated = categoryResults.filter(result => result.status === 'fulfilled' && result.value).length;
+    categoryResults.forEach((result, index) => {
+        if (result.status === 'rejected') {
+            console.error(`❌ Error jailing from category ${JAIL_CATEGORY_IDS[index]}:`, result.reason);
         }
-    }
+    });
 
     // Create jail channel under jail category
     const ticketNumber = Math.floor(Math.random() * 9999);
