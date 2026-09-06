@@ -1987,10 +1987,22 @@ async function sendJailStartedLog(guild, user, actor, reason, duration, jailChan
 
 async function sendJailClosedLog(logChannel, details) {
     if (!logChannel?.isTextBased()) return null;
+    const oldReportsChannel = OLD_REPORTS_CHANNEL_ID
+        ? await client.channels.fetch(OLD_REPORTS_CHANNEL_ID).catch(() => null)
+        : null;
+    if (!oldReportsChannel?.isTextBased()) {
+        throw new Error(`Old-reports channel ${OLD_REPORTS_CHANNEL_ID || '(not configured)'} is missing or is not a text channel.`);
+    }
+
     const attachment = new Discord.AttachmentBuilder(Buffer.from(details.transcript, 'utf8'), {
         name: details.fileName,
     });
     const outcomeLabel = details.outcome === 'banned' ? 'User banned at' : 'User unjailed at';
+    const transcriptMessage = await oldReportsChannel.send({
+        content: `Jail transcript for <@${details.user.id}> — ${outcomeLabel.toLowerCase()} ${discordDate(details.closedAt)}`,
+        files: [attachment],
+        allowedMentions: { users: [] },
+    });
     const embed = new Discord.EmbedBuilder()
         .setColor(details.outcome === 'banned' ? '#FF4500' : '#00AA55')
         .setTitle(`${details.outcome === 'banned' ? '⛔ Banned' : '🔓 Unjailed'}: ${details.user.tag}`)
@@ -1999,14 +2011,11 @@ async function sendJailClosedLog(logChannel, details) {
             { name: details.outcome === 'banned' ? 'Closed By' : 'Unjailed By', value: details.actor ? `<@${details.actor.id}> (${details.actor.tag})` : 'Automated system', inline: true },
             { name: 'User jailed at', value: discordDate(details.jailedAt), inline: false },
             { name: outcomeLabel, value: discordDate(details.closedAt), inline: false },
+            { name: 'Transcript', value: `[Open transcript in #old-reports](${transcriptMessage.url})`, inline: false },
         )
-        .setFooter({ text: 'Jail transcript attached' })
+        .setFooter({ text: 'Jail transcript archived in #old-reports' })
         .setTimestamp(details.closedAt);
-    const sent = await logChannel.send({ embeds: [embed], files: [attachment] });
-    const transcriptUrl = sent.attachments.first()?.url || sent.url;
-    embed.addFields({ name: 'Transcript', value: `[Open transcript](${transcriptUrl})`, inline: false });
-    await sent.edit({ embeds: [embed] }).catch(() => null);
-    return sent;
+    return logChannel.send({ embeds: [embed] });
 }
 
 async function handleJailCommand(interaction) {
