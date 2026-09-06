@@ -2350,6 +2350,7 @@ async function handleUnjailCommandV2(interaction) {
     }
 
     await interaction.deferReply({ ephemeral: true });
+    await interaction.editReply({ content: '🔓 Starting the unjail workflow…' });
     const targetUser = interaction.options.getUser('user', true);
     const guild = interaction.guild;
     const failures = [];
@@ -2372,24 +2373,30 @@ async function handleUnjailCommandV2(interaction) {
         }
     }
 
-    await guild.channels.fetch().catch(() => {});
+    await guild.channels.fetch().catch(error => {
+        failures.push(`channel lookup: ${error.message}`);
+    });
+    const overwriteTargets = [];
     for (const categoryId of JAIL_CATEGORY_IDS) {
         const category = guild.channels.cache.get(categoryId);
         if (!category) {
             failures.push(`missing category ${categoryId}`);
             continue;
         }
-        const scopedChannels = [category, ...guild.channels.cache.filter(channel => channel.parentId === categoryId).values()];
-        for (const channel of scopedChannels) {
-            if (!channel.permissionOverwrites?.cache.has(targetUser.id)) continue;
-            try {
-                await channel.permissionOverwrites.delete(targetUser.id, `Unjailed by ${interaction.user.tag}`);
-                restoredOverwrites += 1;
-            } catch (error) {
-                failures.push(`#${channel.name}: ${error.message}`);
-            }
-        }
+        overwriteTargets.push(category);
+        overwriteTargets.push(...guild.channels.cache
+            .filter(channel => channel.parentId === categoryId && channel.permissionsLocked !== true)
+            .values());
     }
+    const uniqueOverwriteTargets = [...new Map(overwriteTargets.map(channel => [channel.id, channel])).values()]
+        .filter(channel => channel.permissionOverwrites?.cache.has(targetUser.id));
+    const overwriteResults = await Promise.allSettled(uniqueOverwriteTargets.map(channel => (
+        channel.permissionOverwrites.delete(targetUser.id, `Unjailed by ${interaction.user.tag}`)
+    )));
+    overwriteResults.forEach((result, index) => {
+        if (result.status === 'fulfilled') restoredOverwrites += 1;
+        else failures.push(`#${uniqueOverwriteTargets[index].name}: ${result.reason?.message || result.reason}`);
+    });
 
     const trackedId = jailChannels.get(targetUser.id);
     const jailChannelCandidates = guild.channels.cache.filter(channel =>
