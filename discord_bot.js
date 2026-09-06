@@ -1962,6 +1962,15 @@ function discordDate(timestamp) {
     return `<t:${Math.floor(Number(timestamp || Date.now()) / 1000)}:F>`;
 }
 
+function easternTime(timestamp) {
+    return new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/New_York',
+        hour: 'numeric',
+        minute: '2-digit',
+        timeZoneName: 'short',
+    }).format(new Date(timestamp || Date.now()));
+}
+
 async function sendJailStartedLog(guild, user, actor, reason, duration, jailChannel, jailedAt = Date.now()) {
     const logChannel = await guild.channels.fetch(JAIL_LOG_CHANNEL_ID).catch(error => {
         throw new Error(`Could not fetch jail audit channel ${JAIL_LOG_CHANNEL_ID}: ${error.message}`);
@@ -2003,19 +2012,11 @@ async function sendJailClosedLog(logChannel, details) {
         files: [attachment],
         allowedMentions: { users: [] },
     });
-    const embed = new Discord.EmbedBuilder()
-        .setColor(details.outcome === 'banned' ? '#FF4500' : '#00AA55')
-        .setTitle(`${details.outcome === 'banned' ? '⛔ Banned' : '🔓 Unjailed'}: ${details.user.tag}`)
-        .addFields(
-            { name: 'User', value: `<@${details.user.id}> (${details.user.id})`, inline: true },
-            { name: details.outcome === 'banned' ? 'Closed By' : 'Unjailed By', value: details.actor ? `<@${details.actor.id}> (${details.actor.tag})` : 'Automated system', inline: true },
-            { name: 'User jailed at', value: discordDate(details.jailedAt), inline: false },
-            { name: outcomeLabel, value: discordDate(details.closedAt), inline: false },
-            { name: 'Transcript', value: `[Open transcript in #old-reports](${transcriptMessage.url})`, inline: false },
-        )
-        .setFooter({ text: 'Jail transcript archived in #old-reports' })
-        .setTimestamp(details.closedAt);
-    return logChannel.send({ embeds: [embed] });
+    const outcomeVerb = details.outcome === 'banned' ? 'banned' : 'unjailed';
+    return logChannel.send({
+        content: `<@${details.user.id}> was ${outcomeVerb} at ${easternTime(details.closedAt)}\nTranscript: ${transcriptMessage.url}`,
+        allowedMentions: { users: [] },
+    });
 }
 
 async function handleJailCommand(interaction) {
