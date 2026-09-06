@@ -11,6 +11,7 @@ const { MemberBridgeIntegration, memberBridgeCommandData = () => [] } = require(
 const goingLive = require('./going_live');
 const { installLiveVoicePairs } = require('./live_voice_pairs');
 const { installManualJailRoleWorkflow } = require('./manual_jail_role');
+const { parseDurationMs, PersistentJailScheduler } = require('./jail_scheduler');
 
 // Music dependencies
 // play-dl is used for YouTube searching/metadata.
@@ -703,6 +704,10 @@ client.on('ready', async () => {
     // Railway exposes one HTTP port. MemberBridge owns it there; the legacy
     // moderation dashboard remains available only inside the Windows app.
     if (!RAILWAY_MODE) startKeepAliveServer();
+    if (!timedJailsRestored) {
+        timedJailsRestored = true;
+        await restoreTimedJailsAfterStartup();
+    }
     await memberBridgeIntegration.start();
 });
 
@@ -1470,6 +1475,7 @@ async function handleBannedWord(message, triggeredWord) {
         const ticketNumber = Math.floor(Math.random() * 9999);
         const channelName = `jail-${message.author.username.substring(0, 15)}-${ticketNumber}`;
         const jailedAt = Date.now();
+        let createdJailChannelId = '';
 
         try {
             const jailChannel = await guild.channels.create({
@@ -1485,6 +1491,7 @@ async function handleBannedWord(message, triggeredWord) {
             });
 
             jailChannels.set(userId, jailChannel.id);
+            createdJailChannelId = jailChannel.id;
 
             const embed = new Discord.EmbedBuilder()
                 .setColor('#FF0000')
@@ -1510,67 +1517,19 @@ async function handleBannedWord(message, triggeredWord) {
             console.error('❌ Error creating auto-jail channel:', err);
         }
 
-        // If timed jail, schedule unjail
+        // Persist the deadline even if channel creation failed. The scheduler can
+        // still restore the role and channel permissions after a Railway restart.
         if (jailDuration) {
-            setTimeout(async () => {
-                try {
-                    for (const categoryId of JAIL_CATEGORY_IDS) {
-                        const category = await guild.channels.fetch(categoryId);
-                        if (!category) continue;
-
-                        await category.permissionOverwrites.delete(userId).catch(() => {});
-
-                        const children = guild.channels.cache.filter(ch => ch.parentId === categoryId);
-                        for (const [, child] of children) {
-                            await child.permissionOverwrites.delete(userId).catch(() => {});
-                        }
-                    }
-                    // Remove jail role
-                    try {
-                        const member = await guild.members.fetch(userId);
-                        await member.roles.remove(JAIL_ROLE_ID);
-                        console.log(`✅ Jail role removed from ${message.author.tag} (auto-unjail)`);
-                    } catch (roleErr) {
-                        console.error('❌ Error removing jail role on auto-unjail:', roleErr);
-                    }
-
-                    // Archive jail channel
-                    const jailChanId = jailChannels.get(userId);
-                    if (jailChanId) {
-                        try {
-                            const jailChan = await guild.channels.fetch(jailChanId);
-                            if (jailChan) {
-                                const msgs = await jailChan.messages.fetch({ limit: 100 });
-                                const transcript = msgs.reverse().map(m => `[${m.createdAt.toISOString()}] ${m.author.tag}: ${m.content}`).join('\n');
-
-                                const logChannel = await client.channels.fetch(JAIL_LOG_CHANNEL_ID);
-                                if (logChannel) {
-                                    await sendJailClosedLog(logChannel, {
-                                        user: message.author,
-                                        actor: null,
-                                        outcome: 'unjailed',
-                                        jailedAt: jailStartedAt(jailChan),
-                                        closedAt: Date.now(),
-                                        transcript,
-                                        fileName: `${jailChan.name}-transcript.txt`,
-                                    });
-                                }
-
-                                await jailChan.send('🔓 Auto-unjail complete. This channel will be deleted in 5 seconds...');
-                                setTimeout(() => jailChan.delete().catch(() => {}), 5000);
-                            }
-                        } catch (e) {
-                            console.error('❌ Error archiving auto-jail channel:', e);
-                        }
-                        jailChannels.delete(userId);
-                    }
-
-                    console.log(`✅ Auto-unjailed ${message.author.tag} after ${jailLabel}`);
-                    addAuditLog('Auto-Unjailed', { tag: message.author.tag, id: userId }, `Auto-unjailed after ${jailLabel}`, 'success');
-                } catch (err) {
-                    console.error('❌ Error auto-unjailing:', err);
-                }
-            }, jailDuration);
+            timedJailScheduler.schedule({
+                guildId: guild.id,
+                userId,
+                channelId: createdJailChannelId,
+                jailedAt,
+                releaseAt: jailedAt + jailDuration,
+                durationLabel: jailLabel,
+                reason: `Banned word: ${triggeredWord}`,
+                source: 'banned-word',
+            });
         }
 
         addAuditLog('Banned Word Jail', { tag: message.author.tag, id: userId }, `Word: "${triggeredWord}" | Offense #${currentOffenses} | Duration: ${jailLabel}`, 'warning');
@@ -1958,6 +1917,63 @@ const JAIL_LOG_CHANNEL_ID = CONFIG.JAIL_LOG_CHANNEL_ID;
 
 // Track jail channels: userId -> channelId
 const jailChannels = new Map();
+const ACTIVE_JAILS_FILE = path.join(DATA_DIR, 'active-jails.json');
+const timedJailScheduler = new PersistentJailScheduler({
+    filePath: ACTIVE_JAILS_FILE,
+    onRelease: releasePersistedTimedJail,
+});
+let timedJailsRestored = false;
+
+async function restoreTimedJailsAfterStartup() {
+    const persistedCount = timedJailScheduler.restore();
+    let recoveredChannelCount = 0;
+
+    for (const guild of client.guilds.cache.values()) {
+        await guild.channels.fetch().catch(error => {
+            console.error(`[Jail scheduler] Could not inspect channels in ${guild.name}:`, error);
+        });
+        const activeChannels = guild.channels.cache.filter(channel => (
+            channel.parentId === JAIL_CATEGORY_ID
+            && channel.isTextBased()
+            && jailedUserId(channel)
+        ));
+
+        for (const jailChannel of activeChannels.values()) {
+            const userId = jailedUserId(jailChannel);
+            jailChannels.set(userId, jailChannel.id);
+            if (timedJailScheduler.has(guild.id, userId)) continue;
+
+            try {
+                const messages = await jailChannel.messages.fetch({ limit: 100 });
+                const durationField = [...messages.values()]
+                    .flatMap(message => message.embeds || [])
+                    .flatMap(embed => embed.fields || [])
+                    .find(field => ['duration', 'jail duration'].includes(String(field.name || '').trim().toLowerCase()));
+                const durationMs = parseDurationMs(durationField?.value);
+                if (!durationMs) continue;
+
+                const jailedAt = jailStartedAt(jailChannel);
+                timedJailScheduler.schedule({
+                    guildId: guild.id,
+                    userId,
+                    channelId: jailChannel.id,
+                    jailedAt,
+                    releaseAt: jailedAt + durationMs,
+                    durationLabel: durationField.value,
+                    reason: 'Recovered from existing jail channel after scheduler upgrade',
+                    source: 'legacy-channel-recovery',
+                });
+                recoveredChannelCount += 1;
+            } catch (error) {
+                console.error(`[Jail scheduler] Could not recover #${jailChannel.name}:`, error);
+            }
+        }
+    }
+
+    console.log(
+        `[Jail scheduler] Restored ${persistedCount} saved timed jail(s) and recovered ${recoveredChannelCount} existing jail channel(s).`,
+    );
+}
 
 function jailChannelTopic(userId, jailedAt = Date.now()) {
     return `commission-jail-user:${userId};jailed-at:${jailedAt}`;
@@ -2021,6 +2037,95 @@ async function sendJailClosedLog(logChannel, details) {
         content: `<@${details.user.id}> was ${outcomeVerb} at ${easternTime(details.closedAt)}. Transcript here: ${transcriptMessage.url}`,
         allowedMentions: { users: [] },
     });
+}
+
+async function releasePersistedTimedJail(record) {
+    const guild = client.guilds.cache.get(record.guildId)
+        || await client.guilds.fetch(record.guildId).catch(() => null);
+    if (!guild) throw new Error(`Guild ${record.guildId} is unavailable.`);
+
+    await guild.channels.fetch();
+    const targetUser = await client.users.fetch(record.userId);
+    const targetMember = await guild.members.fetch(record.userId).catch(() => null);
+
+    if (targetMember && JAIL_ROLE_ID && targetMember.roles.cache.has(JAIL_ROLE_ID)) {
+        await targetMember.roles.remove(JAIL_ROLE_ID, 'Timed jail expired');
+    }
+
+    const overwriteTargets = [];
+    for (const categoryId of JAIL_CATEGORY_IDS) {
+        const category = guild.channels.cache.get(categoryId);
+        if (!category) continue;
+        overwriteTargets.push(category);
+        overwriteTargets.push(...guild.channels.cache
+            .filter(channel => channel.parentId === categoryId && channel.permissionsLocked !== true)
+            .values());
+    }
+    const uniqueTargets = [...new Map(overwriteTargets.map(channel => [channel.id, channel])).values()]
+        .filter(channel => channel.permissionOverwrites?.cache.has(record.userId));
+    const results = await Promise.allSettled(uniqueTargets.map(channel => (
+        channel.permissionOverwrites.delete(record.userId, 'Timed jail expired')
+    )));
+    const failures = results
+        .map((result, index) => result.status === 'rejected'
+            ? `#${uniqueTargets[index].name}: ${result.reason?.message || result.reason}`
+            : null)
+        .filter(Boolean);
+    if (failures.length) throw new Error(`Could not restore channel access: ${failures.join('; ')}`);
+
+    const trackedChannelId = record.channelId || jailChannels.get(record.userId);
+    let jailChannel = trackedChannelId
+        ? guild.channels.cache.get(trackedChannelId) || await guild.channels.fetch(trackedChannelId).catch(() => null)
+        : null;
+    if (!jailChannel) {
+        jailChannel = guild.channels.cache.find(channel => (
+            channel.parentId === JAIL_CATEGORY_ID
+            && channel.isTextBased()
+            && jailedUserId(channel) === record.userId
+        )) || null;
+    }
+
+    const transcript = jailChannel?.isTextBased()
+        ? [...(await jailChannel.messages.fetch({ limit: 100 })).values()]
+            .reverse()
+            .map(message => `[${message.createdAt.toISOString()}] ${message.author.tag}: ${message.content}`)
+            .join('\n')
+        : [
+            '===============================================',
+            `JAIL TRANSCRIPT: ${record.channelId || 'channel unavailable'}`,
+            `User: ${targetUser.tag} (${targetUser.id})`,
+            'Released automatically after a Railway restart.',
+            'The original jail channel could not be found.',
+            '===============================================',
+        ].join('\n');
+
+    const logChannel = await client.channels.fetch(JAIL_LOG_CHANNEL_ID);
+    if (!logChannel?.isTextBased()) throw new Error(`Jail audit channel ${JAIL_LOG_CHANNEL_ID} is unavailable.`);
+    await sendJailClosedLog(logChannel, {
+        user: targetUser,
+        actor: null,
+        outcome: 'unjailed',
+        jailedAt: record.jailedAt || (jailChannel ? jailStartedAt(jailChannel) : null),
+        closedAt: Date.now(),
+        transcript,
+        fileName: `${jailChannel?.name || `jail-${record.userId}`}-transcript.txt`,
+    });
+
+    if (jailChannel) {
+        await jailChannel.send('Jail time expired. This channel will be deleted in 5 seconds.').catch(() => {});
+        setTimeout(() => jailChannel.delete('Timed jail expired').catch(error => {
+            console.error('Error deleting expired jail channel:', error);
+        }), 5000);
+    }
+    jailChannels.delete(record.userId);
+    console.log(`✅ Auto-unjailed ${targetUser.tag} after ${record.durationLabel || 'timed jail'}`);
+    addAuditLog(
+        'Auto-Unjailed',
+        { tag: targetUser.tag, id: targetUser.id },
+        `Auto-unjailed after ${record.durationLabel || 'timed jail'}${record.recovered ? ' (restored after restart)' : ''}`,
+        'success',
+    );
+    return true;
 }
 
 async function handleJailCommand(interaction) {
@@ -2145,70 +2250,22 @@ async function handleJailCommand(interaction) {
             .catch(error => console.error('Could not send jail start log:', error));
 
         console.log(`✅ Jail channel created: #${jailChannel.name}`);
+        // Persist before replying so a restart immediately after /jail cannot
+        // leave the member jailed without a recoverable deadline.
+        if (duration.ms) {
+            timedJailScheduler.schedule({
+                guildId: guild.id,
+                userId: targetUser.id,
+                channelId: jailChannel.id,
+                jailedAt,
+                releaseAt: jailedAt + duration.ms,
+                durationLabel: duration.label,
+                reason,
+                source: 'slash-command',
+            });
+        }
 
         await interaction.editReply({ content: `✅ ${targetUser.tag} has been jailed for ${duration.label}. Jail channel: <#${jailChannel.id}>` });
-
-        // Auto-unjail timer for timed jails
-        if (duration.ms) {
-            setTimeout(async () => {
-                try {
-                    // Remove jail role
-                    try {
-                        const member = await guild.members.fetch(targetUser.id);
-                        await member.roles.remove(JAIL_ROLE_ID);
-                    } catch (e) {}
-
-                    // Restore categories
-                    for (const catId of JAIL_CATEGORY_IDS) {
-                        try {
-                            const cat = await guild.channels.fetch(catId);
-                            if (!cat) continue;
-                            await cat.permissionOverwrites.delete(targetUser.id).catch(() => {});
-                            const kids = guild.channels.cache.filter(ch => ch.parentId === catId);
-                            for (const [, kid] of kids) {
-                                await kid.permissionOverwrites.delete(targetUser.id).catch(() => {});
-                            }
-                        } catch (e) {}
-                    }
-
-                    // Archive jail channel
-                    const jChanId = jailChannels.get(targetUser.id);
-                    if (jChanId) {
-                        try {
-                            const jChan = await guild.channels.fetch(jChanId);
-                            if (jChan) {
-                                const msgs = await jChan.messages.fetch({ limit: 100 });
-                                const transcript = msgs.reverse().map(m => `[${m.createdAt.toISOString()}] ${m.author.tag}: ${m.content}`).join('\n');
-
-                                const logCh = await client.channels.fetch(JAIL_LOG_CHANNEL_ID);
-                                if (logCh) {
-                                    await sendJailClosedLog(logCh, {
-                                        user: targetUser,
-                                        actor: null,
-                                        outcome: 'unjailed',
-                                        jailedAt: jailStartedAt(jChan),
-                                        closedAt: Date.now(),
-                                        transcript,
-                                        fileName: `${jChan.name}-transcript.txt`,
-                                    });
-                                }
-
-                                await jChan.send('🔓 Jail time expired. This channel will be deleted in 5 seconds...');
-                                setTimeout(() => jChan.delete().catch(() => {}), 5000);
-                            }
-                        } catch (e) {
-                            console.error('❌ Error archiving auto-unjail channel:', e);
-                        }
-                        jailChannels.delete(targetUser.id);
-                    }
-
-                    console.log(`✅ Auto-unjailed ${targetUser.tag} after ${duration.label}`);
-                    addAuditLog('Auto-Unjailed', { tag: targetUser.tag, id: targetUser.id }, `Auto-unjailed after ${duration.label}`, 'success');
-                } catch (err) {
-                    console.error('❌ Error in auto-unjail timer:', err);
-                }
-            }, duration.ms);
-        }
 
     } catch (error) {
         console.error('❌ Error creating jail channel:', error);
@@ -2495,6 +2552,7 @@ async function handleUnjailCommandV2(interaction) {
         return;
     }
 
+    timedJailScheduler.remove(guild.id, targetUser.id);
     const archiveNote = jailChannelCandidates.size
         ? `${transcriptsSaved} transcript(s) saved to <#${JAIL_LOG_CHANNEL_ID}>.`
         : 'No jail channel was found; permissions were still restored.';
@@ -2585,6 +2643,7 @@ async function handleBanCommand(interaction) {
     }
 
     jailChannels.delete(targetUser.id);
+    timedJailScheduler.remove(guild.id, targetUser.id);
     const archiveSummary = jailChannelCandidates.size
         ? `${archived}/${jailChannelCandidates.size} jail channel(s) archived and deleted.`
         : 'The user was banned, but no matching jail channel was found.';
@@ -2615,6 +2674,7 @@ async function handleCloseCommand(interaction) {
     await interaction.reply({ content: '🗃️ Archiving and closing this channel...' });
 
     try {
+        const closingJailUserId = channel.name.startsWith('jail-') ? jailedUserId(channel) : '';
         // Create rich transcript including embeds
         const messages = await channel.messages.fetch({ limit: 100 });
         const transcriptLines = ['═══════════════════════════════════════════════',
@@ -2673,6 +2733,10 @@ async function handleCloseCommand(interaction) {
             }
         }
 
+        if (closingJailUserId) {
+            timedJailScheduler.remove(interaction.guild.id, closingJailUserId);
+            jailChannels.delete(closingJailUserId);
+        }
         addAuditLog('Channel Closed', interaction.user, `Closed ${channel.name}`, 'info');
 
         await channel.send('🗃️ This channel will be deleted in 5 seconds...');
@@ -5218,4 +5282,3 @@ client.login(TOKEN).catch(error => {
         process.exitCode = 1;
     });
 }
-
