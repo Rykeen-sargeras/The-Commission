@@ -5056,6 +5056,46 @@ function sendBlueprintMessage(message) {
 
 process.on('message', async message => {
     if (!message) return;
+    if (message.channel === 'commission:moderation-request') {
+        const { id, action, payload = {} } = message;
+        try {
+            let data;
+            if (action === 'banned-words') {
+                data = { words: [...bannedWords], offenses: Object.fromEntries(offenseTracker) };
+            } else if (action === 'add-banned-word') {
+                const word = String(payload.word || '').trim();
+                if (!word) throw new Error('Enter a banned word or phrase.');
+                if (word.length > 200) throw new Error('Banned words and phrases must be 200 characters or fewer.');
+                if (!bannedWords.some(existing => existing.toLowerCase() === word.toLowerCase())) {
+                    bannedWords.push(word);
+                    saveBannedWordsToDisk();
+                    addAuditLog('Banned Word Added', { tag: 'Railway Webfront', id: 'web' }, `Added: "${word}"`, 'info');
+                }
+                data = { words: [...bannedWords], offenses: Object.fromEntries(offenseTracker) };
+            } else if (action === 'remove-banned-word') {
+                const word = String(payload.word || '').trim();
+                bannedWords = bannedWords.filter(existing => existing.toLowerCase() !== word.toLowerCase());
+                saveBannedWordsToDisk();
+                addAuditLog('Banned Word Removed', { tag: 'Railway Webfront', id: 'web' }, `Removed: "${word}"`, 'info');
+                data = { words: [...bannedWords], offenses: Object.fromEntries(offenseTracker) };
+            } else if (action === 'activity-logs') {
+                const dates = [...new Set([...voiceLogs.keys(), ...memberLogs.keys()])].sort().reverse();
+                const selectedDate = String(payload.date || dates[0] || getDateKey(new Date()));
+                data = {
+                    dates,
+                    selectedDate,
+                    voiceLog: voiceLogs.get(selectedDate) || [],
+                    memberLog: memberLogs.get(selectedDate) || [],
+                };
+            } else {
+                throw new Error(`Unknown moderation action: ${action}`);
+            }
+            if (typeof process.send === 'function') process.send({ channel: 'commission:moderation-response', id, ok: true, data });
+        } catch (error) {
+            if (typeof process.send === 'function') process.send({ channel: 'commission:moderation-response', id, ok: false, error: error.message });
+        }
+        return;
+    }
     if (message.channel === 'commission:memberbridge-request') {
         const { id, action, payload = {} } = message;
         try {
