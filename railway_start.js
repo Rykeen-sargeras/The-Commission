@@ -64,6 +64,7 @@ function json(res,status,obj){send(res,status,'application/json; charset=utf-8',
 function redirect(res,to,headers={}){res.writeHead(302,{Location:to,...headers});res.end();}
 function body(req){return new Promise((resolve,reject)=>{let raw='';req.on('data',c=>{raw+=c;if(raw.length>2_000_000){reject(new Error('Request too large'));req.destroy();}});req.on('end',()=>resolve(raw));req.on('error',reject);});}
 function listBlueprints(){return fs.readdirSync(blueprintDir).filter(x=>x.endsWith('.json')).map(name=>{const b=readJson(path.join(blueprintDir,name),{});return{name,sourceGuild:b.sourceGuild||{},capturedAt:b.capturedAt||''};}).sort((a,b)=>String(b.capturedAt).localeCompare(String(a.capturedAt)));}
+function activitySnapshot(requestedDate=''){const stored=readJson(path.join(dataDir,'logs.json'),{});const voiceLogs=stored.voiceLogs&&typeof stored.voiceLogs==='object'?stored.voiceLogs:{};const memberLogs=stored.memberLogs&&typeof stored.memberLogs==='object'?stored.memberLogs:{};const dates=[...new Set([...Object.keys(voiceLogs),...Object.keys(memberLogs)])].sort().reverse();const selectedDate=String(requestedDate||dates[0]||new Date().toISOString().slice(0,10));return{dates,selectedDate,voiceLog:Array.isArray(voiceLogs[selectedDate])?voiceLogs[selectedDate]:[],memberLog:Array.isArray(memberLogs[selectedDate])?memberLogs[selectedDate]:[],lastSaved:stored.lastSaved||null};}
 
 
 const server=http.createServer(async(req,res)=>{
@@ -83,7 +84,7 @@ const server=http.createServer(async(req,res)=>{
     if(url.pathname==='/api/bot/message'&&req.method==='POST'){const p=JSON.parse(await body(req)||'{}');return json(res,200,await botRequest('commission:moderation-request','send-main-chat',{message:String(p.message||'')}));}
     if(url.pathname==='/api/moderation/banned-words'&&req.method==='GET'){return json(res,200,await botRequest('commission:moderation-request','banned-words',{}));}
     if(url.pathname==='/api/moderation/banned-words'&&req.method==='POST'){const p=JSON.parse(await body(req)||'{}');const action=p.action==='remove'?'remove-banned-word':'add-banned-word';return json(res,200,await botRequest('commission:moderation-request',action,{word:String(p.word||'')}));}
-    if(url.pathname==='/api/moderation/activity'&&req.method==='GET'){return json(res,200,await botRequest('commission:moderation-request','activity-logs',{date:String(url.searchParams.get('date')||'')}));}
+    if(url.pathname==='/api/moderation/activity'&&req.method==='GET'){return json(res,200,activitySnapshot(String(url.searchParams.get('date')||'')));}
     if(url.pathname==='/api/economy/stats'&&req.method==='GET'){return json(res,200,await botRequest('commission:economy-request','stats',{}));}
     if(url.pathname==='/api/economy/leaderboard'&&req.method==='GET'){return json(res,200,await botRequest('commission:economy-request','leaderboard',{type:String(url.searchParams.get('type')||'balance')}));}
     if(url.pathname==='/api/economy/push-heist'&&req.method==='POST'){const p=JSON.parse(await body(req)||'{}');return json(res,200,await botRequest('commission:economy-request','push-heist-panel',{channelId:p.channelId||''}));}
