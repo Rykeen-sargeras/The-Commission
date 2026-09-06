@@ -7,7 +7,7 @@ const { EconomyService } = require('./economy');
 const { economyCommandData, createEconomyIntegration } = require('./economy_discord');
 const { isDoxWord } = require('./moderation_word_policy');
 const { verifyAddressWithFreeGeocoders } = require('./address_verification');
-const { MemberBridgeIntegration, memberBridgeCommandData } = require('./memberbridge/integration');
+const { MemberBridgeIntegration, memberBridgeCommandData = () => [] } = require('./memberbridge/integration');
 const goingLive = require('./going_live');
 const { installLiveVoicePairs } = require('./live_voice_pairs');
 const { installManualJailRoleWorkflow } = require('./manual_jail_role');
@@ -1836,10 +1836,12 @@ const JAIL_CATEGORY_IDS = CONFIG.JAIL_CATEGORY_IDS;
 
 client.on('interactionCreate', async (interaction) => {
     try {
-        if (await memberBridgeIntegration.handleButton(interaction)) return;
+        if (typeof memberBridgeIntegration.handleButton === 'function'
+            && await memberBridgeIntegration.handleButton(interaction)) return;
         if (await economyIntegration.handleButton(interaction)) return;
         if (!interaction.isChatInputCommand()) return;
-        if (await memberBridgeIntegration.handleCommand(interaction)) return;
+        if (typeof memberBridgeIntegration.handleCommand === 'function'
+            && await memberBridgeIntegration.handleCommand(interaction)) return;
         if (await economyIntegration.handleCommand(interaction)) return;
 
         if (interaction.commandName === 'report') {
@@ -4912,6 +4914,9 @@ process.on('message', async message => {
         const { id, action, payload = {} } = message;
         try {
             if (!client.isReady()) throw new Error('Start the bot and wait for Discord to connect first.');
+            if (typeof memberBridgeIntegration.admin !== 'function') {
+                throw new Error('MemberBridge has been retired. Use the Commission membership verifier.');
+            }
             const data = await memberBridgeIntegration.admin(action, payload);
             if (typeof process.send === 'function') process.send({ channel: 'commission:memberbridge-response', id, ok: true, data });
         } catch (error) {
@@ -5002,7 +5007,9 @@ async function gracefulShutdown(signal) {
     if (shuttingDown) return;
     shuttingDown = true;
     console.log(`[system] ${signal} received; closing MemberBridge and Discord cleanly.`);
-    try { await memberBridgeIntegration.stop(); } catch (error) { console.error('[MemberBridge shutdown]', error.message); }
+    try {
+        if (typeof memberBridgeIntegration.stop === 'function') await memberBridgeIntegration.stop();
+    } catch (error) { console.error('[MemberBridge shutdown]', error.message); }
     try { economy.close?.(); } catch (error) { console.error('[Economy shutdown]', error.message); }
     try { client.destroy(); } catch {}
     process.exit(0);
