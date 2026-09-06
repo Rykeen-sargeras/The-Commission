@@ -43,6 +43,7 @@ function installManualJailRoleWorkflow(client, Discord, config, options = {}) {
     const jailRoleId = config.jailRoleId || '';
     const jailCategoryId = config.jailCategoryId || '';
     const modChannelId = config.modChannelId || '';
+    const jailLogChannelId = config.jailLogChannelId || '1532513789159669835';
     const staffRoleIds = config.staffRoleIds || [];
     const delayMs = options.delayMs ?? 1500;
     const reconcileOnReady = options.reconcileOnReady !== false;
@@ -87,10 +88,12 @@ function installManualJailRoleWorkflow(client, Discord, config, options = {}) {
             } else {
                 try {
                     const staffRoles = await resolveStaffRoles(guild, staffRoleIds);
+                    const jailedAt = Date.now();
                     jailChannel = await guild.channels.create({
                         name: `jail-${safeChannelPart(member.user.username)}-${Math.floor(Math.random() * 9999)}`,
                         type: Discord.ChannelType.GuildText,
                         parent: jailCategoryId,
+                        topic: `commission-jail-user:${member.id};jailed-at:${jailedAt}`,
                         permissionOverwrites: [
                             { id: guild.roles.everyone.id, deny: [Discord.PermissionFlagsBits.ViewChannel] },
                             {
@@ -125,6 +128,24 @@ function installManualJailRoleWorkflow(client, Discord, config, options = {}) {
                         )
                         .setTimestamp();
                     await jailChannel.send({ content: `${staffMentions} <@${member.id}>`.trim(), embeds: [embed] });
+
+                    if (jailLogChannelId) {
+                        const jailLogChannel = await guild.channels.fetch(jailLogChannelId).catch(() => null);
+                        if (jailLogChannel?.isTextBased()) {
+                            const auditEmbed = new Discord.EmbedBuilder()
+                                .setColor('#FF0000')
+                                .setTitle('🔒 User Jailed')
+                                .setThumbnail(member.user.displayAvatarURL())
+                                .addFields(
+                                    { name: 'User', value: `<@${member.id}> (${member.user.tag})` },
+                                    { name: 'Jailed By', value: 'Role assignment workflow' },
+                                    { name: 'User jailed at', value: `<t:${Math.floor(jailedAt / 1000)}:F>` },
+                                    { name: 'Jail Channel', value: `<#${jailChannel.id}>` },
+                                )
+                                .setTimestamp(jailedAt);
+                            await jailLogChannel.send({ embeds: [auditEmbed] });
+                        }
+                    }
                 } catch (error) {
                     failure = `Could not create the jail channel: ${error.message}`;
                 }
