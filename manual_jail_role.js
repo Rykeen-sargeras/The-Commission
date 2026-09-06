@@ -20,6 +20,15 @@ function safeChannelPart(value) {
     return String(value || 'member').toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').slice(0, 15);
 }
 
+function easternTime(timestamp) {
+    const time = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/New_York',
+        hour: 'numeric',
+        minute: '2-digit',
+    }).format(new Date(timestamp || Date.now()));
+    return `${time} EST`;
+}
+
 async function resolveStaffRoles(guild, staffRoleIds) {
     let roles = guild.roles.cache;
     try {
@@ -132,18 +141,10 @@ function installManualJailRoleWorkflow(client, Discord, config, options = {}) {
                     if (jailLogChannelId) {
                         const jailLogChannel = await guild.channels.fetch(jailLogChannelId).catch(() => null);
                         if (jailLogChannel?.isTextBased()) {
-                            const auditEmbed = new Discord.EmbedBuilder()
-                                .setColor('#FF0000')
-                                .setTitle('🔒 User Jailed')
-                                .setThumbnail(member.user.displayAvatarURL())
-                                .addFields(
-                                    { name: 'User', value: `<@${member.id}> (${member.user.tag})` },
-                                    { name: 'Jailed By', value: 'Role assignment workflow' },
-                                    { name: 'User jailed at', value: `<t:${Math.floor(jailedAt / 1000)}:F>` },
-                                    { name: 'Jail Channel', value: `<#${jailChannel.id}>` },
-                                )
-                                .setTimestamp(jailedAt);
-                            await jailLogChannel.send({ embeds: [auditEmbed] });
+                            await jailLogChannel.send({
+                                content: `<@${member.id}> Was Jailed at ${easternTime(jailedAt)}.`,
+                                allowedMentions: { users: [] },
+                            });
                         }
                     }
                 } catch (error) {
