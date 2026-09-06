@@ -617,6 +617,18 @@ client.on('ready', async () => {
                         .setRequired(true))
                 .toJSON(),
             new Discord.SlashCommandBuilder()
+                .setName('ban')
+                .setDescription('Ban a jailed user and archive their jail channel')
+                .addUserOption(option =>
+                    option.setName('user')
+                        .setDescription('The jailed user to ban')
+                        .setRequired(true))
+                .addStringOption(option =>
+                    option.setName('reason')
+                        .setDescription('Reason for the ban')
+                        .setRequired(false))
+                .toJSON(),
+            new Discord.SlashCommandBuilder()
                 .setName('close')
                 .setDescription('Close a jail channel without unjailing (for bans)')
                 .toJSON(),
@@ -1852,6 +1864,8 @@ client.on('interactionCreate', async (interaction) => {
             await handleJailCommand(interaction);
         } else if (interaction.commandName === 'unjail') {
             await handleUnjailCommandV2(interaction);
+        } else if (interaction.commandName === 'ban') {
+            await handleBanCommand(interaction);
         } else if (interaction.commandName === 'close') {
             await handleCloseCommand(interaction);
         } else if (['join', 'leave', 'play', 'skip', 'queue', 'nowplaying', 'clear'].includes(interaction.commandName)) {
@@ -1963,12 +1977,12 @@ function discordDate(timestamp) {
 }
 
 function easternTime(timestamp) {
-    return new Intl.DateTimeFormat('en-US', {
+    const time = new Intl.DateTimeFormat('en-US', {
         timeZone: 'America/New_York',
         hour: 'numeric',
         minute: '2-digit',
-        timeZoneName: 'short',
     }).format(new Date(timestamp || Date.now()));
+    return `${time} EST`;
 }
 
 async function sendJailStartedLog(guild, user, actor, reason, duration, jailChannel, jailedAt = Date.now()) {
@@ -1978,20 +1992,10 @@ async function sendJailStartedLog(guild, user, actor, reason, duration, jailChan
     if (!logChannel?.isTextBased()) {
         throw new Error(`Jail audit channel ${JAIL_LOG_CHANNEL_ID} is missing or is not a text channel.`);
     }
-    const embed = new Discord.EmbedBuilder()
-        .setColor('#FF0000')
-        .setTitle(`🔒 User Jailed: ${user.tag}`)
-        .setThumbnail(user.displayAvatarURL())
-        .addFields(
-            { name: 'User', value: `<@${user.id}> (${user.id})`, inline: true },
-            { name: 'Jailed By', value: actor ? `<@${actor.id}> (${actor.tag})` : 'Automated system', inline: true },
-            { name: 'User jailed at', value: discordDate(jailedAt), inline: false },
-            { name: 'Reason', value: String(reason || 'No reason provided').slice(0, 1024), inline: false },
-            { name: 'Duration', value: String(duration || 'Permanent'), inline: true },
-            { name: 'Jail Channel', value: jailChannel ? `<#${jailChannel.id}>` : 'Channel unavailable', inline: true },
-        )
-        .setTimestamp(jailedAt);
-    return logChannel.send({ embeds: [embed] });
+    return logChannel.send({
+        content: `<@${user.id}> Was Jailed at ${easternTime(jailedAt)}.`,
+        allowedMentions: { users: [] },
+    });
 }
 
 async function sendJailClosedLog(logChannel, details) {
@@ -2012,9 +2016,9 @@ async function sendJailClosedLog(logChannel, details) {
         files: [attachment],
         allowedMentions: { users: [] },
     });
-    const outcomeVerb = details.outcome === 'banned' ? 'banned' : 'unjailed';
+    const outcomeVerb = details.outcome === 'banned' ? 'banned' : 'UNjailed';
     return logChannel.send({
-        content: `<@${details.user.id}> was ${outcomeVerb} at ${easternTime(details.closedAt)}\nTranscript: ${transcriptMessage.url}`,
+        content: `<@${details.user.id}> was ${outcomeVerb} at ${easternTime(details.closedAt)}. Transcript here: ${transcriptMessage.url}`,
         allowedMentions: { users: [] },
     });
 }
@@ -2361,11 +2365,32 @@ async function handleUnjailCommandV2(interaction) {
 
     await interaction.deferReply({ ephemeral: true });
     await interaction.editReply({ content: '🔓 Starting the unjail workflow…' });
-    const targetUser = interaction.options.getUser('user', true);
+    let targetUser = interaction.options.getUser('user', true);
     const guild = interaction.guild;
     const failures = [];
     let restoredOverwrites = 0;
     let roleRemoved = false;
+    await guild.channels.fetch().catch(error => {
+        failures.push(`channel lookup: ${error.message}`);
+    });
+    if (targetUser.id === client.user.id) {
+        const activeJailChannels = guild.channels.cache.filter(channel => (
+            channel.parentId === JAIL_CATEGORY_ID
+            && channel.isTextBased()
+            && channel.name.startsWith('jail-')
+            && jailedUserId(channel)
+        ));
+        if (activeJailChannels.size === 1) {
+            const inferredUserId = jailedUserId(activeJailChannels.first());
+            targetUser = await client.users.fetch(inferredUserId);
+            await interaction.editReply({ content: `🔓 Detected jailed member <@${targetUser.id}>. Starting the unjail workflow…` });
+        } else {
+            await interaction.editReply({
+                content: 'You selected HitMan Bot. Select the jailed member in the `user` option and run `/unjail` again.',
+            });
+            return;
+        }
+    }
     const targetMember = await guild.members.fetch(targetUser.id).catch(error => {
         failures.push(`member lookup: ${error.message}`);
         return null;
@@ -2383,9 +2408,6 @@ async function handleUnjailCommandV2(interaction) {
         }
     }
 
-    await guild.channels.fetch().catch(error => {
-        failures.push(`channel lookup: ${error.message}`);
-    });
     const overwriteTargets = [];
     for (const categoryId of JAIL_CATEGORY_IDS) {
         const category = guild.channels.cache.get(categoryId);
@@ -2480,6 +2502,96 @@ async function handleUnjailCommandV2(interaction) {
         content: `${targetUser.tag} has been unjailed. Restored ${restoredOverwrites} channel permission overwrite(s). ${archiveNote}`,
     });
     addAuditLog('User Unjailed', interaction.user, `Unjailed ${targetUser.tag}; restored ${restoredOverwrites} overwrites`, 'success');
+}
+
+async function handleBanCommand(interaction) {
+    const isStaff = interaction.member.roles.cache.some(role => CONFIG.STAFF_ROLE_IDS.includes(role.id))
+        || interaction.member.permissions.has(Discord.PermissionFlagsBits.Administrator);
+    if (!isStaff) {
+        await interaction.reply({ content: 'You do not have permission to use this command.', ephemeral: true });
+        return;
+    }
+
+    await interaction.deferReply({ ephemeral: true });
+    await interaction.editReply({ content: '⛔ Starting the ban and archive workflow…' });
+    const targetUser = interaction.options.getUser('user', true);
+    const reason = interaction.options.getString('reason') || 'No reason provided';
+    const guild = interaction.guild;
+    if (targetUser.id === client.user.id) {
+        await interaction.editReply({ content: 'HitMan Bot cannot ban itself. Select the jailed member in the `user` option.' });
+        return;
+    }
+
+    await guild.channels.fetch().catch(() => {});
+    const jailChannelCandidates = guild.channels.cache.filter(channel => (
+        channel.parentId === JAIL_CATEGORY_ID
+        && channel.isTextBased()
+        && channel.name.startsWith('jail-')
+        && (
+            String(channel.topic || '').startsWith(`commission-jail-user:${targetUser.id}`)
+            || channel.permissionOverwrites?.cache.has(targetUser.id)
+        )
+    ));
+
+    try {
+        await guild.members.ban(targetUser.id, {
+            deleteMessageSeconds: 0,
+            reason: `Banned by ${interaction.user.tag}: ${reason}`.slice(0, 512),
+        });
+    } catch (error) {
+        await interaction.editReply({ content: `Could not ban ${targetUser.tag}: ${error.message}` });
+        return;
+    }
+
+    const logChannel = await client.channels.fetch(JAIL_LOG_CHANNEL_ID).catch(() => null);
+    let archived = 0;
+    const failures = [];
+    for (const jailChannel of jailChannelCandidates.values()) {
+        try {
+            const messages = await jailChannel.messages.fetch({ limit: 100 });
+            const transcriptLines = [
+                '===============================================',
+                `JAIL TRANSCRIPT: ${jailChannel.name}`,
+                `User: ${targetUser.tag} (${targetUser.id})`,
+                `Banned By: ${interaction.user.tag}`,
+                `Reason: ${reason}`,
+                `Date: ${new Date().toLocaleString()}`,
+                '===============================================',
+                '',
+            ];
+            messages.reverse().forEach(message => {
+                transcriptLines.push(`[${message.createdAt.toISOString()}] ${message.author.tag}: ${message.content}`);
+                for (const embed of message.embeds || []) {
+                    if (embed.title) transcriptLines.push(`  [EMBED] Title: ${embed.title}`);
+                    if (embed.description) transcriptLines.push(`  [EMBED] Description: ${embed.description}`);
+                    for (const field of embed.fields || []) transcriptLines.push(`  [EMBED] ${field.name}: ${field.value}`);
+                }
+            });
+            if (!logChannel?.isTextBased()) throw new Error(`Jail audit channel ${JAIL_LOG_CHANNEL_ID} is unavailable.`);
+            await sendJailClosedLog(logChannel, {
+                user: targetUser,
+                actor: interaction.user,
+                outcome: 'banned',
+                jailedAt: jailStartedAt(jailChannel),
+                closedAt: Date.now(),
+                transcript: transcriptLines.join('\n'),
+                fileName: `${jailChannel.name}-transcript.txt`,
+            });
+            archived += 1;
+            await jailChannel.delete(`User banned by ${interaction.user.tag}`);
+        } catch (error) {
+            failures.push(`${jailChannel.name}: ${error.message}`);
+        }
+    }
+
+    jailChannels.delete(targetUser.id);
+    const archiveSummary = jailChannelCandidates.size
+        ? `${archived}/${jailChannelCandidates.size} jail channel(s) archived and deleted.`
+        : 'The user was banned, but no matching jail channel was found.';
+    await interaction.editReply({
+        content: `${targetUser.tag} was banned. ${archiveSummary}${failures.length ? `\n${failures.slice(0, 3).join('\n')}` : ''}`,
+    });
+    addAuditLog('User Banned', interaction.user, `Banned ${targetUser.tag}; archived ${archived} jail channel(s)`, 'error');
 }
 
 async function handleCloseCommand(interaction) {
