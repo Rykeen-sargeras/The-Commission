@@ -80,6 +80,7 @@ const server=http.createServer(async(req,res)=>{
     if(url.pathname==='/api/bot/start'&&req.method==='POST'){startBot();return json(res,200,{ok:true});}
     if(url.pathname==='/api/bot/stop'&&req.method==='POST'){await stopBot(false);return json(res,200,{ok:true});}
     if(url.pathname==='/api/bot/restart'&&req.method==='POST'){await stopBot(true);return json(res,200,{ok:true});}
+    if(url.pathname==='/api/bot/message'&&req.method==='POST'){const p=JSON.parse(await body(req)||'{}');return json(res,200,await botRequest('commission:moderation-request','send-main-chat',{message:String(p.message||'')}));}
     if(url.pathname==='/api/moderation/banned-words'&&req.method==='GET'){return json(res,200,await botRequest('commission:moderation-request','banned-words',{}));}
     if(url.pathname==='/api/moderation/banned-words'&&req.method==='POST'){const p=JSON.parse(await body(req)||'{}');const action=p.action==='remove'?'remove-banned-word':'add-banned-word';return json(res,200,await botRequest('commission:moderation-request',action,{word:String(p.word||'')}));}
     if(url.pathname==='/api/moderation/activity'&&req.method==='GET'){return json(res,200,await botRequest('commission:moderation-request','activity-logs',{date:String(url.searchParams.get('date')||'')}));}
