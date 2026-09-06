@@ -5060,7 +5060,17 @@ process.on('message', async message => {
         const { id, action, payload = {} } = message;
         try {
             let data;
-            if (action === 'banned-words') {
+            if (action === 'send-main-chat') {
+                const content = String(payload.message || '').trim();
+                if (!content) throw new Error('Enter a message for main chat.');
+                if (content.length > 2000) throw new Error('Discord messages must be 2,000 characters or fewer.');
+                if (!CONFIG.MAIN_CHAT_CHANNEL_ID) throw new Error('MAIN_CHAT_CHANNEL_ID is not configured.');
+                const channel = await client.channels.fetch(CONFIG.MAIN_CHAT_CHANNEL_ID).catch(() => null);
+                if (!channel?.isTextBased()) throw new Error(`Main chat channel ${CONFIG.MAIN_CHAT_CHANNEL_ID} is unavailable.`);
+                const sent = await channel.send({ content, allowedMentions: { parse: [] } });
+                addAuditLog('Message Sent', { tag: 'Railway Webfront', id: 'web' }, `Sent to #${channel.name}: ${content.slice(0, 80)}`, 'success');
+                data = { ok: true, channelId: channel.id, messageId: sent.id, url: sent.url };
+            } else if (action === 'banned-words') {
                 data = { words: [...bannedWords], offenses: Object.fromEntries(offenseTracker) };
             } else if (action === 'add-banned-word') {
                 const word = String(payload.word || '').trim();
