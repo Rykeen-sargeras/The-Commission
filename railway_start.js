@@ -29,7 +29,7 @@ let shuttingDown = false;
 let desiredRunning = true;
 
 const { BASE_FIELDS, ECON_FIELDS } = require('./railway/fields');
-const { loginPage, dashboardPage } = require('./railway/ui');
+const { publicPage, loginPage, privacyPage, termsPage, dashboardPage } = require('./railway/ui');
 const { MembershipWeb } = require('./membership_web');
 
 function readJson(file, fallback) { try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return fallback; } }
@@ -71,11 +71,14 @@ const server=http.createServer(async(req,res)=>{
   try{
     const url=new URL(req.url,`http://${req.headers.host||'localhost'}`);
     if(url.pathname==='/health') return json(res,200,{ok:true,service:'the-commission',webapp:true,botState});
-    if(url.pathname==='/login'&&req.method==='POST'){const raw=await body(req);const p=new URLSearchParams(raw).get('password')||'';if(!dashboardPassword)return send(res,500,'text/html; charset=utf-8',loginPage('WEB_DASHBOARD_PASSWORD is not configured.'));if(!safeEqual(p,dashboardPassword))return send(res,401,'text/html; charset=utf-8',loginPage('Wrong password.'));const token=newSession();return redirect(res,'/',{'Set-Cookie':`commission_session=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=43200`});}
+    if(url.pathname==='/'&&req.method==='GET') return send(res,200,'text/html; charset=utf-8',publicPage());
+    if(url.pathname==='/privacy'&&req.method==='GET') return send(res,200,'text/html; charset=utf-8',privacyPage());
+    if(url.pathname==='/terms'&&req.method==='GET') return send(res,200,'text/html; charset=utf-8',termsPage());
+    if(url.pathname==='/login'&&req.method==='POST'){const raw=await body(req);const p=new URLSearchParams(raw).get('password')||'';if(!dashboardPassword)return send(res,500,'text/html; charset=utf-8',loginPage('WEB_DASHBOARD_PASSWORD is not configured.'));if(!safeEqual(p,dashboardPassword))return send(res,401,'text/html; charset=utf-8',loginPage('Wrong password.'));const token=newSession();return redirect(res,'/control',{'Set-Cookie':`commission_session=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=43200`});}
     if(url.pathname==='/logout'&&req.method==='POST'){const t=cookies(req).commission_session;if(t)sessions.delete(t);return redirect(res,'/',{'Set-Cookie':'commission_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0'});}
     if(await membershipWeb.handle(req,res,url,authed(req))) return;
     if(!authed(req)){if(url.pathname.startsWith('/api/'))return json(res,401,{error:'Not authenticated'});return send(res,200,'text/html; charset=utf-8',loginPage());}
-    if(url.pathname==='/'&&req.method==='GET') return send(res,200,'text/html; charset=utf-8',dashboardPage());
+    if(url.pathname==='/control'&&req.method==='GET') return send(res,200,'text/html; charset=utf-8',dashboardPage());
     if(url.pathname==='/api/state'&&req.method==='GET') return json(res,200,{state:botState,pid:bot?.pid||null,logs:logs.slice(-500),config:maskConfig(mergedConfig())});
     if(url.pathname==='/api/config'&&req.method==='POST'){const incoming=JSON.parse(await body(req)||'{}');const saved=loadSaved();saved.env=saved.env||{};saved.economy=saved.economy||{};const allowed=new Set(BASE_FIELDS.map(x=>x[0]));for(const [k,v] of Object.entries(incoming.env||{}))if(allowed.has(k))saved.env[k]=String(v);const econAllowed=new Set(ECON_FIELDS.map(x=>x[0]));for(const [k,v] of Object.entries(incoming.economy||{}))if(econAllowed.has(k))saved.economy[k]=v;saveSaved(saved);await stopBot(true);return json(res,200,{ok:true,config:maskConfig(mergedConfig())});}
     if(url.pathname==='/api/bot/start'&&req.method==='POST'){startBot();return json(res,200,{ok:true});}
