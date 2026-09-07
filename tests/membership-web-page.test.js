@@ -15,5 +15,6 @@ assert.match(match[1], /document\.getElementById\('add'\)/, 'add-streamer handle
 assert.match(match[1], /addButton\.onclick=/, 'add-streamer button should receive its click handler');
 assert.match(html, /Private creator setup link/, 'creator links should be rendered in the page');
 assert.doesNotMatch(match[1], /prompt\('Send this private one-time setup link/, 'creator links should not rely on a browser prompt');
+assert.match(html, /No membership tiers are available yet/, 'connected channels without memberships should receive honest setup guidance');
 
 console.log('membership web page script test passed');

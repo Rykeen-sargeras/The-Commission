@@ -6,7 +6,9 @@ async function responseJson(response, label) {
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
         const detail = data?.error?.message || data?.error_description || `${response.status} ${response.statusText}`;
-        throw new Error(`${label}: ${detail}`);
+        const error = new Error(`${label}: ${detail}`);
+        error.youtubeReason = data?.error?.errors?.[0]?.reason || '';
+        throw error;
     }
     return data;
 }

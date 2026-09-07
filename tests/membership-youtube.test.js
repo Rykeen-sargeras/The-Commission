@@ -1,8 +1,9 @@
 'use strict';
 
 const assert = require('assert');
-const { creatorChannel, currentMembers } = require('../membership_youtube');
+const { creatorChannel, currentMembers, membershipLevels } = require('../membership_youtube');
 const { MembershipDiscord } = require('../membership_discord');
+const { membershipsNotEnabled } = require('../membership_web');
 
 (async () => {
     const channel = await creatorChannel('access-token', async url => {
@@ -11,6 +12,17 @@ const { MembershipDiscord } = require('../membership_discord');
         return { ok: true, json: async () => ({ items: [{ id: 'UCcreator', snippet: { title: 'Creator Channel' } }] }) };
     });
     assert.deepStrictEqual(channel, { id: 'UCcreator', title: 'Creator Channel' });
+
+    await assert.rejects(
+        () => membershipLevels('access-token', async () => ({
+            ok: false,
+            status: 400,
+            statusText: 'Bad Request',
+            json: async () => ({ error: { message: 'The channel does not have Channel Memberships enabled.', errors: [{ reason: 'channelMembershipsNotEnabled' }] } }),
+        })),
+        error => membershipsNotEnabled(error),
+        'a non-membership creator channel should be recognized as a supported OAuth demo state',
+    );
 
     const requested = [];
     const members = await currentMembers('access-token', ['viewer-channel'], async url => {
