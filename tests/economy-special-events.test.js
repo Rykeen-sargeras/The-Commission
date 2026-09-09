@@ -19,6 +19,8 @@ assert.strictEqual(special.shouldAnnounceHeistResult({ phase: 'cooldown', round:
 assert.strictEqual(special.shouldAnnounceHeistResult({ phase: 'cooldown', round: { status: 'complete', participantCount: 2 } }), true);
 assert.strictEqual(special.soloHeistMultiplier(() => 0), 0);
 assert.strictEqual(special.soloHeistMultiplier(() => 0.99), 20);
+assert.strictEqual(special.isRolePlayMessage({ content: '🎭 **Heist type revealed:** Solo' }), true);
+assert.strictEqual(special.isRolePlayMessage({ content: 'ordinary message', embeds: [] }), false);
 
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'commission-special-events-'));
 const service = new EconomyService({

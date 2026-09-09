@@ -86,6 +86,37 @@ function shouldAnnounceHeistResult(state) {
     return state.round?.status !== 'cancelled';
 }
 
+function isRolePlayMessage(message) {
+    return String(message.content || '').startsWith('🎭 **Heist type revealed:**')
+        || message.embeds?.some(embed => (embed.data?.title || embed.title) === 'The Role-Play');
+}
+
+async function cleanHeistChannel(channel, economy, guildId, panelId) {
+    const messages = [];
+    let before;
+    for (let page = 0; page < 10; page += 1) {
+        const batch = await channel.messages.fetch({ limit: 100, ...(before ? { before } : {}) }).catch(() => null);
+        if (!batch?.size) break;
+        const rows = [...batch.values()];
+        messages.push(...rows);
+        before = rows.at(-1)?.id;
+        if (batch.size < 100 || !before) break;
+    }
+
+    let rolePlayId = economy.setting(guildId, 'special_heist_roleplay_message') || '';
+    if (!rolePlayId || !messages.some(message => message.id === rolePlayId)) {
+        rolePlayId = messages.filter(isRolePlayMessage)
+            .sort((left, right) => Number(right.createdTimestamp || 0) - Number(left.createdTimestamp || 0))[0]?.id || '';
+        economy.setSetting(guildId, 'special_heist_roleplay_message', rolePlayId);
+    }
+
+    const keep = new Set([panelId, rolePlayId].filter(Boolean));
+    for (const message of messages) {
+        if (!keep.has(message.id)) await message.delete().catch(() => {});
+    }
+    return rolePlayId;
+}
+
 function installSpecialEconomyEvents() {
     const BaseEconomyService = economyModule.EconomyService;
 
@@ -323,25 +354,37 @@ function installSpecialEconomyEvents() {
             const channel = await guild.channels.fetch(HEIST_CHANNEL_ID).catch(() => null);
             if (!channel?.isTextBased()) return null;
             const state = economy.heistState(guild.id);
-            if (state.round.status === 'cancelled') {
-                const messageId = economy.setting(guild.id, 'heist_panel_message');
-                const expiredPanel = messageId ? await channel.messages.fetch(messageId).catch(() => null) : null;
-                if (expiredPanel) await expiredPanel.delete().catch(() => {});
-                economy.setSetting(guild.id, 'heist_panel_message', '');
-                economy.setSetting(guild.id, 'special_heist_last_story', state.round.round_id);
-                return null;
+            const panelId = economy.setting(guild.id, 'heist_panel_message');
+            let panel = panelId ? await channel.messages.fetch(panelId).catch(() => null) : null;
+
+            if (state.phase === 'signup') {
+                const signup = signupPayload(state);
+                if (panel) await panel.edit(signup);
+                else {
+                    panel = await channel.send(signup);
+                    economy.setSetting(guild.id, 'heist_panel_message', panel.id);
+                }
             }
-            const payload = state.phase === 'signup' ? signupPayload(state) : resultPayload(state);
-            let message = economy.setting(guild.id, 'heist_panel_message')
-                ? await channel.messages.fetch(economy.setting(guild.id, 'heist_panel_message')).catch(() => null) : null;
-            if (message) await message.edit(payload); else { message = await channel.send(payload); economy.setSetting(guild.id, 'heist_panel_message', message.id); }
+
+            let rolePlayId = await cleanHeistChannel(channel, economy, guild.id, panel?.id || '');
+            if (state.round.status === 'cancelled') {
+                economy.setSetting(guild.id, 'special_heist_last_story', state.round.round_id);
+                return panel;
+            }
+
             if (state.phase !== 'signup' && economy.setting(guild.id, 'special_heist_last_story') !== state.round.round_id) {
                 if (shouldAnnounceHeistResult(state)) {
-                    await channel.send({ content: `🎭 **Heist type revealed:** ${payload.embeds[0].data.title}`, embeds: [new Discord.EmbedBuilder().setColor(0x6f42c1).setTitle('The Role-Play').setDescription(state.round.story.join('\n\n')).setTimestamp()], allowedMentions: { users: state.round.victimId ? [state.round.victimId] : [] } });
+                    const previousRolePlay = rolePlayId ? await channel.messages.fetch(rolePlayId).catch(() => null) : null;
+                    if (previousRolePlay) await previousRolePlay.delete().catch(() => {});
+                    const payload = resultPayload(state);
+                    const rolePlay = await channel.send({ content: `🎭 **Heist type revealed:** ${payload.embeds[0].data.title}`, embeds: [new Discord.EmbedBuilder().setColor(0x6f42c1).setTitle('The Role-Play').setDescription(state.round.story.join('\n\n')).setTimestamp()], allowedMentions: { users: state.round.victimId ? [state.round.victimId] : [] } });
+                    rolePlayId = rolePlay.id;
+                    economy.setSetting(guild.id, 'special_heist_roleplay_message', rolePlayId);
                 }
                 economy.setSetting(guild.id, 'special_heist_last_story', state.round.round_id);
             }
-            return message;
+            await cleanHeistChannel(channel, economy, guild.id, panel?.id || '');
+            return panel;
         }
 
         const start = () => { const refresh = () => { for (const guild of client.guilds.cache.values()) updateMysteryPanel(guild).catch(error => console.error(`Mystery heist panel error in ${guild.name}:`, error.message)); }; refresh(); timer = setInterval(refresh, 15_000); };
@@ -354,4 +397,4 @@ function installSpecialEconomyEvents() {
     };
 }
 
-module.exports = { HEIST_CHANNEL_ID, HEIST_ENTRY_FEE, HEIST_INTERVAL_MS, HEIST_SIGNUP_MS, HEIST_TYPES, MAX_ROBBERY_PERCENT, distributePool, installSpecialEconomyEvents, pickHeistType, pickWinners, shouldAnnounceHeistResult, soloHeistMultiplier };
+module.exports = { HEIST_CHANNEL_ID, HEIST_ENTRY_FEE, HEIST_INTERVAL_MS, HEIST_SIGNUP_MS, HEIST_TYPES, MAX_ROBBERY_PERCENT, cleanHeistChannel, distributePool, installSpecialEconomyEvents, isRolePlayMessage, pickHeistType, pickWinners, shouldAnnounceHeistResult, soloHeistMultiplier };
