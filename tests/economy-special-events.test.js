@@ -14,6 +14,9 @@ assert.strictEqual(special.HEIST_ENTRY_FEE, 10_000);
 assert.strictEqual(special.HEIST_INTERVAL_MS, 30 * 60 * 1000);
 assert.strictEqual(special.HEIST_SIGNUP_MS, (9 * 60 + 30) * 1000);
 assert.strictEqual(special.MAX_ROBBERY_PERCENT, 10);
+assert.strictEqual(special.shouldAnnounceHeistResult({ phase: 'cooldown', round: { status: 'cancelled', participantCount: 0 } }), false);
+assert.strictEqual(special.shouldAnnounceHeistResult({ phase: 'cooldown', round: { status: 'cancelled', participantCount: 1 } }), true);
+assert.strictEqual(special.shouldAnnounceHeistResult({ phase: 'cooldown', round: { status: 'complete', participantCount: 2 } }), true);
 
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'commission-special-events-'));
 const service = new EconomyService({

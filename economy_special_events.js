@@ -74,6 +74,11 @@ function distributePool(pool, winners) {
     return payouts;
 }
 
+function shouldAnnounceHeistResult(state) {
+    if (!state || state.phase === 'signup') return false;
+    return state.round?.status !== 'cancelled' || Number(state.round?.participantCount || 0) > 0;
+}
+
 function installSpecialEconomyEvents() {
     const BaseEconomyService = economyModule.EconomyService;
 
@@ -296,7 +301,9 @@ function installSpecialEconomyEvents() {
                 ? await channel.messages.fetch(economy.setting(guild.id, 'heist_panel_message')).catch(() => null) : null;
             if (message) await message.edit(payload); else { message = await channel.send(payload); economy.setSetting(guild.id, 'heist_panel_message', message.id); }
             if (state.phase !== 'signup' && economy.setting(guild.id, 'special_heist_last_story') !== state.round.round_id) {
-                await channel.send({ content: `🎭 **Heist type revealed:** ${payload.embeds[0].data.title}`, embeds: [new Discord.EmbedBuilder().setColor(0x6f42c1).setTitle('The Role-Play').setDescription(state.round.story.join('\n\n')).setTimestamp()], allowedMentions: { users: state.round.victimId ? [state.round.victimId] : [] } });
+                if (shouldAnnounceHeistResult(state)) {
+                    await channel.send({ content: `🎭 **Heist type revealed:** ${payload.embeds[0].data.title}`, embeds: [new Discord.EmbedBuilder().setColor(0x6f42c1).setTitle('The Role-Play').setDescription(state.round.story.join('\n\n')).setTimestamp()], allowedMentions: { users: state.round.victimId ? [state.round.victimId] : [] } });
+                }
                 economy.setSetting(guild.id, 'special_heist_last_story', state.round.round_id);
             }
             return message;
@@ -312,4 +319,4 @@ function installSpecialEconomyEvents() {
     };
 }
 
-module.exports = { HEIST_CHANNEL_ID, HEIST_ENTRY_FEE, HEIST_INTERVAL_MS, HEIST_SIGNUP_MS, HEIST_TYPES, MAX_ROBBERY_PERCENT, distributePool, installSpecialEconomyEvents, pickHeistType, pickWinners };
+module.exports = { HEIST_CHANNEL_ID, HEIST_ENTRY_FEE, HEIST_INTERVAL_MS, HEIST_SIGNUP_MS, HEIST_TYPES, MAX_ROBBERY_PERCENT, distributePool, installSpecialEconomyEvents, pickHeistType, pickWinners, shouldAnnounceHeistResult };
