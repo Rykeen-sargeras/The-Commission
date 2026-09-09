@@ -15,8 +15,10 @@ assert.strictEqual(special.HEIST_INTERVAL_MS, 30 * 60 * 1000);
 assert.strictEqual(special.HEIST_SIGNUP_MS, (9 * 60 + 30) * 1000);
 assert.strictEqual(special.MAX_ROBBERY_PERCENT, 10);
 assert.strictEqual(special.shouldAnnounceHeistResult({ phase: 'cooldown', round: { status: 'cancelled', participantCount: 0 } }), false);
-assert.strictEqual(special.shouldAnnounceHeistResult({ phase: 'cooldown', round: { status: 'cancelled', participantCount: 1 } }), true);
+assert.strictEqual(special.shouldAnnounceHeistResult({ phase: 'cooldown', round: { status: 'cancelled', participantCount: 1 } }), false);
 assert.strictEqual(special.shouldAnnounceHeistResult({ phase: 'cooldown', round: { status: 'complete', participantCount: 2 } }), true);
+assert.strictEqual(special.soloHeistMultiplier(() => 0), 0);
+assert.strictEqual(special.soloHeistMultiplier(() => 0.99), 20);
 
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'commission-special-events-'));
 const service = new EconomyService({
@@ -51,6 +53,17 @@ try {
     assert(result.stolenAmount > 0 && result.stolenAmount <= 10_000);
     assert(result.story.some(line => line.includes('<@victim>')));
     assert.strictEqual(result.entries.filter(entry => entry.payout > 0).length, 1);
+
+    service.admin('solo-guild', 'add', 'solo-runner', 50_000, 'fund-solo', start);
+    const soloState = service.heistState('solo-guild', start + 1000);
+    service.joinHeist('solo-guild', 'solo-runner', soloState.round.round_id, 'join-solo', start + 2000);
+    service.random = () => 0;
+    const soloResult = service.resolveHeist(soloState.round.round_id, schedule.signupEndsAt);
+    assert.strictEqual(soloResult.status, 'complete');
+    assert.strictEqual(soloResult.eventType, 'solo');
+    assert.strictEqual(soloResult.variant, 'special-solo');
+    assert.strictEqual(soloResult.entries.length, 1);
+    assert.strictEqual(soloResult.entries[0].payout, 0);
 
     service.admin('unlimited', 'add', 'gambler', 500_000, 'fund-gambler', start);
     service.random = () => 0.5;

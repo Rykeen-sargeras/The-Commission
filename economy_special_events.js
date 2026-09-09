@@ -59,6 +59,13 @@ function pickWinners(entries, random = Math.random) {
     return shuffled(entries, random).slice(0, randomInt(minimum, maximum, random));
 }
 
+function soloHeistMultiplier(random = Math.random) {
+    const tier = random();
+    if (tier < 0.75) return randomInt(0, 2, random);
+    if (tier < 0.95) return randomInt(3, 10, random);
+    return randomInt(11, 20, random);
+}
+
 function distributePool(pool, winners) {
     const payouts = new Map();
     if (!winners.length || pool <= 0) return payouts;
@@ -76,7 +83,7 @@ function distributePool(pool, winners) {
 
 function shouldAnnounceHeistResult(state) {
     if (!state || state.phase === 'signup') return false;
-    return state.round?.status !== 'cancelled' || Number(state.round?.participantCount || 0) > 0;
+    return state.round?.status !== 'cancelled';
 }
 
 function installSpecialEconomyEvents() {
@@ -197,6 +204,20 @@ function installSpecialEconomyEvents() {
             };
         }
 
+        soloOutcome(round, entry) {
+            const multiplier = soloHeistMultiplier(this.random);
+            const rewardPool = entry.entry_fee * multiplier;
+            const payouts = new Map();
+            if (rewardPool) payouts.set(entry.user_id, rewardPool);
+            const story = multiplier
+                ? [`<@${entry.user_id}> takes the classified job alone.`, `The solo runner survives the job and returns with a **${multiplier}×** payout.`]
+                : [`<@${entry.user_id}> takes the classified job alone.`, 'The solo run goes bad. The runner escapes, but the entire entry is lost.'];
+            return {
+                eventType: 'solo', variant: 'special-solo', success: multiplier > 0,
+                chance: 75, rewardPool, payouts, story,
+            };
+        }
+
         robberyOutcome(round, entries, now) {
             const attackers = new Set(entries.map(entry => entry.user_id));
             const victims = this.db.prepare('SELECT user_id,balance FROM economy_members WHERE guild_id=? AND balance>0 ORDER BY balance DESC')
@@ -236,16 +257,20 @@ function installSpecialEconomyEvents() {
                 const round = this.heistRound(roundId);
                 if (!round || round.status !== 'signup') return round;
                 const entries = round.entries;
-                if (entries.length < 2) {
+                if (entries.length === 0) {
                     for (const entry of entries) if (entry.entry_fee) this.applyDelta(round.guild_id, entry.user_id, entry.entry_fee, 'heist-refund', roundId, null, now);
-                    this.saveOutcome(roundId, { eventType: 'cancelled', variant: 'cancelled', rewardPool: round.pot, story: ['The mystery job is called off because fewer than two players joined.'] });
+                    this.saveOutcome(roundId, { eventType: 'cancelled', variant: 'cancelled', rewardPool: round.pot, story: ['The mystery job is called off because nobody joined.'] });
                     this.db.prepare("UPDATE heist_rounds SET status='cancelled',success=0,payout_total=?,completed_at=? WHERE round_id=?").run(round.pot, now, roundId);
                     return this.heistRound(roundId);
                 }
-                const type = pickHeistType(this.random);
-                const outcome = type.id !== 'normal'
-                    ? this.bossOutcome(round, entries, type)
-                    : (this.random() < 0.5 ? this.deathmatchOutcome(round, entries) : this.robberyOutcome(round, entries, now));
+                let outcome;
+                if (entries.length === 1) outcome = this.soloOutcome(round, entries[0]);
+                else {
+                    const type = pickHeistType(this.random);
+                    outcome = type.id !== 'normal'
+                        ? this.bossOutcome(round, entries, type)
+                        : (this.random() < 0.5 ? this.deathmatchOutcome(round, entries) : this.robberyOutcome(round, entries, now));
+                }
                 const payoutTotal = this.payAttackers(round, entries, outcome.payouts, now);
                 this.saveOutcome(roundId, outcome);
                 this.db.prepare("UPDATE heist_rounds SET status='complete',success_chance=?,success=?,payout_total=?,completed_at=? WHERE round_id=?")
@@ -268,9 +293,10 @@ function installSpecialEconomyEvents() {
                 .setDescription(`The job is classified. Its type is revealed only when the role-play begins. Entry closes <t:${Math.floor(round.signup_ends_at / 1000)}:R>.`)
                 .addFields(
                     { name: 'Entry', value: `10,000 ${economy.config.currencyName}`, inline: true },
-                    { name: 'Players', value: `${round.participantCount} / 2 minimum`, inline: true },
+                    { name: 'Players', value: `${round.participantCount} joined`, inline: true },
                     { name: 'Pot', value: money(round.pot), inline: true },
-                    { name: 'Possible jobs', value: 'Boss battle, crew deathmatch, or a robbery against a random funded member.', inline: false },
+                    { name: 'Possible jobs', value: 'One player gets a special solo heist. Two or more may face a boss battle, crew deathmatch, or robbery.', inline: false },
+                    { name: 'Solo payout', value: '0×–20× the 10K entry, heavily weighted toward 0×–2×.', inline: false },
                     { name: 'Robbery rules', value: 'No more than 10% of a target balance. The target may defend and counter-rob attackers.', inline: false },
                     { name: 'Gambling limits', value: 'None. Only the available account balance limits a wager.', inline: false },
                 ).setFooter({ text: 'Every 30 minutes · 9 minutes 30 seconds to enter' }).setTimestamp()], components: [new Discord.ActionRowBuilder().addComponents(
@@ -281,9 +307,10 @@ function installSpecialEconomyEvents() {
 
         function resultPayload(state) {
             const round = state.round;
-            if (round.status === 'cancelled') return { embeds: [new Discord.EmbedBuilder().setColor(0xd29922).setTitle('↩️ Mystery Heist Cancelled').setDescription('Fewer than two players joined. All entry fees were refunded.').setTimestamp()], components: [] };
+            if (round.status === 'cancelled') return { embeds: [new Discord.EmbedBuilder().setColor(0xd29922).setTitle('↩️ Mystery Heist Cancelled').setDescription('Nobody joined this round.').setTimestamp()], components: [] };
             const boss = HEIST_TYPES.find(type => type.id === round.eventType && type.id !== 'normal');
-            const title = boss ? `${boss.emoji} ${boss.name} · ${round.success ? 'Crew Victory' : 'Crew Defeated'}`
+            const title = round.variant === 'special-solo' ? `🕵️ Special Solo Heist · ${round.success ? 'Runner Returned' : 'Entry Lost'}`
+                : boss ? `${boss.emoji} ${boss.name} · ${round.success ? 'Crew Victory' : 'Crew Defeated'}`
                 : round.variant === 'deathmatch' ? '🔫 Normal Heist · Deathmatch'
                     : round.variant === 'defended-robbery' ? '🛡️ Normal Heist · Target Defended' : '💰 Normal Heist · Robbery';
             const winners = round.entries.filter(entry => entry.payout > 0).sort((a, b) => b.payout - a.payout);
@@ -296,6 +323,14 @@ function installSpecialEconomyEvents() {
             const channel = await guild.channels.fetch(HEIST_CHANNEL_ID).catch(() => null);
             if (!channel?.isTextBased()) return null;
             const state = economy.heistState(guild.id);
+            if (state.round.status === 'cancelled') {
+                const messageId = economy.setting(guild.id, 'heist_panel_message');
+                const expiredPanel = messageId ? await channel.messages.fetch(messageId).catch(() => null) : null;
+                if (expiredPanel) await expiredPanel.delete().catch(() => {});
+                economy.setSetting(guild.id, 'heist_panel_message', '');
+                economy.setSetting(guild.id, 'special_heist_last_story', state.round.round_id);
+                return null;
+            }
             const payload = state.phase === 'signup' ? signupPayload(state) : resultPayload(state);
             let message = economy.setting(guild.id, 'heist_panel_message')
                 ? await channel.messages.fetch(economy.setting(guild.id, 'heist_panel_message')).catch(() => null) : null;
@@ -319,4 +354,4 @@ function installSpecialEconomyEvents() {
     };
 }
 
-module.exports = { HEIST_CHANNEL_ID, HEIST_ENTRY_FEE, HEIST_INTERVAL_MS, HEIST_SIGNUP_MS, HEIST_TYPES, MAX_ROBBERY_PERCENT, distributePool, installSpecialEconomyEvents, pickHeistType, pickWinners, shouldAnnounceHeistResult };
+module.exports = { HEIST_CHANNEL_ID, HEIST_ENTRY_FEE, HEIST_INTERVAL_MS, HEIST_SIGNUP_MS, HEIST_TYPES, MAX_ROBBERY_PERCENT, distributePool, installSpecialEconomyEvents, pickHeistType, pickWinners, shouldAnnounceHeistResult, soloHeistMultiplier };
