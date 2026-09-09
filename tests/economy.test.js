@@ -66,8 +66,8 @@ try {
     assert.strictEqual(repMonthKey(Date.UTC(2026, 0, 1, 13, 0), 'America/New_York'), '2026-01');
     assert.strictEqual(repMonthKey(Date.UTC(2026, 7, 1, 11, 59), 'America/New_York'), '2026-07');
     assert.strictEqual(repMonthKey(Date.UTC(2026, 7, 1, 12, 0), 'America/New_York'), '2026-08');
-    assert.strictEqual(service.heistState('retired-heist-guild'), null);
-    assert.throws(() => service.createHeistRound('retired-heist-guild'), /retired/i);
+    assert.strictEqual(service.heistState('heist-guild').phase, 'signup');
+    assert.strictEqual(service.createHeistRound('heist-guild').status, 'signup');
     assert.deepStrictEqual(service.evaluatePoker(['10♠','10♥','3♦','6♣','9♠']), { name: 'Tens or Better', multiplier: 1.5 });
     assert.deepStrictEqual(service.evaluatePoker(['9♠','9♥','3♦','6♣','A♠']), { name: 'No winning hand', multiplier: 0 });
     assert.deepStrictEqual(service.evaluatePoker(['10♠','J♠','Q♠','K♠','A♠']), { name: 'Royal Flush', multiplier: 150 });
@@ -138,7 +138,7 @@ try {
     assert.strictEqual(dice.odds, 0.02);
     assert.strictEqual(dice.multiplier, 100);
     assert.strictEqual(dice.payout, 5000);
-    assert.strictEqual(service.diceMaximumWager('guild'), 25000);
+    assert.strictEqual(service.diceMaximumWager('guild'), null);
     assert.strictEqual(service.publicMember('guild', 'alice').daily_wagered, 50);
 
     const diceBoundaryCases = [
@@ -213,19 +213,14 @@ try {
     service.random = savedDiceRandom;
 
     const limitNow = Date.UTC(2026, 7, 2, 12, 0);
-    assert.strictEqual(service.config.gamblingHourlyWagerCap, 25000);
-    assert.strictEqual(service.config.gamblingDailyWagerCap, 150000);
-    service.admin('hourly-limit-guild', 'add', 'hourly-gambler', 100000, 'hourly-bankroll', limitNow);
-    service.dice('hourly-limit-guild', 'hourly-gambler', 15000, 'hourly-first', limitNow + 1);
-    service.dice('hourly-limit-guild', 'hourly-gambler', 10000, 'hourly-second', limitNow + 2);
-    assert.throws(() => service.dice('hourly-limit-guild', 'hourly-gambler', 1, 'hourly-over', limitNow + 3), /hourly gambling allowance remaining: 0.*25,000 maximum wagered per hour/i);
-    const nextHour = service.dice('hourly-limit-guild', 'hourly-gambler', 1, 'hourly-reset', limitNow + 3600002);
-    assert.strictEqual(nextHour.wager, 1);
-    service.admin('daily-limit-guild', 'add', 'daily-gambler', 500000, 'daily-bankroll', limitNow);
-    for (let index = 0; index < 6; index += 1) {
-        service.dice('daily-limit-guild', 'daily-gambler', 25000, `daily-wager-${index}`, limitNow + 1 + (index * 3600001));
+    assert.strictEqual(service.config.gamblingHourlyWagerCap, 0);
+    assert.strictEqual(service.config.gamblingDailyWagerCap, 0);
+    service.admin('unlimited-guild', 'add', 'unlimited-gambler', 500000, 'unlimited-bankroll', limitNow);
+    service.random = () => 0.5;
+    for (let index = 0; index < 8; index += 1) {
+        assert.strictEqual(service.dice('unlimited-guild', 'unlimited-gambler', 25000, `unlimited-wager-${index}`, limitNow + index).wager, 25000);
     }
-    assert.throws(() => service.dice('daily-limit-guild', 'daily-gambler', 1, 'daily-over', limitNow + 6 * 3600001), /daily gambling allowance remaining: 0.*150,000 maximum wagered per day/i);
+    service.random = savedDiceRandom;
 
     const poker = service.startPoker('guild', 'alice', 5, 'poker-1');
     assert.strictEqual(poker.cards.length, 5);

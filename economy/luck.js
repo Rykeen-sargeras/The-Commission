@@ -91,27 +91,6 @@ EconomyService.prototype.initialize = function initializeLuckStore() {
             ON global_luck_contributions(guild_id, user_id, created_at DESC);
     `);
 
-    // Retire the heist cleanly. Existing paid signup entries are refunded once,
-    // active rounds are cancelled, and the old panel channel is disabled.
-    this.retiredHeistChannelId = this.config.heistChannelId || '';
-    try {
-        const activeRounds = this.db.prepare("SELECT round_id,guild_id FROM heist_rounds WHERE status='signup'").all();
-        for (const round of activeRounds) {
-            const entries = this.db.prepare('SELECT user_id,entry_fee FROM heist_entries WHERE round_id=?').all(round.round_id);
-            for (const entry of entries) {
-                if (entry.entry_fee > 0) {
-                    const alreadyRefunded = this.db.prepare("SELECT 1 FROM economy_transactions WHERE guild_id=? AND user_id=? AND type='heist-refund' AND related=? LIMIT 1")
-                        .get(round.guild_id, entry.user_id, round.round_id);
-                    if (!alreadyRefunded) this.applyDelta(round.guild_id, entry.user_id, entry.entry_fee, 'heist-refund', round.round_id, null, Date.now());
-                }
-            }
-            this.db.prepare("UPDATE heist_rounds SET status='cancelled',success=0,completed_at=? WHERE round_id=? AND status='signup'")
-                .run(Date.now(), round.round_id);
-        }
-    } catch (error) {
-        console.error('Heist retirement cleanup failed:', error.message);
-    }
-    this.config.heistChannelId = '';
 };
 
 EconomyService.prototype.cleanupExpiredLuck = function cleanupExpiredLuck(now = Date.now()) {
@@ -225,12 +204,6 @@ EconomyService.prototype.claimDaily = function claimDailyRng(guildId, userId, in
         return { reward, rngReward, streak, cappedStreak, streakBonus, luckyReroll, firstRoll, secondRoll, balance, luck: this.totalLuckPercent(guildId, userId, now) };
     });
 };
-
-// Retired heist API. Old buttons/panels cannot create or join new rounds.
-EconomyService.prototype.heistState = function retiredHeistState() { return null; };
-EconomyService.prototype.createHeistRound = function retiredHeistCreate() { throw new Error('Heists have been retired and replaced by the Luck Shop.'); };
-EconomyService.prototype.joinHeist = function retiredHeistJoin() { throw new Error('Heists have been retired and replaced by the Luck Shop.'); };
-EconomyService.prototype.resolveHeist = function retiredHeistResolve() { return null; };
 
 // Luck-aware dice: if the first roll is a total loss and luck procs, reroll once and keep the better outcome.
 const previousDice = EconomyService.prototype.dice;
@@ -384,7 +357,6 @@ const originalCreateIntegration = discordEconomy.createEconomyIntegration;
 discordEconomy.createEconomyIntegration = function createLuckShopIntegration(client, economy, options = {}) {
     const integration = originalCreateIntegration(client, economy, options);
     const originalHandleCommand = integration.handleCommand;
-    const originalHandleButton = integration.handleButton;
 
     integration.handleCommand = async interaction => {
         if (!interaction.isChatInputCommand() || interaction.commandName !== 'luck-shop') return originalHandleCommand(interaction);
@@ -428,31 +400,6 @@ discordEconomy.createEconomyIntegration = function createLuckShopIntegration(cli
         }
         return true;
     };
-
-    integration.handleButton = async interaction => {
-        if (interaction.isButton() && interaction.customId.startsWith('econ:heist:')) {
-            await interaction.reply({ content: '🍀 Heists have been retired. Use **/luck-shop** instead.', ephemeral: true }).catch(() => {});
-            return true;
-        }
-        return originalHandleButton(interaction);
-    };
-
-    integration.updateHeistPanel = async () => null;
-    integration.pushHeistPanel = async () => null;
-
-    // Delete the old persistent heist panel after login, if one still exists.
-    client.once('ready', async () => {
-        const channelId = economy.retiredHeistChannelId;
-        if (!channelId) return;
-        for (const guild of client.guilds.cache.values()) {
-            const messageId = economy.setting(guild.id, 'heist_panel_message');
-            if (!messageId) continue;
-            const channel = await guild.channels.fetch(channelId).catch(() => null);
-            const message = channel?.isTextBased() ? await channel.messages.fetch(messageId).catch(() => null) : null;
-            if (message) await message.delete().catch(() => {});
-            economy.db.prepare("DELETE FROM economy_settings WHERE guild_id=? AND setting_key IN ('heist_panel_message','heist_last_announced_round')").run(guild.id);
-        }
-    });
 
     return integration;
 };

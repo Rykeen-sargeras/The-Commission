@@ -205,6 +205,7 @@ function createEconomyIntegration(client, economy, options = {}) {
     }
 
     async function updateHeistPanel(guild) {
+        if (options.customHeistPanel) return null;
         if (!economy.config.heistChannelId) return;
         const state = economy.heistState(guild.id);
         const message = await upsertPanel(guild, economy.config.heistChannelId, 'heist_panel_message', heistPanelPayload(state));
@@ -820,7 +821,7 @@ function createEconomyIntegration(client, economy, options = {}) {
         }
         if (action === 'settings') {
             const c = economy.config;
-            await interaction.reply({ content: `🩸 **Blood Money settings**\nText: ${c.messageRewardMin}-${c.messageRewardMax}, ${c.messageChance}% chance, ${c.messageCooldownSeconds}s cooldown, ${c.messageDailyCap}/day\nMedia: ${c.mediaRewardMin}-${c.mediaRewardMax}, ${c.mediaDailyCap}/day\nVoice: ${c.voiceRewardMin}-${c.voiceRewardMax} every ${c.voiceIntervalMinutes}m, ${c.voiceDailyCap}/day\nDaily: ${c.dailyBase} base, ${c.dailyStreakMaximum} maximum\nGambling: **${money(c.gamblingHourlyWagerCap)} ${c.currencyName} per rolling hour** and **${money(c.gamblingDailyWagerCap)} per day** across all games. No separate per-game maximums.\nHigher / Lower: ${HIGHER_LOWER_MULTIPLIERS.join('× · ')}× ladder.\nDragon Tower: 4×8; rows 1–5 have 3 eggs, rows 6–8 have 1 egg. Cash out after any cleared row.`, ephemeral: true });
+            await interaction.reply({ content: `🩸 **Blood Money settings**\nText: ${c.messageRewardMin}-${c.messageRewardMax}, ${c.messageChance}% chance, ${c.messageCooldownSeconds}s cooldown, ${c.messageDailyCap}/day\nMedia: ${c.mediaRewardMin}-${c.mediaRewardMax}, ${c.mediaDailyCap}/day\nVoice: ${c.voiceRewardMin}-${c.voiceRewardMax} every ${c.voiceIntervalMinutes}m, ${c.voiceDailyCap}/day\nDaily: ${c.dailyBase} base, ${c.dailyStreakMaximum} maximum\nGambling: **uncapped** across all games. A wager is limited only by the player's available balance.\nHigher / Lower: ${HIGHER_LOWER_MULTIPLIERS.join('× · ')}× ladder.\nDragon Tower: 4×8; rows 1–5 have 3 eggs, rows 6–8 have 1 egg. Cash out after any cleared row.`, ephemeral: true });
             return;
         }
         if (action === 'disable-gambling' || action === 'enable-gambling') {
@@ -852,7 +853,7 @@ function createEconomyIntegration(client, economy, options = {}) {
     async function handleCommand(interaction) {
         if (!interaction.isChatInputCommand()) return false;
         const name = interaction.commandName;
-        if (!['balance','leaderboard','daily','economy-stats','pay','gamble','eco'].includes(name)) return false;
+        if (!['balance','leaderboard','daily','economy-stats','pay','gamble','duel','eco'].includes(name)) return false;
         try {
             if (name === 'gamble') {
                 if (economy.config.gamblingChannelId && interaction.channelId !== economy.config.gamblingChannelId) {

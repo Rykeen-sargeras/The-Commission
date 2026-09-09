@@ -46,6 +46,9 @@ function economyCommandData() {
             .addUserOption(option => option.setName('user').setDescription('Member to pay').setRequired(true))
             .addIntegerOption(option => option.setName('amount').setDescription('Amount to transfer').setMinValue(1).setRequired(true)),
         new Discord.SlashCommandBuilder().setName('gamble').setDescription('Open the Blood Money game menu'),
+        new Discord.SlashCommandBuilder().setName('duel').setDescription('Challenge another member to a 50/50 Blood Money duel')
+            .addUserOption(option => option.setName('user').setDescription('Member to challenge').setRequired(true))
+            .addIntegerOption(option => option.setName('amount').setDescription('Blood Money wager per player').setMinValue(1).setRequired(true)),
         new Discord.SlashCommandBuilder().setName('eco').setDescription('Manage the Blood Money economy')
             .addSubcommandGroup(group => group.setName('manage').setDescription('Blood Money moderation and settings')
                 .addSubcommand(sub => sub.setName('add').setDescription('Add Blood Money to a member').addUserOption(o => o.setName('user').setDescription('Member').setRequired(true)).addIntegerOption(o => o.setName('amount').setDescription('Amount').setMinValue(1).setRequired(true)))

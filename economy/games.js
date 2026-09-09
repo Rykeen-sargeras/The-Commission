@@ -2,8 +2,6 @@
 
 const crypto = require('node:crypto');
 const {
-    GAME_HOURLY_LIMIT,
-    HIGH_PAYOUT_WAGER_LIMIT,
     DICE_WEIGHT_TOTAL,
     DICE_PAYOUT_TABLE,
     HOUSE_GAME_RTP,
@@ -16,7 +14,6 @@ const {
     randomizedPayout,
     diceOutcome,
     eligibleDiceTable,
-    gameCategory,
     boundedInt,
     randomInt,
     periodKeys,
@@ -30,30 +27,11 @@ class EconomyGames {
 
     reserveWager(guildId, userId, wager, interactionId, related, now = Date.now()) {
         const amount = boundedInt(wager, 0, 0);
-        const category = gameCategory(related);
-        if (category) {
-            const count = this.db.prepare(`SELECT COUNT(*) AS total FROM economy_transactions
-                WHERE guild_id=? AND user_id=? AND type='wager' AND related LIKE ? AND created_at>=?`)
-                .get(guildId, userId, `${category}:%`, now - 60 * 60 * 1000).total;
-            if (count >= GAME_HOURLY_LIMIT) {
-                throw new Error(`${category.replaceAll('-', ' ')} hourly limit reached: maximum ${GAME_HOURLY_LIMIT} game(s) per hour.`);
-            }
-        }
         const row = this.ensureMember(guildId, userId, now);
         this.assertUsable(row);
         if (!this.config.gamblingEnabled) throw new Error('Gambling is currently disabled.');
         if (amount < 1) throw new Error('Wager must be at least 1.');
         if (amount > row.balance) throw new Error(`You only have ${row.balance} ${this.config.currencyName}.`);
-        const dailyRemaining = Math.max(0, this.config.gamblingDailyWagerCap - row.daily_wagered);
-        if (amount > dailyRemaining) {
-            throw new Error(`Daily gambling allowance remaining: ${dailyRemaining} ${this.config.currencyName} (150,000 maximum wagered per day).`);
-        }
-        const hourlyWagered = this.db.prepare(`SELECT COALESCE(SUM(-amount),0) AS total FROM economy_transactions
-            WHERE guild_id=? AND user_id=? AND type='wager' AND created_at>?`).get(guildId, userId, now - 3600000).total;
-        const hourlyRemaining = Math.max(0, this.config.gamblingHourlyWagerCap - hourlyWagered);
-        if (amount > hourlyRemaining) {
-            throw new Error(`Hourly gambling allowance remaining: ${hourlyRemaining} ${this.config.currencyName} (25,000 maximum wagered per hour).`);
-        }
         const balance = this.applyDelta(guildId, userId, -amount, 'wager', related, interactionId, now);
         this.db.prepare('UPDATE economy_members SET lifetime_wagered=lifetime_wagered+?,daily_wagered=daily_wagered+? WHERE guild_id=? AND user_id=?')
             .run(amount, amount, guildId, userId);
@@ -91,17 +69,17 @@ class EconomyGames {
                 payout,
                 balance,
                 maximumWager: null,
-                highPayoutEligible: reserved.amount <= HIGH_PAYOUT_WAGER_LIMIT,
+                highPayoutEligible: true,
             };
         });
     }
 
-    diceMaximumWager(guildId) {
-        return this.config.gamblingHourlyWagerCap;
+    diceMaximumWager() {
+        return null;
     }
 
     startProgressiveWager(guildId, userId, wager, interactionId, related, now = Date.now()) {
-        return { ...this.reserveWager(guildId, userId, wager, interactionId, related, now), maximumWager: this.config.gamblingHourlyWagerCap };
+        return { ...this.reserveWager(guildId, userId, wager, interactionId, related, now), maximumWager: null };
     }
 
     higherLowerReferenceCard() {

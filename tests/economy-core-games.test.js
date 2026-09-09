@@ -8,7 +8,7 @@ const path = require('path');
 const economy = require('../economy');
 const { EconomyService } = economy;
 
-assert.strictEqual(economy.GAME_HOURLY_LIMIT, 6);
+assert.strictEqual(economy.GAME_HOURLY_LIMIT, null);
 assert.strictEqual(economy.DICE_PAYOUT_TABLE.reduce((sum, outcome) => sum + outcome.weight, 0), 10000);
 assert.strictEqual(Number(economy.diceExpectedReturn().toFixed(3)), 0.934);
 assert.strictEqual(Number(economy.diceHouseEdge().toFixed(3)), 0.066);
@@ -46,24 +46,19 @@ try {
     const now = Date.now();
     service.admin('guild', 'add', 'limit-user', 1000, 'fund-limit-user');
 
-    for (let index = 0; index < 6; index += 1) {
+    for (let index = 0; index < 7; index += 1) {
         service.dice('guild', 'limit-user', 1, `dice-${index}`, now + index);
     }
-    assert.throws(
-        () => service.dice('guild', 'limit-user', 1, 'dice-7', now + 10),
-        /hourly limit reached: maximum 6 game\(s\) per hour/i,
-    );
+    assert.strictEqual(service.dice('guild', 'limit-user', 1, 'dice-8', now + 10).wager, 1);
 
     // Poker has its own six-game bucket even after the same member used all six dice plays.
-    for (let index = 0; index < 6; index += 1) {
+    for (let index = 0; index < 7; index += 1) {
         const game = service.startPoker('guild', 'limit-user', 1, `poker-limit-${index}`, now + 20 + index);
         assert(game.gameId);
         service.drawPoker(game.gameId, 'limit-user', now + 20 + index);
     }
-    assert.throws(
-        () => service.startPoker('guild', 'limit-user', 1, 'poker-limit-7', now + 40),
-        /hourly limit reached: maximum 6 game\(s\) per hour/i,
-    );
+    const unlimitedPoker = service.startPoker('guild', 'limit-user', 1, 'poker-limit-8', now + 40);
+    assert(unlimitedPoker.gameId);
 
     console.log('Economy core game tests passed.');
 } finally {

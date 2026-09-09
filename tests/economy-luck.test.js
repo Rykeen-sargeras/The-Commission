@@ -25,9 +25,8 @@ const service = new EconomyService({
 });
 
 try {
-    assert.strictEqual(service.config.heistChannelId, '');
-    assert.strictEqual(service.retiredHeistChannelId, '123456789012345678');
-    assert.throws(() => service.createHeistRound('guild'), /retired/i);
+    assert.strictEqual(service.config.heistChannelId, '123456789012345678');
+    assert.strictEqual(service.createHeistRound('guild').status, 'signup');
 
     service.admin('guild', 'add', 'user', 400000, 'fund-user');
     const one = service.buyLuckItem('guild', 'user', 'luck-1', 'buy-1', 1000);

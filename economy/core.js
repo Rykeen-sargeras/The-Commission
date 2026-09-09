@@ -32,10 +32,10 @@ const DEFAULTS = Object.freeze({
     dailyStreakStep: 100,
     dailyStreakMaximum: 700,
     gamblingEnabled: true,
-    gamblingDailyWagerCap: 150000,
+    gamblingDailyWagerCap: 0,
     gamblingMaxActionsPerMinute: 0,
     gamblingMaxActionsPerHour: 0,
-    gamblingHourlyWagerCap: 25000,
+    gamblingHourlyWagerCap: 0,
     blackjackMinimumWager: 1,
     blackjackMaximumWager: 100,
     blackjackDailyCap: 500,
@@ -71,8 +71,8 @@ const RANKS = [
 ];
 
 const DICE_WEIGHT_TOTAL = 10000;
-const GAME_HOURLY_LIMIT = 6;
-const HIGH_PAYOUT_WAGER_LIMIT = 5000;
+const GAME_HOURLY_LIMIT = null;
+const HIGH_PAYOUT_WAGER_LIMIT = null;
 const DICE_PAYOUT_TABLE = Object.freeze([
     Object.freeze({ name: 'House wins', multiplier: 0, weight: 4400 }),
     Object.freeze({ name: 'Push', multiplier: 1, weight: 3100 }),
@@ -131,8 +131,7 @@ function diceOutcome(randomValue, table = DICE_PAYOUT_TABLE) {
 }
 
 function eligibleDiceTable(wager, table = DICE_PAYOUT_TABLE) {
-    if (Number(wager) <= HIGH_PAYOUT_WAGER_LIMIT) return table;
-    return table.filter(outcome => ![50, 100].includes(Number(outcome.multiplier)));
+    return table;
 }
 
 function gameCategory(related) {
@@ -284,7 +283,6 @@ function blackjackPayout(wager, natural = false) {
 module.exports = {
     DEFAULTS,
     GAME_HOURLY_LIMIT,
-    HIGH_PAYOUT_WAGER_LIMIT,
     DICE_WEIGHT_TOTAL,
     DICE_PAYOUT_TABLE,
     HOUSE_GAME_RTP,

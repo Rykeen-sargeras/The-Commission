@@ -7,10 +7,13 @@ const Discord = require('discord.js');
 const { economyCommandData, createEconomyIntegration, gambleMenuPayload, wagerModal } = require('../economy_discord');
 const { findDoxWord, bannedWordAction } = require('../moderation_word_policy');
 
-const oldGames = new Set(['slots', 'dice', 'higher-lower', 'dragon-tower', 'poker', 'blackjack', 'duel']);
+const menuGames = new Set(['slots', 'dice', 'higher-lower', 'dragon-tower', 'poker', 'blackjack', 'duel']);
+const retiredStandaloneGames = new Set(['slots', 'dice', 'higher-lower', 'dragon-tower', 'poker', 'blackjack']);
 const commands = economyCommandData();
 assert.strictEqual(commands.filter(command => command.name === 'gamble').length, 1);
-assert.strictEqual(commands.filter(command => oldGames.has(command.name)).length, 0);
+assert.strictEqual(commands.filter(command => retiredStandaloneGames.has(command.name)).length, 0);
+assert.strictEqual(commands.filter(command => command.name === 'duel').length, 1);
+assert.deepStrictEqual(commands.find(command => command.name === 'duel').options.map(option => option.name), ['user', 'amount']);
 assert.strictEqual(commands.filter(command => command.name === 'eco').length, 1);
 const manage = commands.find(command => command.name === 'eco').options.find(option => option.name === 'manage');
 assert.deepStrictEqual(manage.options.map(option => option.name), [
@@ -22,7 +25,7 @@ const menu = gambleMenuPayload('Blood Money');
 assert.strictEqual(menu.ephemeral, true);
 const gameButtons = menu.components.flatMap(row => row.components);
 assert.strictEqual(menu.components.length, 2);
-assert.deepStrictEqual(gameButtons.map(button => button.data.custom_id.replace('econ:gamble:choose:', '')), [...oldGames]);
+assert.deepStrictEqual(gameButtons.map(button => button.data.custom_id.replace('econ:gamble:choose:', '')), [...menuGames]);
 assert.strictEqual(gameButtons.find(button => button.data.custom_id.endsWith(':blackjack')).data.emoji.name, '🃏');
 assert.strictEqual(wagerModal('slots').components.length, 1);
 assert.strictEqual(wagerModal('duel').components.length, 2);
@@ -57,6 +60,30 @@ function baseClient() {
     assert.strictEqual(commandReply.ephemeral, true);
     assert.strictEqual(commandReply.components[0].components[0].data.custom_id, 'econ:gamble:choose:slots');
 
+    let attachedDuel = null;
+    const duelIntegration = createEconomyIntegration(baseClient(), baseEconomy({
+        createDuel: (_guildId, challengerId, challengedId, wager) => ({
+            duel_id: 'duel-id', challenger_id: challengerId, challenged_id: challengedId,
+            wager, status: 'pending',
+        }),
+        attachDuelMessage: (...args) => { attachedDuel = args; },
+    }));
+    let duelReply = null;
+    await duelIntegration.handleCommand({
+        id: 'direct-duel', commandName: 'duel', channelId: 'gambling',
+        isChatInputCommand: () => true,
+        guild: { id: 'guild' },
+        user: { id: '111111111111111111', toString: () => '<@111111111111111111>' },
+        options: {
+            getUser: () => ({ id: '222222222222222222', bot: false, toString: () => '<@222222222222222222>' }),
+            getInteger: () => 10000,
+        },
+        reply: async payload => { duelReply = payload; },
+        fetchReply: async () => ({ id: 'duel-message' }),
+    });
+    assert.match(duelReply.embeds[0].data.description, /50\/50 duel/);
+    assert.deepStrictEqual(attachedDuel, ['duel-id', 'gambling', 'duel-message']);
+
     const selectIntegration = createEconomyIntegration(baseClient(), baseEconomy());
     let shownModal = null;
     const selectHandled = await selectIntegration.handleButton({
@@ -69,7 +96,7 @@ function baseClient() {
     assert.strictEqual(selectHandled, true);
     assert.strictEqual(shownModal.data.custom_id, 'econ:gamble:modal:blackjack');
 
-    for (const game of oldGames) {
+    for (const game of menuGames) {
         let dispatched = false;
         const method = {
             slots: 'slots', dice: 'dice', 'higher-lower': 'startHigherLower', 'dragon-tower': 'startDragonTower',
