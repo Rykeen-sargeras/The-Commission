@@ -6,7 +6,7 @@
 
 const { Client, GatewayIntentBits, Events } = require('discord.js');
 
-const MAINTENANCE_MESSAGE = 'The bot is currently being censored. Message Stormy for any issues.';
+const MAINTENANCE_MESSAGE = 'The bot is currently on the rag. Message Stormy for anything.';
 const token = String(process.env.DISCORD_TOKEN || '').trim();
 
 if (!token) {
