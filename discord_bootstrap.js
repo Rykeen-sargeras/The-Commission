@@ -6,8 +6,18 @@
 
 const { Client, GatewayIntentBits, Events } = require('discord.js');
 
-const MAINTENANCE_MESSAGE = 'Bot thinking…. Call back failure. Owner is not part of this discord.';
 const token = String(process.env.DISCORD_TOKEN || '').trim();
+
+function makeErrorCode() {
+  const letters = Math.random().toString(36).slice(2, 6).toUpperCase();
+  const numbers = Math.floor(1000 + Math.random() * 9000);
+  return `COM-${letters}-${numbers}`;
+}
+
+function maintenanceMessage() {
+  const code = makeErrorCode();
+  return `Bot thinking…. Call back failure. Owner is not part of this discord.\nError Code: ${code}\nPlease send this error code to the server admin.`;
+}
 
 if (!token) {
   console.error('[The Commission] DISCORD_TOKEN is not configured.');
@@ -30,11 +40,12 @@ client.once(Events.ClientReady, readyClient => {
 client.on(Events.InteractionCreate, async interaction => {
   try {
     if (!interaction.isRepliable()) return;
+    const content = maintenanceMessage();
 
     if (interaction.deferred || interaction.replied) {
-      await interaction.followUp({ content: MAINTENANCE_MESSAGE, ephemeral: true });
+      await interaction.followUp({ content, ephemeral: true });
     } else {
-      await interaction.reply({ content: MAINTENANCE_MESSAGE, ephemeral: true });
+      await interaction.reply({ content, ephemeral: true });
     }
   } catch (error) {
     console.error('[The Commission] Failed to send maintenance interaction response:', error);
@@ -45,7 +56,7 @@ client.on(Events.MessageCreate, async message => {
   try {
     if (message.author?.bot) return;
     if (!message.mentions?.has(client.user)) return;
-    await message.reply(MAINTENANCE_MESSAGE);
+    await message.reply(maintenanceMessage());
   } catch (error) {
     console.error('[The Commission] Failed to send maintenance message response:', error);
   }
