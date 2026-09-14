@@ -1,5 +1,8 @@
 'use strict';
 
+const { installRuntimePerformanceGuards } = require('./runtime_performance');
+installRuntimePerformanceGuards();
+
 const DOX_WORDS = new Set(['dox', 'doxxing', 'doxxed']);
 
 function isDoxWord(word) {
