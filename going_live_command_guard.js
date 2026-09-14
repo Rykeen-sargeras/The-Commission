@@ -5,11 +5,12 @@ const { GOING_LIVE_COMMAND, WHO_COMMAND, GUILD_ID } = require('./going_live');
 
 const CLIENT_READY = Discord.Events?.ClientReady || 'ready';
 const INSTALL_KEY = Symbol.for('the-commission.going-live-command-guard-installed');
+const PERIODIC_CHECK_MS = 10 * 60 * 1000;
 
 async function ensureGoingLive(client) {
   if (!client?.isReady?.()) return;
   try {
-    const guild = await client.guilds.fetch(GUILD_ID);
+    const guild = client.guilds.cache.get(GUILD_ID) || await client.guilds.fetch(GUILD_ID);
     const commands = await guild.commands.fetch();
     for (const definition of [GOING_LIVE_COMMAND, WHO_COMMAND]) {
       const existing = commands.find(command => command.name === definition.name);
@@ -27,11 +28,11 @@ function installGuard(client) {
   if (!client || client[INSTALL_KEY]) return client;
   client[INSTALL_KEY] = true;
   client.once(CLIENT_READY, () => {
-    // The core Commission registrar clears/rebuilds commands during startup.
-    // Check after that workflow has had time to finish, then keep guarding it.
+    // Startup checks catch the command registrar settling. After that, a slow
+    // health check is enough; commands do not need to be fetched every minute.
     setTimeout(() => ensureGoingLive(client), 10_000).unref?.();
     setTimeout(() => ensureGoingLive(client), 30_000).unref?.();
-    setInterval(() => ensureGoingLive(client), 60_000).unref?.();
+    setInterval(() => ensureGoingLive(client), PERIODIC_CHECK_MS).unref?.();
   });
   return client;
 }
