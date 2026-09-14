@@ -5,6 +5,7 @@ const Module = require('module');
 
 const calls = [];
 const installers = new Map([
+    ['./channel_permission_safety', { installChannelPermissionSafety: client => calls.push(['channel-permission-safety', client]) }],
     ['./going_live', { install: client => calls.push(['going-live', client]) }],
     ['./going_live_command_guard', { installGuard: client => calls.push(['going-live-guard', client]) }],
     ['./permissions_bridge', { installPermissionsBridge: client => calls.push(['permissions-bridge', client]) }],
@@ -24,6 +25,7 @@ Module._load = originalLoad;
 const client = {};
 assert.strictEqual(installDiscordFeatures(client), client);
 assert.deepStrictEqual(calls.map(([name]) => name), [
+    'channel-permission-safety',
     'going-live',
     'going-live-guard',
     'permissions-bridge',
