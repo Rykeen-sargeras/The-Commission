@@ -184,13 +184,27 @@ function similarity(left, right) {
     return (2 * overlap) / (a.size + b.size);
 }
 
+const datePartFormatters = new Map();
+
+function datePartFormatter(timeZone, withHour = false) {
+    const key = `${timeZone}|${withHour}`;
+    if (datePartFormatters.has(key)) return datePartFormatters.get(key);
+    let formatter = null;
+    try {
+        formatter = new Intl.DateTimeFormat('en-US', {
+            timeZone,
+            year: 'numeric', month: '2-digit', day: '2-digit',
+            ...(withHour ? { hour: '2-digit', hourCycle: 'h23' } : {}),
+        });
+    } catch { /* Invalid time zones use the existing UTC fallback. */ }
+    datePartFormatters.set(key, formatter);
+    return formatter;
+}
+
 function localDateParts(now, config) {
     const shifted = new Date(now - (config.resetHour * 60 * 60 * 1000));
     try {
-        const parts = new Intl.DateTimeFormat('en-US', {
-            timeZone: config.timeZone,
-            year: 'numeric', month: '2-digit', day: '2-digit',
-        }).formatToParts(shifted);
+        const parts = datePartFormatter(config.timeZone).formatToParts(shifted);
         const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
         return { year: Number(values.year), month: Number(values.month), day: Number(values.day) };
     } catch {
@@ -208,7 +222,10 @@ function periodKeys(now, config) {
     return { day, week, month: day.slice(0, 7) };
 }
 
-function dayKey(now, config) { return periodKeys(now, config).day; }
+function dayKey(now, config) {
+    const parts = localDateParts(now, config);
+    return `${parts.year}-${String(parts.month).padStart(2, '0')}-${String(parts.day).padStart(2, '0')}`;
+}
 
 function repMonthKey(now, timeZone = 'America/New_York') {
     let year;
@@ -216,11 +233,7 @@ function repMonthKey(now, timeZone = 'America/New_York') {
     let day;
     let hour;
     try {
-        const parts = new Intl.DateTimeFormat('en-US', {
-            timeZone,
-            year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit',
-            hourCycle: 'h23',
-        }).formatToParts(new Date(now));
+        const parts = datePartFormatter(timeZone, true).formatToParts(new Date(now));
         const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
         year = Number(values.year);
         month = Number(values.month);

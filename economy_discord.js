@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const Discord = require('discord.js');
 const slots = require('./economy/slots');
+const { createPanelUpserter } = require('./economy/persistent_panels');
 const {
     HIGHER_LOWER_MULTIPLIERS,
     DRAGON_TOWER_COLUMNS,
@@ -37,6 +38,8 @@ function createEconomyIntegration(client, economy, options = {}) {
     let rolloverTimer = null;
     let panelTimer = null;
     let heistBoundaryTimer = null;
+    let panelsRefreshing = false;
+    const upsertPanel = createPanelUpserter(economy);
     const resetPreviews = new Map();
     const bulkGrantPreviews = new Map();
 
@@ -92,20 +95,6 @@ function createEconomyIntegration(client, economy, options = {}) {
 
     function eligibleAccount(user) {
         return Date.now() - user.createdTimestamp >= economy.config.minimumAccountAgeDays * 86400000;
-    }
-
-    async function upsertPanel(guild, channelId, settingKey, payload) {
-        if (!channelId) return null;
-        const channel = await guild.channels.fetch(channelId).catch(() => null);
-        if (!channel?.isTextBased()) return null;
-        const storedId = economy.setting(guild.id, settingKey);
-        let message = storedId ? await channel.messages.fetch(storedId).catch(() => null) : null;
-        if (message) await message.edit(payload);
-        else {
-            message = await channel.send(payload);
-            economy.setSetting(guild.id, settingKey, message.id);
-        }
-        return message;
     }
 
     function leaderboardLines(rows) {
@@ -204,11 +193,11 @@ function createEconomyIntegration(client, economy, options = {}) {
         };
     }
 
-    async function updateHeistPanel(guild) {
+    async function updateHeistPanel(guild, force = false) {
         if (options.customHeistPanel) return null;
         if (!economy.config.heistChannelId) return;
         const state = economy.heistState(guild.id);
-        const message = await upsertPanel(guild, economy.config.heistChannelId, 'heist_panel_message', heistPanelPayload(state));
+        const message = await upsertPanel(guild, economy.config.heistChannelId, 'heist_panel_message', heistPanelPayload(state), force);
         if (state.phase === 'cooldown' && economy.setting(guild.id, 'heist_last_announced_round') !== state.round.round_id) {
             const outcome = state.round.status === 'cancelled' ? 'cancelled and refunded' : state.round.success ? 'successful' : 'failed';
             await audit(guild, 'Heist result', `Heist ${state.round.round_id.slice(0, 8)} was ${outcome}. Crew: ${state.round.participantCount}. Pot: ${money(state.round.pot)}. Payout: ${money(state.round.payout_total)}.`);
@@ -218,10 +207,16 @@ function createEconomyIntegration(client, economy, options = {}) {
     }
 
     async function updatePersistentPanels() {
-        for (const guild of client.guilds.cache.values()) {
-            await updateLeaderboardPanel(guild).catch(error => console.error(`Leaderboard panel error in ${guild.name}:`, error.message));
-            await updateRepLeaderboardPanel(guild).catch(error => console.error(`REP panel error in ${guild.name}:`, error.message));
-            await updateHeistPanel(guild).catch(error => console.error(`Heist panel error in ${guild.name}:`, error.message));
+        if (panelsRefreshing) return;
+        panelsRefreshing = true;
+        try {
+            for (const guild of client.guilds.cache.values()) {
+                await updateLeaderboardPanel(guild).catch(error => console.error(`Leaderboard panel error in ${guild.name}:`, error.message));
+                await updateRepLeaderboardPanel(guild).catch(error => console.error(`REP panel error in ${guild.name}:`, error.message));
+                await updateHeistPanel(guild).catch(error => console.error(`Heist panel error in ${guild.name}:`, error.message));
+            }
+        } finally {
+            panelsRefreshing = false;
         }
     }
 
@@ -493,7 +488,7 @@ function createEconomyIntegration(client, economy, options = {}) {
             await runMonthlyRollover().catch(error => console.error('Economy monthly rollover error:', error));
             await runRepRollover().catch(error => console.error('REP monthly rollover error:', error));
         }, 60000);
-        panelTimer = setInterval(() => updatePersistentPanels().catch(error => console.error('Economy panel update error:', error)), 30000);
+        panelTimer = setInterval(() => updatePersistentPanels().catch(error => console.error('Economy panel update error:', error)), 5 * 60000);
         pokerTimer = setInterval(async () => {
             const expired = economy.expirePokerGames();
             for (const result of expired) {
@@ -991,7 +986,7 @@ function createEconomyIntegration(client, economy, options = {}) {
         }
         if (!economy.config.heistChannelId) throw new Error('Set and save the Persistent heist channel ID first.');
         const guild = client.guilds.cache.get(guildId) || await client.guilds.fetch(guildId);
-        const message = await updateHeistPanel(guild);
+        const message = await updateHeistPanel(guild, true);
         if (!message) throw new Error('The heist channel is missing or is not a text channel.');
         return { guildId: guild.id, channelId: economy.config.heistChannelId, messageId: message.id };
     }

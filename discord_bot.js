@@ -979,22 +979,38 @@ function loadLogsFromDisk() {
 
 // Save logs to disk
 let saveTimer = null;
+let activitySaveQueue = Promise.resolve();
+function persistActivityLogs() {
+    const data = {
+        voiceLogs: Object.fromEntries(voiceLogs),
+        memberLogs: Object.fromEntries(memberLogs),
+        lastSaved: new Date().toISOString(),
+    };
+    const serialized = JSON.stringify(data);
+    activitySaveQueue = activitySaveQueue.then(async () => {
+        const temporary = `${LOGS_FILE}.tmp`;
+        await fs.promises.writeFile(temporary, serialized, 'utf-8');
+        await fs.promises.rename(temporary, LOGS_FILE);
+    }).catch(error => console.error('❌ Error saving logs to disk:', error));
+    return activitySaveQueue;
+}
 function saveLogsToDisk() {
     // Debounce: only save once per 5 seconds even if multiple events fire
     if (saveTimer) return;
     saveTimer = setTimeout(() => {
         saveTimer = null;
-        try {
-            const data = {
-                voiceLogs: Object.fromEntries(voiceLogs),
-                memberLogs: Object.fromEntries(memberLogs),
-                lastSaved: new Date().toISOString(),
-            };
-            fs.writeFileSync(LOGS_FILE, JSON.stringify(data), 'utf-8');
-        } catch (error) {
-            console.error('❌ Error saving logs to disk:', error);
-        }
+        persistActivityLogs();
     }, 5000);
+}
+
+async function flushActivityLogs() {
+    if (saveTimer) {
+        clearTimeout(saveTimer);
+        saveTimer = null;
+        await persistActivityLogs();
+    } else {
+        await activitySaveQueue;
+    }
 }
 
 // Load on startup
@@ -1152,8 +1168,9 @@ client.on('guildMemberRemove', async (member) => {
 // ======================
 
 client.on('messageCreate', async (message) => {
-    // Debug: log ALL incoming messages so we can see if DMs arrive
-    console.log(`📩 Message received - Author: ${message.author?.tag || 'unknown'} | Guild: ${message.guild?.name || 'DM'} | Content: ${message.content?.substring(0, 50) || '[empty]'} | Channel Type: ${message.channel.type}`);
+    if (String(process.env.COMMISSION_VERBOSE_MESSAGES || '').toLowerCase() === 'true') {
+        console.log(`📩 Message received - Author: ${message.author?.tag || 'unknown'} | Guild: ${message.guild?.name || 'DM'} | Content: ${message.content?.substring(0, 50) || '[empty]'} | Channel Type: ${message.channel.type}`);
+    }
 
     // Handle partial messages (needed for DMs in discord.js v14)
     if (message.partial) {
@@ -5271,6 +5288,7 @@ async function gracefulShutdown(signal) {
         if (typeof memberBridgeIntegration.stop === 'function') await memberBridgeIntegration.stop();
     } catch (error) { console.error('[MemberBridge shutdown]', error.message); }
     try { economy.close?.(); } catch (error) { console.error('[Economy shutdown]', error.message); }
+    await flushActivityLogs();
     try { client.destroy(); } catch {}
     process.exit(0);
 }

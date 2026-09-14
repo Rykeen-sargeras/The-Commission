@@ -66,8 +66,9 @@ try {
     assert.strictEqual(repMonthKey(Date.UTC(2026, 0, 1, 13, 0), 'America/New_York'), '2026-01');
     assert.strictEqual(repMonthKey(Date.UTC(2026, 7, 1, 11, 59), 'America/New_York'), '2026-07');
     assert.strictEqual(repMonthKey(Date.UTC(2026, 7, 1, 12, 0), 'America/New_York'), '2026-08');
-    assert.strictEqual(service.heistState('heist-guild').phase, 'signup');
-    assert.strictEqual(service.createHeistRound('heist-guild').status, 'signup');
+    const heistNow = Date.UTC(2026, 0, 1, 12, 30);
+    assert.strictEqual(service.heistState('heist-guild', heistNow).phase, 'signup');
+    assert.strictEqual(service.createHeistRound('heist-guild', heistNow).status, 'signup');
     assert.deepStrictEqual(service.evaluatePoker(['10♠','10♥','3♦','6♣','9♠']), { name: 'Tens or Better', multiplier: 1.5 });
     assert.deepStrictEqual(service.evaluatePoker(['9♠','9♥','3♦','6♣','A♠']), { name: 'No winning hand', multiplier: 0 });
     assert.deepStrictEqual(service.evaluatePoker(['10♠','J♠','Q♠','K♠','A♠']), { name: 'Royal Flush', multiplier: 150 });

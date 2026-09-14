@@ -103,8 +103,19 @@ class EconomyService {
         fs.mkdirSync(dataDir, { recursive: true });
         this.dbPath = options.dbPath || path.join(dataDir, 'blood-money.sqlite');
         this.db = new DatabaseSync(this.dbPath);
+        this.statements = new Map();
+        this.repMonthByGuild = new Map();
         this.random = options.random || (() => crypto.randomInt(0, 0x100000000) / 0x100000000);
         this.initialize();
+    }
+
+    statement(sql) {
+        let prepared = this.statements.get(sql);
+        if (!prepared) {
+            prepared = this.db.prepare(sql);
+            this.statements.set(sql, prepared);
+        }
+        return prepared;
     }
 
     initialize() {
@@ -273,16 +284,24 @@ class EconomyService {
     }
 
     ensureMember(guildId, userId, now = Date.now()) {
-        this.db.prepare(`INSERT OR IGNORE INTO economy_members
-            (guild_id,user_id,daily_key,created_at,updated_at) VALUES(?,?,?,?,?)`)
-            .run(guildId, userId, dayKey(now, this.config), now, now);
-        this.resetDailyIfNeeded(guildId, userId, now);
-        return this.member(guildId, userId);
+        const row = this.member(guildId, userId);
+        const key = dayKey(now, this.config);
+        if (!row) {
+            this.statement(`INSERT OR IGNORE INTO economy_members
+                (guild_id,user_id,daily_key,created_at,updated_at) VALUES(?,?,?,?,?)`)
+                .run(guildId, userId, key, now, now);
+            return this.member(guildId, userId);
+        }
+        if (row.daily_key !== key) {
+            this.resetDailyIfNeeded(guildId, userId, now);
+            return this.member(guildId, userId);
+        }
+        return row;
     }
 
     resetDailyIfNeeded(guildId, userId, now = Date.now()) {
         const key = dayKey(now, this.config);
-        this.db.prepare(`UPDATE economy_members SET daily_key=?, daily_wagered=0, daily_gambling_limit=0,
+        this.statement(`UPDATE economy_members SET daily_key=?, daily_wagered=0, daily_gambling_limit=0,
             daily_blackjack_wagered=0,daily_poker_wagered=0,
             daily_text_earned=0, daily_media_earned=0, daily_media_posts=0, daily_voice_earned=0,
             daily_transfers_sent=0, updated_at=? WHERE guild_id=? AND user_id=? AND daily_key<>?`)
@@ -290,7 +309,7 @@ class EconomyService {
     }
 
     member(guildId, userId) {
-        return this.db.prepare('SELECT * FROM economy_members WHERE guild_id=? AND user_id=?').get(guildId, userId);
+        return this.statement('SELECT * FROM economy_members WHERE guild_id=? AND user_id=?').get(guildId, userId);
     }
 
     publicMember(guildId, userId) {
@@ -299,9 +318,12 @@ class EconomyService {
     }
 
     ensureRepMember(guildId, userId, now = Date.now()) {
-        this.db.prepare(`INSERT OR IGNORE INTO rep_members(guild_id,user_id,created_at,updated_at)
+        const select = this.statement('SELECT * FROM rep_members WHERE guild_id=? AND user_id=?');
+        const row = select.get(guildId, userId);
+        if (row) return row;
+        this.statement(`INSERT OR IGNORE INTO rep_members(guild_id,user_id,created_at,updated_at)
             VALUES(?,?,?,?)`).run(guildId, userId, now, now);
-        return this.db.prepare('SELECT * FROM rep_members WHERE guild_id=? AND user_id=?').get(guildId, userId);
+        return select.get(guildId, userId);
     }
 
     repMember(guildId, userId, now = Date.now()) {
@@ -313,19 +335,29 @@ class EconomyService {
         return { ...row, position };
     }
 
-    rewardRepMessage(guildId, userId, now = Date.now()) {
+    ensureRepMonthCurrent(guildId, now) {
+        const month = repMonthKey(now, 'America/New_York');
+        if (this.repMonthByGuild.get(guildId) === month) return;
         this.rolloverRepMonth(guildId, now);
+        this.repMonthByGuild.set(guildId, month);
+    }
+
+    rewardRepMessage(guildId, userId, now = Date.now()) {
+        this.ensureRepMonthCurrent(guildId, now);
+        const select = this.statement('SELECT points,last_message_at FROM rep_members WHERE guild_id=? AND user_id=?');
+        const existing = select.get(guildId, userId);
+        if (existing?.last_message_at && now - existing.last_message_at < 120000) return null;
         return this.transaction(() => {
-            const row = this.ensureRepMember(guildId, userId, now);
-            if (row.last_message_at && now - row.last_message_at < 120000) return null;
-            this.db.prepare('UPDATE rep_members SET points=points+1,last_message_at=?,updated_at=? WHERE guild_id=? AND user_id=?')
-                .run(now, now, guildId, userId);
-            return { reward: 1, points: row.points + 1 };
+            if (!existing) this.ensureRepMember(guildId, userId, now);
+            const updated = this.statement(`UPDATE rep_members SET points=points+1,last_message_at=?,updated_at=?
+                WHERE guild_id=? AND user_id=? AND (last_message_at=0 OR last_message_at<=?) RETURNING points`)
+                .get(now, now, guildId, userId, now - 120000);
+            return updated ? { reward: 1, points: updated.points } : null;
         });
     }
 
     rewardRepVoice(guildId, userId, minutes = 1, now = Date.now()) {
-        this.rolloverRepMonth(guildId, now);
+        this.ensureRepMonthCurrent(guildId, now);
         return this.transaction(() => {
             const row = this.ensureRepMember(guildId, userId, now);
             const accumulated = row.qualified_voice_minutes + Math.max(0, boundedInt(minutes, 0, 0));
