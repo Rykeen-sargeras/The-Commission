@@ -41,6 +41,15 @@ async function resolveStaffRoles(guild, staffRoleIds) {
     const validRoles = configuredIds.map(id => roles?.get(id)).filter(Boolean);
     const invalidRoleIds = configuredIds.filter(id => !roles?.has(id));
 
+    // Always include the server's @Moderators role in jail access/pings, even if
+    // it was not included in STAFF_ROLE_IDS. Do not create or alter the role.
+    const moderatorsRole = [...(roles?.values?.() || [])].find(role => (
+        String(role?.name || '').trim().toLowerCase() === 'moderators'
+    ));
+    if (moderatorsRole && !validRoles.some(role => role.id === moderatorsRole.id)) {
+        validRoles.push(moderatorsRole);
+    }
+
     if (invalidRoleIds.length) {
         console.warn(`[Manual jail] Ignoring staff role IDs that do not exist in guild ${guild.id}: ${invalidRoleIds.join(', ')}`);
     }
@@ -136,7 +145,14 @@ function installManualJailRoleWorkflow(client, Discord, config, options = {}) {
                             { name: 'Status', value: 'Waiting for staff review' },
                         )
                         .setTimestamp();
-                    await jailChannel.send({ content: `${staffMentions} <@${member.id}>`.trim(), embeds: [embed] });
+                    await jailChannel.send({
+                        content: `${staffMentions} <@${member.id}>`.trim(),
+                        embeds: [embed],
+                        allowedMentions: {
+                            roles: staffRoles.map(role => role.id),
+                            users: [member.id],
+                        },
+                    });
 
                     if (jailLogChannelId) {
                         const jailLogChannel = await guild.channels.fetch(jailLogChannelId).catch(() => null);
