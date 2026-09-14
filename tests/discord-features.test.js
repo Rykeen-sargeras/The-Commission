@@ -10,7 +10,6 @@ const installers = new Map([
     ['./going_live_command_guard', { installGuard: client => calls.push(['going-live-guard', client]) }],
     ['./permissions_bridge', { installPermissionsBridge: client => calls.push(['permissions-bridge', client]) }],
     ['./open_panel_preload', { installOpenPanel: client => calls.push(['open-panel', client]) }],
-    ['./youtube_role_permissions', { installConfiguredRolePermissionSync: client => calls.push(['role-permissions', client]) }],
     ['./dm_ticket_system', { installDMTicketSystem: client => calls.push(['dm-tickets', client]) }],
 ]);
 
@@ -30,7 +29,6 @@ assert.deepStrictEqual(calls.map(([name]) => name), [
     'going-live-guard',
     'permissions-bridge',
     'open-panel',
-    'role-permissions',
     'dm-tickets',
 ]);
 assert.ok(calls.every(([, installedClient]) => installedClient === client));
