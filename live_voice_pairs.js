@@ -7,16 +7,10 @@ const APPRENTICE_RE = /^(.*\bApprentice\s+)(\d+)(\b.*)$/iu;
 const APPRENTICE_WAITING_RE = /^(.*\bApprentice\s+Waiting\s+)(\d+)(\b.*)$/iu;
 const UNNUMBERED_APPRENTICE_WAITING_RE = /^(.*\bApprentice\s+Waiting)(\b.*)$/iu;
 
-const FAMILY_DEFINITIONS = {
-    live: {
-        roomName: '🔴 LIVE 1 🔴',
-        waitingName: '⬆️ Waiting ⬆️',
-    },
-    apprentice: {
-        roomName: '🟡 Apprentice 1 🟡',
-        waitingName: '🟡 Apprentice Waiting 🟡',
-    },
-};
+const FAMILY_DEFINITIONS = Object.freeze({
+    live: { roomName: '🔴 LIVE 1 🔴', waitingName: '⬆️ Waiting ⬆️' },
+    apprentice: { roomName: '🟡 Apprentice 1 🟡', waitingName: '🟡 Apprentice Waiting 🟡' },
+});
 
 const VIEW_CHANNEL = 1n << 10n;
 const CONNECT = 1n << 20n;
@@ -24,42 +18,32 @@ const MOVE_MEMBERS = 1n << 24n;
 const MANAGED_ROLE_BITS = VIEW_CHANNEL | CONNECT | MOVE_MEMBERS;
 
 function describeManagedChannel(channel, categoryId) {
-    if (!channel || channel.parentId !== categoryId) return null;
+    if (!channel || String(channel.parentId || '') !== String(categoryId || '')) return null;
     const name = String(channel.name || '');
-
-    const apprenticeWaitingMatch = name.match(APPRENTICE_WAITING_RE);
-    if (apprenticeWaitingMatch) {
-        return { family: 'apprentice', kind: 'waiting', number: Number(apprenticeWaitingMatch[2]) };
-    }
-    if (UNNUMBERED_APPRENTICE_WAITING_RE.test(name)) {
-        return { family: 'apprentice', kind: 'waiting', number: 1 };
-    }
-    const apprenticeMatch = name.match(APPRENTICE_RE);
-    if (apprenticeMatch) {
-        return { family: 'apprentice', kind: 'room', number: Number(apprenticeMatch[2]) };
-    }
-    const liveMatch = name.match(LIVE_RE);
-    if (liveMatch) return { family: 'live', kind: 'room', number: Number(liveMatch[2]) };
-    const waitingMatch = name.match(WAITING_RE);
-    if (waitingMatch) return { family: 'live', kind: 'waiting', number: Number(waitingMatch[2]) };
+    let match = name.match(APPRENTICE_WAITING_RE);
+    if (match) return { family: 'apprentice', kind: 'waiting', number: Number(match[2]) };
+    if (UNNUMBERED_APPRENTICE_WAITING_RE.test(name)) return { family: 'apprentice', kind: 'waiting', number: 1 };
+    match = name.match(APPRENTICE_RE);
+    if (match) return { family: 'apprentice', kind: 'room', number: Number(match[2]) };
+    match = name.match(LIVE_RE);
+    if (match) return { family: 'live', kind: 'room', number: Number(match[2]) };
+    match = name.match(WAITING_RE);
+    if (match) return { family: 'live', kind: 'waiting', number: Number(match[2]) };
     if (UNNUMBERED_WAITING_RE.test(name)) return { family: 'live', kind: 'waiting', number: 1 };
     return null;
 }
 
 function numberedName(templateName, number, kind, family = 'live') {
-    const patterns = family === 'apprentice'
-        ? { room: APPRENTICE_RE, waiting: APPRENTICE_WAITING_RE }
-        : { room: LIVE_RE, live: LIVE_RE, waiting: WAITING_RE };
-    const pattern = patterns[kind];
-    const name = String(templateName);
-    if (pattern?.test(name)) {
-        return name.replace(pattern, (_, before, _oldNumber, after) => `${before}${number}${after}`);
-    }
+    const name = String(templateName || '');
+    const pattern = family === 'apprentice'
+        ? (kind === 'waiting' ? APPRENTICE_WAITING_RE : APPRENTICE_RE)
+        : (kind === 'waiting' ? WAITING_RE : LIVE_RE);
+    if (pattern.test(name)) return name.replace(pattern, (_m, before, _old, after) => `${before}${number}${after}`);
     if (family === 'apprentice' && kind === 'waiting' && UNNUMBERED_APPRENTICE_WAITING_RE.test(name)) {
-        return name.replace(UNNUMBERED_APPRENTICE_WAITING_RE, (_, before, after) => `${before} ${number}${after}`);
+        return name.replace(UNNUMBERED_APPRENTICE_WAITING_RE, (_m, before, after) => `${before} ${number}${after}`);
     }
     if (family === 'live' && kind === 'waiting' && UNNUMBERED_WAITING_RE.test(name)) {
-        return name.replace(UNNUMBERED_WAITING_RE, (_, before, after) => `${before} ${number}${after}`);
+        return name.replace(UNNUMBERED_WAITING_RE, (_m, before, after) => `${before} ${number}${after}`);
     }
     return family === 'apprentice'
         ? `${kind === 'waiting' ? 'Apprentice Waiting' : 'Apprentice'} ${number}`
@@ -67,10 +51,8 @@ function numberedName(templateName, number, kind, family = 'live') {
 }
 
 function canonicalName(family, kind, number) {
-    const definition = FAMILY_DEFINITIONS[family];
-    const templateName = kind === 'waiting' ? definition.waitingName : definition.roomName;
-    if (number === 1) return templateName;
-    return numberedName(templateName, number, kind, family);
+    const template = kind === 'waiting' ? FAMILY_DEFINITIONS[family].waitingName : FAMILY_DEFINITIONS[family].roomName;
+    return number === 1 ? template : numberedName(template, number, kind, family);
 }
 
 function memberCount(channel) {
@@ -87,7 +69,7 @@ function isCompleteEmptyPair(pair) {
 
 function clonePermissionOverwrites(channel) {
     const cache = channel?.permissionOverwrites?.cache;
-    if (!cache) return [];
+    if (!cache?.values) return [];
     return Array.from(cache.values()).map(overwrite => ({
         id: overwrite.id,
         type: overwrite.type,
@@ -97,25 +79,21 @@ function clonePermissionOverwrites(channel) {
 }
 
 function rolePermissionBits(family, kind) {
-    if (family === 'apprentice') {
-        return { allow: MANAGED_ROLE_BITS, deny: 0n };
-    }
-    if (kind === 'waiting') {
-        return { allow: VIEW_CHANNEL | CONNECT, deny: MOVE_MEMBERS };
-    }
+    if (family === 'apprentice') return { allow: MANAGED_ROLE_BITS, deny: 0n };
+    if (kind === 'waiting') return { allow: VIEW_CHANNEL | CONNECT, deny: MOVE_MEMBERS };
     return { allow: VIEW_CHANNEL, deny: CONNECT | MOVE_MEMBERS };
 }
 
 function withRolePermissions(overwrites, roleId, family, kind) {
     if (!roleId) return overwrites;
     const output = overwrites.map(item => ({ ...item }));
-    const existing = output.find(item => String(item.id) === roleId);
     const desired = rolePermissionBits(family, kind);
+    const existing = output.find(item => String(item.id) === String(roleId));
     const target = existing || { id: roleId, type: 0, allow: 0n, deny: 0n };
-    const currentAllow = BigInt(target.allow?.bitfield ?? target.allow ?? 0n);
-    const currentDeny = BigInt(target.deny?.bitfield ?? target.deny ?? 0n);
-    target.allow = (currentAllow & ~MANAGED_ROLE_BITS) | desired.allow;
-    target.deny = (currentDeny & ~MANAGED_ROLE_BITS) | desired.deny;
+    const allow = BigInt(target.allow?.bitfield ?? target.allow ?? 0n);
+    const deny = BigInt(target.deny?.bitfield ?? target.deny ?? 0n);
+    target.allow = (allow & ~MANAGED_ROLE_BITS) | desired.allow;
+    target.deny = (deny & ~MANAGED_ROLE_BITS) | desired.deny;
     if (!existing) output.push(target);
     return output;
 }
@@ -125,12 +103,7 @@ function cloneChannelOptions(template, name, categoryId, { apprenticeRoleId = ''
         name,
         type: template?.type ?? 2,
         parent: categoryId,
-        permissionOverwrites: withRolePermissions(
-            clonePermissionOverwrites(template),
-            apprenticeRoleId,
-            family,
-            kind,
-        ),
+        permissionOverwrites: withRolePermissions(clonePermissionOverwrites(template), apprenticeRoleId, family, kind),
         reason: 'Maintain dynamic LIVE/Waiting and Apprentice voice channel pairs',
     };
     for (const key of ['bitrate', 'userLimit', 'rtcRegion', 'videoQualityMode']) {
@@ -145,6 +118,7 @@ class LiveVoicePairManager {
         apprenticeRoleId = process.env.APPRENTICE_VOICE_ROLE_ID || '1538688329451573300',
         delayMs = 350,
         cleanupDelayMs = 10_000,
+        healthIntervalMs = 60_000,
         logger = console,
     } = {}) {
         this.client = client;
@@ -152,6 +126,7 @@ class LiveVoicePairManager {
         this.apprenticeRoleId = String(apprenticeRoleId || '');
         this.delayMs = delayMs;
         this.cleanupDelayMs = cleanupDelayMs;
+        this.healthIntervalMs = Math.max(30_000, Number(healthIntervalMs) || 60_000);
         this.logger = logger;
         this.timers = new Map();
         this.guildQueues = new Map();
@@ -164,14 +139,16 @@ class LiveVoicePairManager {
             this.logger.warn('[voice-pairs] LIVE_VOICE_CATEGORY_ID is not configured; dynamic pairs are disabled.');
             return this;
         }
+        if (!this.client?.on) return this;
 
         this.client.on('ready', () => {
-            for (const guild of this.client.guilds.cache.values()) this.schedule(guild, 0, 'live');
-
+            for (const guild of this.client.guilds.cache.values()) this.schedule(guild, 0);
             if (!this.healthInterval) {
+                // Events do the real work. This is only a slow recovery check, not a
+                // five-second full-channel poll.
                 this.healthInterval = setInterval(() => {
-                    for (const guild of this.client.guilds.cache.values()) this.schedule(guild, 0, 'live');
-                }, 5_000);
+                    for (const guild of this.client.guilds.cache.values()) this.schedule(guild, 0);
+                }, this.healthIntervalMs);
                 this.healthInterval.unref?.();
             }
         });
@@ -181,31 +158,22 @@ class LiveVoicePairManager {
             const guild = newState.guild || oldState.guild;
             const oldManaged = describeManagedChannel(oldState.channel, this.categoryId);
             const newManaged = describeManagedChannel(newState.channel, this.categoryId);
-
             if (newManaged) this.cancelCleanup(guild.id, newManaged.family, newManaged.number);
             if (oldManaged && oldManaged.number > 1 && oldState.channelId !== newState.channelId) {
                 this.scheduleCleanup(guild, oldManaged.family, oldManaged.number);
             }
-
-            const joinedManaged = newManaged && oldState.channelId !== newState.channelId;
-            const consumesOpenSlot = joinedManaged && (
-                newManaged.family === 'live'
-                || newManaged.kind === 'room'
-            );
-            if (consumesOpenSlot) this.schedule(guild, this.delayMs, newManaged.family);
-            else if (oldManaged?.family === 'live') this.schedule(guild, this.delayMs, 'live');
+            if (oldState.channelId !== newState.channelId) this.schedule(guild, this.delayMs, newManaged?.family || oldManaged?.family || null);
         });
 
+        this.client.on('channelCreate', channel => {
+            if (String(channel.parentId || '') === this.categoryId) this.schedule(channel.guild, this.delayMs);
+        });
         this.client.on('channelDelete', channel => {
             const managed = describeManagedChannel(channel, this.categoryId);
             if (!managed) return;
-            if (managed.number === 1) this.schedule(channel.guild, 0, managed.family);
-            else {
-                this.scheduleCleanup(channel.guild, managed.family, managed.number);
-                if (managed.family === 'live') this.schedule(channel.guild, 0, 'live');
-            }
+            if (managed.number > 1) this.scheduleCleanup(channel.guild, managed.family, managed.number);
+            this.schedule(channel.guild, this.delayMs, managed.family);
         });
-
         return this;
     }
 
@@ -216,11 +184,14 @@ class LiveVoicePairManager {
             this.timers.delete(guild.id);
             const previous = this.guildQueues.get(guild.id) || Promise.resolve();
             const next = previous
-                .catch(() => {})
+                .catch(() => null)
                 .then(() => this.reconcile(guild, ensureFamily))
-                .catch(error => this.logger.error(`[voice-pairs] ${guild.id}:`, error));
+                .catch(error => this.logger.error?.(`[voice-pairs] ${guild.id}:`, error))
+                .finally(() => {
+                    if (this.guildQueues.get(guild.id) === next) this.guildQueues.delete(guild.id);
+                });
             this.guildQueues.set(guild.id, next);
-        }, delayMs);
+        }, Math.max(0, delayMs));
         timer.unref?.();
         this.timers.set(guild.id, timer);
     }
@@ -241,19 +212,19 @@ class LiveVoicePairManager {
         clearTimeout(this.cleanupTimers.get(key));
         const timer = setTimeout(() => {
             this.cleanupTimers.delete(key);
-            this.deletePairIfEmpty(guild, family, number).catch(error => {
-                this.logger.error(`[voice-pairs] cleanup ${guild.id}:${family}:${number}:`, error);
-            });
+            this.deletePairIfEmpty(guild, family, number).catch(error => this.logger.error?.(`[voice-pairs] cleanup ${key}:`, error));
         }, this.cleanupDelayMs);
         timer.unref?.();
         this.cleanupTimers.set(key, timer);
     }
 
     async collectPairs(guild) {
-        await guild.channels.fetch();
-
+        // Discord.js already keeps GuildChannels cached through gateway events.
+        // Only REST-fetch when the cache is genuinely empty (normally startup edge cases).
+        if (!guild.channels.cache?.size && guild.channels.fetch) await guild.channels.fetch().catch(() => null);
         const pairs = { live: new Map(), apprentice: new Map() };
         for (const channel of guild.channels.cache.values()) {
+            if (channel.deleted) continue;
             const managed = describeManagedChannel(channel, this.categoryId);
             if (!managed) continue;
             const pair = pairs[managed.family].get(managed.number) || {};
@@ -280,44 +251,26 @@ class LiveVoicePairManager {
     }
 
     async ensureCanonicalName(channel, family, kind, number) {
-        if (!channel?.setName) return;
         const expected = canonicalName(family, kind, number);
-        if (channel.name === expected) return;
-        await channel.setName(expected, 'Normalize managed voice channel name');
+        if (channel?.setName && channel.name !== expected) await channel.setName(expected, 'Normalize managed voice channel name');
     }
 
     async ensureChannelOrder(guild, pairs) {
-        if (!guild?.channels?.setPositions) return;
-
+        if (!guild.channels?.setPositions) return;
         const ordered = [];
         for (const family of ['live', 'apprentice']) {
-            const numbers = Array.from(pairs[family].keys()).sort((a, b) => a - b);
-            for (const number of numbers) {
+            for (const number of Array.from(pairs[family].keys()).sort((a, b) => a - b)) {
                 const pair = pairs[family].get(number) || {};
                 if (pair.room) ordered.push(pair.room);
                 if (pair.waiting) ordered.push(pair.waiting);
             }
         }
         if (ordered.length < 2) return;
-
-        const knownPositions = ordered
-            .map(channel => Number(channel.rawPosition ?? channel.position))
-            .filter(Number.isFinite);
-        if (!knownPositions.length) return;
-        const startPosition = Math.min(...knownPositions);
-
-        const alreadyOrdered = ordered.every((channel, index) => {
-            const current = Number(channel.rawPosition ?? channel.position);
-            return Number.isFinite(current) && current === startPosition + index;
-        });
-        if (alreadyOrdered) return;
-
-        await guild.channels.setPositions(
-            ordered.map((channel, index) => ({
-                channel,
-                position: startPosition + index,
-            })),
-        );
+        const currentPositions = ordered.map(channel => Number(channel.rawPosition ?? channel.position));
+        if (!currentPositions.every(Number.isFinite)) return;
+        const start = Math.min(...currentPositions);
+        if (ordered.every((channel, index) => Number(channel.rawPosition ?? channel.position) === start + index)) return;
+        await guild.channels.setPositions(ordered.map((channel, index) => ({ channel, position: start + index })));
     }
 
     async createChannel(guild, template, name, family, kind) {
@@ -331,12 +284,8 @@ class LiveVoicePairManager {
     async ensureBasePair(guild, pairs, family) {
         const definition = FAMILY_DEFINITIONS[family];
         const pair = pairs[family].get(1) || {};
-        if (!pair.room) {
-            pair.room = await this.createChannel(guild, pair.waiting, definition.roomName, family, 'room');
-        }
-        if (!pair.waiting) {
-            pair.waiting = await this.createChannel(guild, pair.room, definition.waitingName, family, 'waiting');
-        }
+        if (!pair.room) pair.room = await this.createChannel(guild, pair.waiting, definition.roomName, family, 'room');
+        if (!pair.waiting) pair.waiting = await this.createChannel(guild, pair.room, definition.waitingName, family, 'waiting');
         await this.ensureRolePermissions(pair.room, family, 'room');
         await this.ensureRolePermissions(pair.waiting, family, 'waiting');
         await this.ensureCanonicalName(pair.room, family, 'room', 1);
@@ -347,50 +296,22 @@ class LiveVoicePairManager {
 
     async ensureSparePair(guild, pairs, family) {
         const familyPairs = pairs[family];
-        const templates = familyPairs.get(1);
-        if (!templates?.room || !templates?.waiting) return false;
-
+        const base = familyPairs.get(1);
+        if (!base?.room || !base?.waiting) return false;
         const values = Array.from(familyPairs.values());
-        const occupiedSlotExists = values.some(pair => (
-            family === 'live'
-                ? pairMemberCount(pair) > 0
-                : memberCount(pair.room) > 0
-        ));
-        if (!occupiedSlotExists) return false;
+        const occupied = values.some(pair => family === 'live' ? pairMemberCount(pair) > 0 : memberCount(pair.room) > 0);
+        if (!occupied) return false;
+        const openSlot = values.some(pair => family === 'live' ? isCompleteEmptyPair(pair) : Boolean(pair.room && memberCount(pair.room) === 0));
+        if (openSlot) return false;
 
-        const openSlotExists = values.some(pair => (
-            family === 'live'
-                ? isCompleteEmptyPair(pair)
-                : pair.room && memberCount(pair.room) === 0
-        ));
-        if (openSlotExists) return false;
-
-        let nextNumber = 2;
-        while (familyPairs.has(nextNumber)) nextNumber += 1;
-
-        const nextPair = {};
-        nextPair.room = await this.createChannel(
-            guild,
-            templates.room,
-            numberedName(templates.room.name, nextNumber, 'room', family),
-            family,
-            'room',
-        );
-        try {
-            nextPair.waiting = await this.createChannel(
-                guild,
-                templates.waiting,
-                numberedName(templates.waiting.name, nextNumber, 'waiting', family),
-                family,
-                'waiting',
-            );
-        } catch (error) {
-            await nextPair.room.delete('Rollback incomplete voice pair').catch(() => {});
-            throw error;
-        }
-
-        familyPairs.set(nextNumber, nextPair);
-        this.logger?.log?.(`[voice-pairs] Created ${family} pair ${nextNumber}.`);
+        let number = 2;
+        while (familyPairs.has(number)) number += 1;
+        const pair = {
+            room: await this.createChannel(guild, base.room, canonicalName(family, 'room', number), family, 'room'),
+            waiting: null,
+        };
+        pair.waiting = await this.createChannel(guild, base.waiting, canonicalName(family, 'waiting', number), family, 'waiting');
+        familyPairs.set(number, pair);
         return true;
     }
 
@@ -399,46 +320,38 @@ class LiveVoicePairManager {
         await this.ensureBasePair(guild, pairs, 'live');
         await this.ensureBasePair(guild, pairs, 'apprentice');
 
-        for (const family of Object.keys(FAMILY_DEFINITIONS)) {
+        for (const family of ['live', 'apprentice']) {
             for (const [number, pair] of pairs[family]) {
-                await this.ensureCanonicalName(pair.room, family, 'room', number);
-                await this.ensureCanonicalName(pair.waiting, family, 'waiting', number);
-                if (number > 1 && pairMemberCount(pair) === 0) {
-                    this.scheduleCleanup(guild, family, number);
+                if (pair.room) {
+                    await this.ensureCanonicalName(pair.room, family, 'room', number);
+                    await this.ensureRolePermissions(pair.room, family, 'room');
+                }
+                if (pair.waiting) {
+                    await this.ensureCanonicalName(pair.waiting, family, 'waiting', number);
+                    await this.ensureRolePermissions(pair.waiting, family, 'waiting');
                 }
             }
         }
 
-        const familyToEnsure = ensureFamily || 'live';
-        await this.ensureSparePair(guild, pairs, familyToEnsure);
+        if (ensureFamily === 'live' || ensureFamily === 'apprentice') await this.ensureSparePair(guild, pairs, ensureFamily);
+        else {
+            await this.ensureSparePair(guild, pairs, 'live');
+            await this.ensureSparePair(guild, pairs, 'apprentice');
+        }
         await this.ensureChannelOrder(guild, pairs);
+        return pairs;
     }
 
     async deletePairIfEmpty(guild, family, number) {
         if (number <= 1) return false;
-
-        const pairs = (await this.collectPairs(guild))[family];
-        const pair = pairs.get(number) || {};
-        if (pairMemberCount(pair) > 0) return false;
-
-        if (family === 'live' && isCompleteEmptyPair(pair)) {
-            const otherPairs = Array.from(pairs.entries())
-                .filter(([otherNumber]) => otherNumber !== number)
-                .map(([, otherPair]) => otherPair);
-            const anotherPairIsOccupied = otherPairs.some(otherPair => pairMemberCount(otherPair) > 0);
-            const anotherCompleteSpareExists = otherPairs.some(isCompleteEmptyPair);
-
-            if (anotherPairIsOccupied && !anotherCompleteSpareExists) {
-                this.logger?.log?.(`[voice-pairs] Keeping LIVE ${number} as the required spare pair.`);
-                return false;
-            }
-        }
-
-        for (const channel of [pair.room, pair.waiting]) {
-            if (channel) await channel.delete('Remove voice pair after ten seconds empty');
-        }
-        this.schedule(guild, 0, family === 'live' ? 'live' : null);
-        return true;
+        const pairs = await this.collectPairs(guild);
+        const pair = pairs[family].get(number);
+        if (!pair || pairMemberCount(pair) > 0) return false;
+        const targets = [pair.room, pair.waiting].filter(Boolean);
+        const results = await Promise.allSettled(targets.map(channel => channel.delete?.('Remove unused dynamic voice pair')));
+        const deleted = results.some(result => result.status === 'fulfilled');
+        if (deleted) this.schedule(guild, this.delayMs);
+        return deleted;
     }
 }
 
@@ -448,14 +361,15 @@ function installLiveVoicePairs(client, options) {
 
 module.exports = {
     CONNECT,
+    FAMILY_DEFINITIONS,
     LiveVoicePairManager,
+    MANAGED_ROLE_BITS,
     MOVE_MEMBERS,
     VIEW_CHANNEL,
     canonicalName,
-    clonePermissionOverwrites,
+    cloneChannelOptions,
     describeManagedChannel,
     installLiveVoicePairs,
     numberedName,
     rolePermissionBits,
-    withRolePermissions,
 };
