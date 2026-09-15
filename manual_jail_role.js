@@ -12,7 +12,10 @@ function findExistingJailChannel(channels, memberId, categoryId) {
     return [...channels.values()].find(channel => (
         channel.parentId === categoryId
         && channel.name?.startsWith('jail-')
-        && channel.permissionOverwrites?.cache?.has(memberId)
+        && (
+            channel.permissionOverwrites?.cache?.has(memberId)
+            || channel.topic?.includes(`commission-jail-user:${memberId}`)
+        )
     )) || null;
 }
 
@@ -65,6 +68,7 @@ function installManualJailRoleWorkflow(client, Discord, config, options = {}) {
     const staffRoleIds = config.staffRoleIds || [];
     const delayMs = options.delayMs ?? 1500;
     const reconcileOnReady = options.reconcileOnReady !== false;
+    const shouldSkip = typeof options.shouldSkip === 'function' ? options.shouldSkip : () => false;
     const provisioning = new Map();
 
     if (!jailRoleId) {
@@ -198,6 +202,7 @@ function installManualJailRoleWorkflow(client, Discord, config, options = {}) {
 
     client.on('guildMemberUpdate', async (oldMember, newMember) => {
         if (!wasJailRoleAdded(oldMember, newMember, jailRoleId)) return;
+        if (shouldSkip(newMember)) return;
         if (provisioning.has(newMember.id)) return provisioning.get(newMember.id);
 
         const task = completeJailWorkflow(newMember)

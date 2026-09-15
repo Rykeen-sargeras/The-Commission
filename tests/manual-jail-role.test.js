@@ -21,6 +21,14 @@ const existing = {
     permissionOverwrites: { cache: new Map([['member', true]]) },
 };
 assert.strictEqual(findExistingJailChannel(new Map([['existing', existing]]), 'member', 'category'), existing);
+const existingByTopic = {
+    id: 'existing-topic',
+    name: 'jail-member-5678',
+    parentId: 'category',
+    topic: 'commission-jail-user:member;jailed-at:123',
+    permissionOverwrites: { cache: new Map() },
+};
+assert.strictEqual(findExistingJailChannel(new Map([['existing-topic', existingByTopic]]), 'member', 'category'), existingByTopic);
 
 class EmbedBuilder {
     setColor() { return this; }
@@ -110,6 +118,19 @@ const Discord = {
 
     const before = created;
     await listener(newMember, newMember);
+    assert.strictEqual(created, before);
+
+    let skippedListener;
+    installManualJailRoleWorkflow({ on: (_event, handler) => { skippedListener = handler; } }, Discord, {
+        jailRoleId: 'jail',
+        jailCategoryId: 'category',
+        staffRoleIds: ['staff'],
+    }, {
+        delayMs: 0,
+        reconcileOnReady: false,
+        shouldSkip: member => member.id === 'member',
+    });
+    await skippedListener(oldMember, newMember);
     assert.strictEqual(created, before);
     console.log('manual-jail-role tests passed');
 })().catch(error => {

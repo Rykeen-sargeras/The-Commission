@@ -10,7 +10,7 @@ const { verifyAddressWithFreeGeocoders } = require('./address_verification');
 const { MemberBridgeIntegration, memberBridgeCommandData = () => [] } = require('./memberbridge/integration');
 const goingLive = require('./going_live');
 const { installLiveVoicePairs } = require('./live_voice_pairs');
-const { installManualJailRoleWorkflow } = require('./manual_jail_role');
+const { findExistingJailChannel, installManualJailRoleWorkflow } = require('./manual_jail_role');
 const { parseDurationMs, PersistentJailScheduler } = require('./jail_scheduler');
 
 // Music dependencies
@@ -79,6 +79,8 @@ const CONFIG = {
 };
 
 const PREEMPTIVE_BAN_USER_IDS = new Set(CONFIG.PREEMPTIVE_BAN_USER_IDS);
+const activeSlashJails = new Set();
+const jailProvisioningKey = (guildId, userId) => `${guildId}:${userId}`;
 installLiveVoicePairs(client, { categoryId: CONFIG.LIVE_VOICE_CATEGORY_ID });
 installManualJailRoleWorkflow(client, Discord, {
     jailRoleId: CONFIG.JAIL_ROLE_ID,
@@ -86,6 +88,10 @@ installManualJailRoleWorkflow(client, Discord, {
     modChannelId: CONFIG.MOD_CHANNEL_ID,
     jailLogChannelId: CONFIG.JAIL_LOG_CHANNEL_ID,
     staffRoleIds: CONFIG.STAFF_ROLE_IDS,
+}, {
+    // /jail owns its channel, duration, and scheduler state. Ignore the role
+    // update it causes so the manual-role workflow does not create a second one.
+    shouldSkip: member => activeSlashJails.has(jailProvisioningKey(member.guild.id, member.id)),
 });
 
 // Music channel configuration
@@ -2162,6 +2168,15 @@ async function handleJailCommand(interaction) {
     const reason = interaction.options.getString('reason') || 'No reason provided';
     const durationChoice = interaction.options.getString('duration') || 'perm';
     const guild = interaction.guild;
+    const provisioningKey = jailProvisioningKey(guild.id, targetUser.id);
+    if (activeSlashJails.has(provisioningKey)) {
+        await interaction.editReply({ content: `⚠️ A jail is already being created for ${targetUser.tag}.` });
+        return;
+    }
+    activeSlashJails.add(provisioningKey);
+    const provisioningTimeout = setTimeout(() => activeSlashJails.delete(provisioningKey), 60_000);
+    provisioningTimeout.unref?.();
+
     const targetMember = await guild.members.fetch(targetUser.id);
 
     // Parse duration
@@ -2182,6 +2197,14 @@ async function handleJailCommand(interaction) {
     if (!jailParent || jailParent.type !== Discord.ChannelType.GuildCategory) {
         await interaction.editReply({
             content: `❌ Jail category <#${JAIL_CATEGORY_ID}> does not exist in this server or is not a category. Update Protection → Jail room category ID, save, and restart the bot.`,
+        });
+        return;
+    }
+
+    const existingJailChannel = findExistingJailChannel(guild.channels.cache, targetUser.id, jailParent.id);
+    if (existingJailChannel) {
+        await interaction.editReply({
+            content: `⚠️ ${targetUser.tag} already has an active jail channel: <#${existingJailChannel.id}>`,
         });
         return;
     }
