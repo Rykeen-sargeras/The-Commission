@@ -11,10 +11,38 @@ const {
     pickHeistType,
 } = require('./economy_special_events');
 
-const HEIST_ALERT_ROLE_NAME = 'Heist Alerts';
+const HEIST_ALERT_ROLE_NAME = 'heist';
 const HEIST_ALERT_COOLDOWN_MS = 60 * 60 * 1000;
 const LATE_JOIN_WINDOW_MS = 3 * 60 * 1000;
 const BOSS_EXTRA_SIGNUP_MS = 5 * 60 * 1000;
+const PERSONAL_LOOT_MULTIPLIER = 1.25;
+const CREW_LOOT_BONUS = 0.25;
+const MAX_CREW_LOOT_BONUS = 1.0;
+const PERSONAL_LOOT_USES = 3;
+
+const HEIST_STORE_ITEMS = Object.freeze({
+    'hot-tip': Object.freeze({
+        key: 'hot-tip',
+        name: 'Hot Tip',
+        cost: 25_000,
+        quantity: PERSONAL_LOOT_USES,
+        description: '+25% personal heist payout for your next 3 completed heists.',
+    }),
+    'loaded-van': Object.freeze({
+        key: 'loaded-van',
+        name: 'Loaded Getaway Van',
+        cost: 75_000,
+        quantity: 1,
+        description: '+25% crew reward pool on your next heist. Multiple crew boosts stack up to +100%.',
+    }),
+    'pvp-contract': Object.freeze({
+        key: 'pvp-contract',
+        name: 'PvP Contract',
+        cost: 50_000,
+        quantity: 1,
+        description: 'Forces your next eligible 2+ player heist into a PvP robbery encounter.',
+    }),
+});
 
 function installHeistEnhancements() {
     const BaseEconomyService = economyModule.EconomyService;
@@ -38,7 +66,51 @@ function installHeistEnhancements() {
                     interaction_id TEXT NOT NULL DEFAULT '',
                     PRIMARY KEY(guild_id, user_id)
                 );
+                CREATE TABLE IF NOT EXISTS heist_store_inventory (
+                    guild_id TEXT NOT NULL,
+                    user_id TEXT NOT NULL,
+                    item_key TEXT NOT NULL,
+                    quantity INTEGER NOT NULL DEFAULT 0,
+                    updated_at INTEGER NOT NULL,
+                    PRIMARY KEY(guild_id, user_id, item_key)
+                );
             `);
+        }
+
+        heistStoreStatus(guildId, userId, now = Date.now()) {
+            this.ensureMember(guildId, userId, now);
+            const rows = this.db.prepare('SELECT item_key,quantity FROM heist_store_inventory WHERE guild_id=? AND user_id=?')
+                .all(guildId, userId);
+            const inventory = Object.fromEntries(rows.map(row => [row.item_key, Number(row.quantity || 0)]));
+            return { inventory, balance: this.member(guildId, userId).balance };
+        }
+
+        heistItemQuantity(guildId, userId, itemKey) {
+            return Number(this.db.prepare('SELECT quantity FROM heist_store_inventory WHERE guild_id=? AND user_id=? AND item_key=?')
+                .get(guildId, userId, itemKey)?.quantity || 0);
+        }
+
+        adjustHeistItem(guildId, userId, itemKey, delta, now = Date.now()) {
+            const current = this.heistItemQuantity(guildId, userId, itemKey);
+            const quantity = Math.max(0, current + Number(delta || 0));
+            this.db.prepare(`INSERT INTO heist_store_inventory(guild_id,user_id,item_key,quantity,updated_at)
+                VALUES(?,?,?,?,?) ON CONFLICT(guild_id,user_id,item_key)
+                DO UPDATE SET quantity=excluded.quantity,updated_at=excluded.updated_at`)
+                .run(guildId, userId, itemKey, quantity, now);
+            return quantity;
+        }
+
+        buyHeistStoreItem(guildId, userId, itemKey, interactionId, now = Date.now()) {
+            const item = HEIST_STORE_ITEMS[itemKey];
+            if (!item) throw new Error('Unknown heist-store item.');
+            return this.transaction(() => {
+                const member = this.ensureMember(guildId, userId, now);
+                this.assertUsable(member);
+                if (member.balance < item.cost) throw new Error(`You need ${item.cost.toLocaleString('en-US')} ${this.config.currencyName} for ${item.name}.`);
+                const balance = this.applyDelta(guildId, userId, -item.cost, 'heist-store-purchase', item.key, interactionId, now);
+                const quantity = this.adjustHeistItem(guildId, userId, item.key, item.quantity, now);
+                return { item, quantity, balance, ...this.heistStoreStatus(guildId, userId, now) };
+            });
         }
 
         heistPlan(roundId) {
@@ -163,6 +235,29 @@ function installHeistEnhancements() {
             return this.queueNextHeist(guildId, userId, interactionId, targetStart, now);
         }
 
+        applyHeistStoreEffects(round, outcome, now = Date.now()) {
+            const entries = round.entries || [];
+            const crewBoosters = entries.filter(entry => this.heistItemQuantity(round.guild_id, entry.user_id, 'loaded-van') > 0);
+            if (crewBoosters.length) {
+                const bonus = Math.min(MAX_CREW_LOOT_BONUS, crewBoosters.length * CREW_LOOT_BONUS);
+                for (const [userId, payout] of outcome.payouts.entries()) {
+                    outcome.payouts.set(userId, Math.floor(payout * (1 + bonus)));
+                }
+                outcome.rewardPool = Math.floor(Number(outcome.rewardPool || 0) * (1 + bonus));
+                outcome.story = [...(outcome.story || []), `🚐 Loaded Getaway Van boost: crew loot increased by **${Math.round(bonus * 100)}%**.`];
+                crewBoosters.forEach(entry => this.adjustHeistItem(round.guild_id, entry.user_id, 'loaded-van', -1, now));
+            }
+
+            for (const entry of entries) {
+                const uses = this.heistItemQuantity(round.guild_id, entry.user_id, 'hot-tip');
+                if (uses <= 0) continue;
+                const payout = Number(outcome.payouts.get(entry.user_id) || 0);
+                if (payout > 0) outcome.payouts.set(entry.user_id, Math.floor(payout * PERSONAL_LOOT_MULTIPLIER));
+                this.adjustHeistItem(round.guild_id, entry.user_id, 'hot-tip', -1, now);
+            }
+            return outcome;
+        }
+
         resolveHeist(roundId, now = Date.now()) {
             return this.transaction(() => {
                 const round = this.heistRound(roundId);
@@ -179,13 +274,21 @@ function installHeistEnhancements() {
                 if (entries.length === 1) {
                     outcome = this.soloOutcome(round, entries[0]);
                 } else {
-                    const planned = this.heistPlan(roundId)?.event_type || 'normal';
-                    const type = HEIST_TYPES.find(item => item.id === planned) || HEIST_TYPES.find(item => item.id === 'normal');
-                    outcome = type.id !== 'normal'
-                        ? this.bossOutcome(round, entries, type)
-                        : (this.random() < 0.5 ? this.deathmatchOutcome(round, entries) : this.robberyOutcome(round, entries, now));
+                    const pvpBuyer = entries.find(entry => this.heistItemQuantity(round.guild_id, entry.user_id, 'pvp-contract') > 0);
+                    if (pvpBuyer) {
+                        this.adjustHeistItem(round.guild_id, pvpBuyer.user_id, 'pvp-contract', -1, now);
+                        outcome = this.robberyOutcome(round, entries, now);
+                        outcome.story = [`📜 <@${pvpBuyer.user_id}> cashed in a **PvP Contract** and forced a robbery battle.`, ...(outcome.story || [])];
+                    } else {
+                        const planned = this.heistPlan(roundId)?.event_type || 'normal';
+                        const type = HEIST_TYPES.find(item => item.id === planned) || HEIST_TYPES.find(item => item.id === 'normal');
+                        outcome = type.id !== 'normal'
+                            ? this.bossOutcome(round, entries, type)
+                            : (this.random() < 0.5 ? this.deathmatchOutcome(round, entries) : this.robberyOutcome(round, entries, now));
+                    }
                 }
 
+                outcome = this.applyHeistStoreEffects(round, outcome, now);
                 const payoutTotal = this.payAttackers(round, entries, outcome.payouts, now);
                 this.saveOutcome(roundId, outcome);
                 this.db.prepare("UPDATE heist_rounds SET status='complete',success_chance=?,success=?,payout_total=?,completed_at=? WHERE round_id=?")
@@ -205,16 +308,9 @@ function installHeistEnhancements() {
         let alertButtonTimer = null;
 
         async function ensureAlertRole(guild) {
-            const storedId = economy.setting(guild.id, 'heist_alert_role_id');
-            let role = storedId ? await guild.roles.fetch(storedId).catch(() => null) : null;
-            if (!role) role = guild.roles.cache.find(item => item.name === HEIST_ALERT_ROLE_NAME) || null;
-            if (!role) {
-                role = await guild.roles.create({
-                    name: HEIST_ALERT_ROLE_NAME,
-                    mentionable: true,
-                    reason: 'Opt-in heist alerts for The Commission bot',
-                });
-            }
+            const roles = await guild.roles.fetch().catch(() => guild.roles.cache);
+            const role = [...roles.values()].find(item => item.name.toLowerCase() === HEIST_ALERT_ROLE_NAME) || null;
+            if (!role) throw new Error('The Discord role **heist** could not be found. Create it or restore it before using heist pings.');
             if (economy.setting(guild.id, 'heist_alert_role_id') !== role.id) economy.setSetting(guild.id, 'heist_alert_role_id', role.id);
             return role;
         }
@@ -229,7 +325,7 @@ function installHeistEnhancements() {
             const rows = panel.components.map(row => Discord.ActionRowBuilder.from(row));
             const alreadyPresent = rows.some(row => row.components.some(component => component.data?.custom_id === 'econ:heist:notify'));
             if (alreadyPresent) return;
-            const button = new Discord.ButtonBuilder().setCustomId('econ:heist:notify').setLabel('Heist Pings').setEmoji('🔔').setStyle(Discord.ButtonStyle.Secondary);
+            const button = new Discord.ButtonBuilder().setCustomId('econ:heist:notify').setLabel('Ping Me for Heists').setEmoji('🔔').setStyle(Discord.ButtonStyle.Secondary);
             if (!rows.length) rows.push(new Discord.ActionRowBuilder());
             const target = rows.find(row => row.components.length < 5) || new Discord.ActionRowBuilder();
             if (!rows.includes(target)) rows.push(target);
@@ -243,9 +339,7 @@ function installHeistEnhancements() {
             const lastPingAt = Number(economy.setting(guild.id, 'special_heist_last_ping_at') || 0);
             if (Date.now() - lastPingAt < HEIST_ALERT_COOLDOWN_MS) return;
 
-            const roleId = economy.setting(guild.id, 'heist_alert_role_id');
-            if (!roleId) return;
-            const role = await guild.roles.fetch(roleId).catch(() => null);
+            const role = await ensureAlertRole(guild).catch(() => null);
             if (!role) return;
             const channel = await guild.channels.fetch(economy.config.heistChannelId).catch(() => null);
             if (!channel?.isTextBased()) return;
@@ -276,7 +370,7 @@ function installHeistEnhancements() {
                         await interaction.reply({ content: '🔕 Heist pings are now **off** for you.', ephemeral: true });
                     } else {
                         await member.roles.add(role, 'User enabled heist alerts');
-                        await interaction.reply({ content: '🔔 Heist pings are now **on** for you. The bot will ping this role no more than once per hour.', ephemeral: true });
+                        await interaction.reply({ content: '🔔 Heist pings are now **on** for you. You now have the **heist** role. The bot will ping it no more than once per hour.', ephemeral: true });
                     }
                 } catch (error) {
                     await interaction.reply({ content: `❌ ${error.message}`, ephemeral: true }).catch(() => {});
@@ -338,6 +432,7 @@ module.exports = {
     BOSS_EXTRA_SIGNUP_MS,
     HEIST_ALERT_COOLDOWN_MS,
     HEIST_ALERT_ROLE_NAME,
+    HEIST_STORE_ITEMS,
     LATE_JOIN_WINDOW_MS,
     installHeistEnhancements,
 };
