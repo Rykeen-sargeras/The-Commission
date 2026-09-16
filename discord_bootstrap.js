@@ -9,7 +9,9 @@ installHigherLowerTiePatch();
 
 const { installSpecialEconomyEvents } = require('./economy_special_events');
 const { installHeistEnhancements } = require('./economy_heist_enhancements');
+const { installHeistPersistencePatch } = require('./economy_heist_persistence_patch');
 
 installSpecialEconomyEvents();
 installHeistEnhancements();
+installHeistPersistencePatch();
 require('./discord_bot.js');
