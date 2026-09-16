@@ -24,21 +24,21 @@ const HEIST_STORE_ITEMS = Object.freeze({
     'hot-tip': Object.freeze({
         key: 'hot-tip',
         name: 'Hot Tip',
-        cost: 25_000,
+        cost: 100_000,
         quantity: PERSONAL_LOOT_USES,
         description: '+25% personal heist payout for your next 3 completed heists.',
     }),
     'loaded-van': Object.freeze({
         key: 'loaded-van',
         name: 'Loaded Getaway Van',
-        cost: 75_000,
+        cost: 200_000,
         quantity: 1,
         description: '+25% crew reward pool on your next heist. Multiple crew boosts stack up to +100%.',
     }),
     'pvp-contract': Object.freeze({
         key: 'pvp-contract',
         name: 'PvP Contract',
-        cost: 50_000,
+        cost: 150_000,
         quantity: 1,
         description: 'Forces your next eligible 2+ player heist into a PvP robbery encounter.',
     }),
@@ -310,7 +310,7 @@ function installHeistEnhancements() {
         async function ensureAlertRole(guild) {
             const roles = await guild.roles.fetch().catch(() => guild.roles.cache);
             const role = [...roles.values()].find(item => item.name.toLowerCase() === HEIST_ALERT_ROLE_NAME) || null;
-            if (!role) throw new Error('The Discord role **heist** could not be found. Create it or restore it before using heist pings.');
+            if (!role) throw new Error('The Discord role **heist** could not be found. Create it or check its spelling.');
             if (economy.setting(guild.id, 'heist_alert_role_id') !== role.id) economy.setSetting(guild.id, 'heist_alert_role_id', role.id);
             return role;
         }
@@ -339,7 +339,9 @@ function installHeistEnhancements() {
             const lastPingAt = Number(economy.setting(guild.id, 'special_heist_last_ping_at') || 0);
             if (Date.now() - lastPingAt < HEIST_ALERT_COOLDOWN_MS) return;
 
-            const role = await ensureAlertRole(guild).catch(() => null);
+            const roleId = economy.setting(guild.id, 'heist_alert_role_id');
+            if (!roleId) return;
+            const role = await guild.roles.fetch(roleId).catch(() => null);
             if (!role) return;
             const channel = await guild.channels.fetch(economy.config.heistChannelId).catch(() => null);
             if (!channel?.isTextBased()) return;
@@ -356,6 +358,7 @@ function installHeistEnhancements() {
 
         async function enhanceGuild(guild) {
             const state = economy.heistState(guild.id);
+            await ensureAlertRole(guild).catch(() => null);
             await maybePingHeistRole(guild, state);
             await addAlertButton(guild);
         }
@@ -370,7 +373,7 @@ function installHeistEnhancements() {
                         await interaction.reply({ content: '🔕 Heist pings are now **off** for you.', ephemeral: true });
                     } else {
                         await member.roles.add(role, 'User enabled heist alerts');
-                        await interaction.reply({ content: '🔔 Heist pings are now **on** for you. You now have the **heist** role. The bot will ping it no more than once per hour.', ephemeral: true });
+                        await interaction.reply({ content: '🔔 Heist pings are now **on** for you. The bot will ping this role no more than once per hour.', ephemeral: true });
                     }
                 } catch (error) {
                     await interaction.reply({ content: `❌ ${error.message}`, ephemeral: true }).catch(() => {});
