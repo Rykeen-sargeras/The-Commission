@@ -3,9 +3,11 @@
 const Discord = require('discord.js');
 const { installProtectedBanBootstrap } = require('./protected_bans');
 const { installHigherLowerTiePatch } = require('./economy_hilo_tie_patch');
+const { installApprenticeVoiceRemovalPatch } = require('./apprentice_voice_removal_patch');
 
 installProtectedBanBootstrap(Discord);
 installHigherLowerTiePatch();
+installApprenticeVoiceRemovalPatch();
 
 const { installSpecialEconomyEvents } = require('./economy_special_events');
 const { installHeistEnhancements } = require('./economy_heist_enhancements');
