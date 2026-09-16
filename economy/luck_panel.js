@@ -11,6 +11,11 @@ const PERSONAL_ITEMS = Object.freeze({
     'luck-5': Object.freeze({ key: 'luck-5', name: 'Made Luck', percent: 5, cost: 30000 }),
     'luck-10': Object.freeze({ key: 'luck-10', name: 'Boss Luck', percent: 10, cost: 250000 }),
 });
+const HEIST_ITEMS = Object.freeze({
+    'hot-tip': Object.freeze({ key: 'hot-tip', name: 'Hot Tip', cost: 25000, description: '+25% personal payout for your next 3 completed heists.' }),
+    'loaded-van': Object.freeze({ key: 'loaded-van', name: 'Loaded Getaway Van', cost: 75000, description: '+25% crew reward pool on your next heist. Multiple crew boosts stack up to +100%.' }),
+    'pvp-contract': Object.freeze({ key: 'pvp-contract', name: 'PvP Contract', cost: 50000, description: 'Forces your next eligible 2+ player heist into a robbery/PvP battle.' }),
+});
 const GLOBAL_COST = 1000;
 const GLOBAL_PERCENT = 0.5;
 
@@ -40,12 +45,17 @@ function panelPayload(economy, guildId, now = Date.now()) {
 
     const embed = new Discord.EmbedBuilder()
         .setColor(0x2ea043)
-        .setTitle('🍀 The Commission · Luck Shop')
+        .setTitle('🍀 The Commission · Luck & Heist Shop')
         .setDescription(
             '**Permanent Personal Luck**\n' +
             `🍀 **Lucky Break** — +1% luck — **${money(5000)} ${economy.config.currencyName}**\n` +
             `🎩 **Made Luck** — +5% luck — **${money(30000)} ${economy.config.currencyName}**\n` +
             `👑 **Boss Luck** — +10% luck — **${money(250000)} ${economy.config.currencyName}**\n\n` +
+            '**Heist Consumables**\n' +
+            `🗺️ **Hot Tip** — +25% personal heist payout for your next 3 completed heists — **${money(25000)} ${economy.config.currencyName}**\n` +
+            `🚐 **Loaded Getaway Van** — +25% crew reward pool on your next heist; stacks with other crew purchases up to +100% — **${money(75000)} ${economy.config.currencyName}**\n` +
+            `📜 **PvP Contract** — forces your next eligible 2+ player heist into a robbery/PvP battle — **${money(50000)} ${economy.config.currencyName}**\n` +
+            'PvP robbery never takes more than 10% of the selected target balance.\n\n' +
             '**Community Luck Pot**\n' +
             `Spend **${money(GLOBAL_COST)} ${economy.config.currencyName}** to add **+${GLOBAL_PERCENT}% GLOBAL luck** for 24 hours. ` +
             'Each member may contribute once per rolling 24 hours. Every contribution stacks and expires separately.'
@@ -55,7 +65,7 @@ function panelPayload(economy, guildId, now = Date.now()) {
             { name: '🍀 Active Community Boosts', value: String(state.activeContributions), inline: true },
             { name: '⏳ Next Modifier Drop', value: nextDrop, inline: true },
         )
-        .setFooter({ text: 'Button-only shop · Personal purchases require confirmation · Community buy-in is instant' })
+        .setFooter({ text: 'Button-only shop · Purchases require confirmation · Heist items are consumable' })
         .setTimestamp();
 
     const personalRow = new Discord.ActionRowBuilder().addComponents(
@@ -64,13 +74,19 @@ function panelPayload(economy, guildId, now = Date.now()) {
         new Discord.ButtonBuilder().setCustomId('econ:luckpanel:buy:luck-10').setLabel('+10% · 250,000').setEmoji('👑').setStyle(Discord.ButtonStyle.Danger),
     );
 
+    const heistRow = new Discord.ActionRowBuilder().addComponents(
+        new Discord.ButtonBuilder().setCustomId('econ:luckpanel:heistbuy:hot-tip').setLabel('Hot Tip · 25K').setEmoji('🗺️').setStyle(Discord.ButtonStyle.Secondary),
+        new Discord.ButtonBuilder().setCustomId('econ:luckpanel:heistbuy:loaded-van').setLabel('Loaded Van · 75K').setEmoji('🚐').setStyle(Discord.ButtonStyle.Primary),
+        new Discord.ButtonBuilder().setCustomId('econ:luckpanel:heistbuy:pvp-contract').setLabel('PvP Contract · 50K').setEmoji('📜').setStyle(Discord.ButtonStyle.Danger),
+    );
+
     const communityRow = new Discord.ActionRowBuilder().addComponents(
         new Discord.ButtonBuilder().setCustomId('econ:luckpanel:global').setLabel('Add +0.5% Global · 1,000').setEmoji('🌐').setStyle(Discord.ButtonStyle.Success),
-        new Discord.ButtonBuilder().setCustomId('econ:luckpanel:mine').setLabel('My Luck / Purchases').setEmoji('📊').setStyle(Discord.ButtonStyle.Secondary),
+        new Discord.ButtonBuilder().setCustomId('econ:luckpanel:mine').setLabel('My Luck / Inventory').setEmoji('📊').setStyle(Discord.ButtonStyle.Secondary),
         new Discord.ButtonBuilder().setCustomId('econ:luckpanel:refresh').setLabel('Refresh Modifier').setEmoji('🔄').setStyle(Discord.ButtonStyle.Secondary),
     );
 
-    return { embeds: [embed], components: [personalRow, communityRow] };
+    return { embeds: [embed], components: [personalRow, heistRow, communityRow] };
 }
 
 function personalConfirmationPayload(economy, itemKey) {
@@ -88,6 +104,21 @@ function personalConfirmationPayload(economy, itemKey) {
     };
 }
 
+function heistConfirmationPayload(economy, itemKey) {
+    const item = HEIST_ITEMS[itemKey];
+    return {
+        ephemeral: true,
+        embeds: [new Discord.EmbedBuilder()
+            .setColor(0xd29922)
+            .setTitle(`Confirm ${item.name}`)
+            .setDescription(`${item.description}\n\nCost: **${money(item.cost)} ${economy.config.currencyName}**.`)],
+        components: [new Discord.ActionRowBuilder().addComponents(
+            new Discord.ButtonBuilder().setCustomId(`econ:luckpanel:heistconfirm:${item.key}`).setLabel(`Confirm ${money(item.cost)}`).setEmoji('✅').setStyle(Discord.ButtonStyle.Success),
+            new Discord.ButtonBuilder().setCustomId('econ:luckpanel:cancel').setLabel('Cancel').setStyle(Discord.ButtonStyle.Secondary),
+        )],
+    };
+}
+
 function myLuckPayload(economy, guildId, userId) {
     const status = economy.luckShopStatus(guildId, userId);
     const owned = new Set(status.purchases.map(row => row.item_key));
@@ -96,15 +127,21 @@ function myLuckPayload(economy, guildId, userId) {
     const community = status.canContributeGlobal
         ? `You can add **+${GLOBAL_PERCENT}% global luck** now for **${money(GLOBAL_COST)} ${economy.config.currencyName}**.`
         : `Your community boost is active. You may contribute again <t:${Math.floor(status.nextGlobalAt / 1000)}:R>.`;
+    const heist = economy.heistStoreStatus?.(guildId, userId) || { inventory: {}, balance: status.balance };
+    const inventoryLines = [
+        `🗺️ Hot Tip charges: **${Number(heist.inventory['hot-tip'] || 0)}**`,
+        `🚐 Loaded Getaway Vans: **${Number(heist.inventory['loaded-van'] || 0)}**`,
+        `📜 PvP Contracts: **${Number(heist.inventory['pvp-contract'] || 0)}**`,
+    ];
     return {
         ephemeral: true,
-        embeds: [new Discord.EmbedBuilder().setColor(0x2ea043).setTitle('🍀 Your Luck')
-            .setDescription(lines.join('\n') + `\n\n${community}`)
+        embeds: [new Discord.EmbedBuilder().setColor(0x2ea043).setTitle('🍀 Your Luck & Heist Inventory')
+            .setDescription(lines.join('\n') + `\n\n${community}\n\n**Heist Inventory**\n${inventoryLines.join('\n')}`)
             .addFields(
                 { name: 'Personal', value: `+${fmtPercent(status.personalLuck)}%`, inline: true },
                 { name: 'Global', value: `+${fmtPercent(status.globalLuck)}%`, inline: true },
                 { name: 'Total', value: `+${fmtPercent(status.totalLuck)}%`, inline: true },
-                { name: 'Balance', value: `${money(status.balance)} ${economy.config.currencyName}`, inline: true },
+                { name: 'Balance', value: `${money(heist.balance)} ${economy.config.currencyName}`, inline: true },
             )],
     };
 }
@@ -186,6 +223,21 @@ discordEconomy.createEconomyIntegration = function createPersistentLuckShopInteg
                 await interaction.update({
                     embeds: [new Discord.EmbedBuilder().setColor(0x2ea043).setTitle('✅ Purchase Complete')
                         .setDescription(`You bought **${result.item.name}** for **${money(result.item.cost)} ${economy.config.currencyName}**.\nYour permanent personal luck is now **+${fmtPercent(result.personalLuck)}%**.\nBalance: **${money(result.balance)}**.`)],
+                    components: [],
+                });
+                await refreshPanel();
+                return true;
+            }
+            if (action === 'heistbuy' && HEIST_ITEMS[itemKey]) {
+                await interaction.reply(heistConfirmationPayload(economy, itemKey));
+                return true;
+            }
+            if (action === 'heistconfirm' && HEIST_ITEMS[itemKey]) {
+                if (!economy.buyHeistStoreItem) throw new Error('Heist consumables are not available until the bot finishes restarting.');
+                const result = economy.buyHeistStoreItem(interaction.guild.id, interaction.user.id, itemKey, interaction.id);
+                await interaction.update({
+                    embeds: [new Discord.EmbedBuilder().setColor(0x2ea043).setTitle('✅ Heist Item Purchased')
+                        .setDescription(`You bought **${result.item.name}** for **${money(result.item.cost)} ${economy.config.currencyName}**.\n${result.item.description}\nBalance: **${money(result.balance)}**.`)],
                     components: [],
                 });
                 await refreshPanel();
