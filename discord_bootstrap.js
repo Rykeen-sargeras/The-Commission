@@ -15,6 +15,7 @@ const { installHeistPersistencePatch } = require('./economy_heist_persistence_pa
 const { installFourDailyHeists } = require('./economy_heist_four_daily_patch');
 const { installHeistGoonsPatch } = require('./economy_heist_goons_patch');
 const { installHeistStoreHotTipPatch } = require('./economy_heist_store_hot_tip_patch');
+const { installHeistSignupRoleplayPatch } = require('./economy_heist_signup_roleplay_patch');
 const { installLeaderboardGuard } = require('./economy_leaderboard_guard');
 
 installSpecialEconomyEvents();
@@ -23,5 +24,6 @@ installHeistPersistencePatch();
 installFourDailyHeists();
 installHeistGoonsPatch();
 installHeistStoreHotTipPatch();
+installHeistSignupRoleplayPatch();
 installLeaderboardGuard();
 require('./discord_bot.js');
