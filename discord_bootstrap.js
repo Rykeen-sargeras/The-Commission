@@ -13,11 +13,15 @@ const { installSpecialEconomyEvents } = require('./economy_special_events');
 const { installHeistEnhancements } = require('./economy_heist_enhancements');
 const { installHeistPersistencePatch } = require('./economy_heist_persistence_patch');
 const { installFourDailyHeists } = require('./economy_heist_four_daily_patch');
+const { installHeistGoonsPatch } = require('./economy_heist_goons_patch');
+const { installHeistStoreHotTipPatch } = require('./economy_heist_store_hot_tip_patch');
 const { installLeaderboardGuard } = require('./economy_leaderboard_guard');
 
 installSpecialEconomyEvents();
 installHeistEnhancements();
 installHeistPersistencePatch();
 installFourDailyHeists();
+installHeistGoonsPatch();
+installHeistStoreHotTipPatch();
 installLeaderboardGuard();
 require('./discord_bot.js');
