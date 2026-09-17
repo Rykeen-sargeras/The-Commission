@@ -17,6 +17,7 @@ const { installHeistGoonsPatch } = require('./economy_heist_goons_patch');
 const { installHeistStoreHotTipPatch } = require('./economy_heist_store_hot_tip_patch');
 const { installHeistSignupRoleplayPatch } = require('./economy_heist_signup_roleplay_patch');
 const { installLeaderboardGuard } = require('./economy_leaderboard_guard');
+const { installLuckRebalancePatch } = require('./economy_luck_rebalance_patch');
 const { installStoreSingletonPatch } = require('./economy_store_singleton_patch');
 
 installSpecialEconomyEvents();
@@ -27,5 +28,6 @@ installHeistGoonsPatch();
 installHeistStoreHotTipPatch();
 installHeistSignupRoleplayPatch();
 installLeaderboardGuard();
+installLuckRebalancePatch();
 installStoreSingletonPatch();
 require('./discord_bot.js');
