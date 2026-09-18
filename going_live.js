@@ -5,6 +5,7 @@ const path = require('path');
 const crypto = require('crypto');
 const Discord = require('discord.js');
 const sharp = require('sharp');
+const opentype = require('opentype.js');
 const {
   ZONE,
   easternParts,
@@ -20,6 +21,11 @@ const BOARD_CHANNEL_ID = process.env.GOING_LIVE_CHANNEL_ID || '15325137688551752
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const FILE = path.join(DATA_DIR, 'going-live-schedule.json');
 const SCHEDULE_ARTWORK = path.join(__dirname, 'assets', 'going-live-schedule.png');
+const GRAPHIC_FONT_BYTES = fs.readFileSync(require.resolve('dejavu-fonts-ttf/ttf/DejaVuSans-Bold.ttf'));
+const GRAPHIC_FONT = opentype.parse(GRAPHIC_FONT_BYTES.buffer.slice(
+  GRAPHIC_FONT_BYTES.byteOffset,
+  GRAPHIC_FONT_BYTES.byteOffset + GRAPHIC_FONT_BYTES.byteLength,
+));
 const ROW_CENTERS = [399, 463, 527, 591, 655];
 const INTERACTION_CREATE = Discord.Events?.InteractionCreate || 'interactionCreate';
 const CLIENT_READY = Discord.Events?.ClientReady || 'ready';
@@ -62,10 +68,23 @@ function safeLink(value) {
   try { return normalizeLink(value); } catch { return ''; }
 }
 
-function xml(value) {
-  return String(value ?? '').replace(/[&<>"']/g, character => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;',
-  })[character]);
+function normalizeGraphicText(value) {
+  const normalized = String(value ?? '').normalize('NFKD').replace(/\p{M}/gu, '');
+  return Array.from(normalized)
+    .filter(character => /\s/u.test(character) || GRAPHIC_FONT.charToGlyph(character).index !== 0)
+    .join('')
+    .replace(/\s+/gu, ' ')
+    .trim();
+}
+
+function outlineText(value, x, y, size, options = {}) {
+  const text = normalizeGraphicText(value);
+  if (!text) return '';
+  const width = GRAPHIC_FONT.getAdvanceWidth(text, size, { kerning: true });
+  const startX = options.anchor === 'end' ? x - width : options.anchor === 'start' ? x : x - (width / 2);
+  const data = GRAPHIC_FONT.getPath(text, startX, y, size, { kerning: true }).toPathData(2);
+  const stroke = options.stroke ? ` stroke="${options.stroke}" stroke-width="${options.strokeWidth || 1}" paint-order="stroke"` : '';
+  return `<path d="${data}" fill="${options.fill || '#fff'}"${stroke}/>`;
 }
 
 function shorten(value, maximum) {
@@ -109,16 +128,15 @@ async function renderScheduleImages(entries) {
         <rect x="130" y="${center - 25}" width="234" height="50" rx="3" fill="#260506"/>
         <rect x="375" y="${center - 25}" width="550" height="50" rx="3" fill="#0b0b0c"/>
         <rect x="927" y="${center - 25}" width="216" height="50" rx="3" fill="#28282a"/>
-        <text x="249" y="${center + 10}" text-anchor="middle" class="row" font-size="${textSize(name, 28, 17, 16)}">${xml(name)}</text>
-        <text x="652" y="${center + 10}" text-anchor="middle" class="row" font-size="${textSize(title, 28, 16, 31)}">${xml(title)}</text>
-        <text x="1045" y="${center + 9}" text-anchor="middle" class="row" font-size="${textSize(time, 27, 18, 13)}">${xml(time)}</text>`;
+        ${outlineText(name, 249, center + 10, textSize(name, 28, 17, 16))}
+        ${outlineText(title, 652, center + 10, textSize(title, 28, 16, 31))}
+        ${outlineText(time, 1045, center + 9, textSize(time, 27, 18, 13))}`;
     }).join('');
-    const empty = page.rows.length ? '' : '<text x="640" y="535" text-anchor="middle" class="empty" font-size="25">NO STREAMS SCHEDULED YET</text>';
-    const pageLabel = pages.length > 1 ? `<text x="1152" y="345" text-anchor="end" class="page" font-size="15">PAGE ${pageIndex + 1} OF ${Math.min(pages.length, 10)}</text>` : '';
+    const empty = page.rows.length ? '' : outlineText('NO STREAMS SCHEDULED YET', 640, 535, 25, { fill: '#ddd' });
+    const pageLabel = pages.length > 1 ? outlineText(`PAGE ${pageIndex + 1} OF ${Math.min(pages.length, 10)}`, 1152, 345, 15, { anchor: 'end', fill: '#ddd' }) : '';
     const overlay = Buffer.from(`<svg width="1280" height="720" xmlns="http://www.w3.org/2000/svg">
-      <style>.heading{font-family:Arial,DejaVu Sans,sans-serif;font-weight:900;letter-spacing:2px;fill:white;stroke:#111;stroke-width:2px;paint-order:stroke}.row{font-family:Arial,DejaVu Sans,sans-serif;font-weight:800;fill:white}.empty,.page{font-family:Arial,DejaVu Sans,sans-serif;font-weight:800;fill:#ddd}</style>
       <rect x="280" y="307" width="720" height="55" rx="4" fill="#09090a"/>
-      <text x="640" y="348" text-anchor="middle" class="heading" font-size="35">${xml(dateTitle)}</text>
+      ${outlineText(dateTitle, 640, 348, 35, { stroke: '#111', strokeWidth: 2 })}
       ${rowMarkup}${empty}${pageLabel}
     </svg>`);
     return sharp(SCHEDULE_ARTWORK).composite([{ input: overlay }]).jpeg({ quality: 88, chromaSubsampling: '4:4:4' }).toBuffer();
@@ -453,4 +471,4 @@ function install(client) {
   });
 }
 
-module.exports = { install, upcomingEntries, refreshBoard, repostBoard, registerCommand, renderScheduleImages, schedulePages, GOING_LIVE_COMMAND, WHO_COMMAND, FILE, GUILD_ID, BOARD_CHANNEL_ID, ZONE };
+module.exports = { install, upcomingEntries, refreshBoard, repostBoard, registerCommand, renderScheduleImages, schedulePages, normalizeGraphicText, outlineText, GOING_LIVE_COMMAND, WHO_COMMAND, FILE, GUILD_ID, BOARD_CHANNEL_ID, ZONE };

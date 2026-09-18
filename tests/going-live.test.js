@@ -91,6 +91,14 @@ test('graphic schedules paginate after five streamers', () => {
   assert.strictEqual(pages[1].rows.length, 1);
 });
 
+test('graphic text is converted to font-independent SVG outlines', () => {
+  const { normalizeGraphicText, outlineText } = require('../going_live');
+  assert.strictEqual(normalizeGraphicText('𝐑𝐲𝐤𝐞𝐞𝐧'), 'Rykeen');
+  const markup = outlineText('Friday Night Live', 640, 350, 28);
+  assert.match(markup, /^<path d="/);
+  assert.doesNotMatch(markup, /<text|font-family/);
+});
+
 test('confirmed schedule additions repost instead of only editing the board', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'going_live.js'), 'utf8');
   assert.match(source, /store\.entries\.push\(entry\); writeStore\(store\);\s*await repostBoard\(client\)/);
