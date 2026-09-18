@@ -83,12 +83,17 @@ test('/whoslive is registered as the graphic board repost command', () => {
 });
 
 test('graphic schedules paginate after five streamers', () => {
-  const { schedulePages } = require('../going_live');
+  const { schedulePages, boardEmbeds } = require('../going_live');
   const entries = Array.from({ length: 6 }, (_, index) => ({ date: '2026-09-04', username: `Streamer ${index + 1}` }));
   const pages = schedulePages(entries);
   assert.strictEqual(pages.length, 2);
   assert.strictEqual(pages[0].rows.length, 5);
   assert.strictEqual(pages[1].rows.length, 1);
+
+  const embeds = boardEmbeds(entries, ['whos-live-1.jpg', 'whos-live-2.jpg']);
+  assert.strictEqual(embeds.length, 2);
+  assert.strictEqual(embeds[0].toJSON().image.url, 'attachment://whos-live-1.jpg');
+  assert.strictEqual(embeds[1].toJSON().image.url, 'attachment://whos-live-2.jpg');
 });
 
 test('graphic text is converted to font-independent SVG outlines', () => {

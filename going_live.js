@@ -170,10 +170,20 @@ function boardEmbed(entries, imageName = '') {
   return embed;
 }
 
+function boardEmbeds(entries, imageNames = []) {
+  const embeds = [boardEmbed(entries, imageNames[0] || '')];
+  for (const imageName of imageNames.slice(1, 10)) {
+    embeds.push(new Discord.EmbedBuilder()
+      .setColor('#b21f38')
+      .setImage('attachment://' + imageName));
+  }
+  return embeds;
+}
+
 async function boardPayload(entries, editing = false) {
   const images = await renderScheduleImages(entries);
   const files = images.map((attachment, index) => new Discord.AttachmentBuilder(attachment, { name: `whos-live-${index + 1}.jpg` }));
-  const payload = { embeds: [boardEmbed(entries, files[0]?.name || '')], files, allowedMentions: { parse: [] } };
+  const payload = { embeds: boardEmbeds(entries, files.map(file => file.name)), files, allowedMentions: { parse: [] } };
   if (editing) payload.attachments = [];
   return payload;
 }
@@ -471,4 +481,4 @@ function install(client) {
   });
 }
 
-module.exports = { install, upcomingEntries, refreshBoard, repostBoard, registerCommand, renderScheduleImages, schedulePages, normalizeGraphicText, outlineText, GOING_LIVE_COMMAND, WHO_COMMAND, FILE, GUILD_ID, BOARD_CHANNEL_ID, ZONE };
+module.exports = { install, upcomingEntries, refreshBoard, repostBoard, registerCommand, renderScheduleImages, schedulePages, boardEmbeds, normalizeGraphicText, outlineText, GOING_LIVE_COMMAND, WHO_COMMAND, FILE, GUILD_ID, BOARD_CHANNEL_ID, ZONE };
