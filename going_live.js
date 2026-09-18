@@ -11,7 +11,6 @@ const {
   easternParts,
   operationalDate,
   pruneForDailyReset,
-  normalizeDate,
   normalizeTime,
   normalizeLink,
 } = require('./going_live_time');
@@ -149,7 +148,7 @@ function boardEmbed(entries, imageName = '') {
     const linkUrl = safeLink(e.link);
     const link = linkUrl ? ` • [Watch](${linkUrl})` : '';
     const title = e.title ? ` — **${e.title}**` : '';
-    return `**${prettyDate(e.date)} • ${e.displayTime} ET**${conflict}\n<@${e.userId}>${title}${link}`;
+    return `**${prettyDate(e.date)} • ${e.displayTime} ET**${conflict}\n**${e.username || 'Streamer'}**${title}${link}`;
   });
   const visible = [];
   let descriptionLength = 0;
@@ -249,14 +248,12 @@ function repostBoard(client) {
 
 const GOING_LIVE_COMMAND = {
   name: 'goinglive',
-  description: 'Add your upcoming stream to the Misfit Mafia live schedule',
+  description: 'Add a channel to the Misfit Mafia live schedule',
   options: [
-    { type: 3, name: 'streamer', description: 'Your name or show name as it should appear', required: true, max_length: 40 },
+    { type: 3, name: 'channel', description: 'YouTube, Kick, Twitch, or other channel name', required: true, max_length: 40 },
     { type: 3, name: 'title', description: 'Title of your stream', required: true, max_length: 80 },
-    { type: 3, name: 'time', description: 'Time: 7, 7:30, 11:45, etc.', required: true },
-    { type: 3, name: 'am_pm', description: 'AM or PM (Eastern Time)', required: true, choices: [{name:'AM',value:'AM'},{name:'PM',value:'PM'}] },
-    { type: 3, name: 'date', description: 'Optional date: MM/DD or YYYY-MM-DD (defaults to today)', required: false },
-    { type: 3, name: 'link', description: 'YouTube, Kick, Twitch, etc. stream/channel URL', required: false, max_length: 250 }
+    { type: 3, name: 'time', description: 'Eastern Time including AM or PM, such as 7:30 PM', required: true, max_length: 12 },
+    { type: 3, name: 'link', description: 'Complete stream or channel URL', required: true, max_length: 250 }
   ]
 };
 
@@ -264,6 +261,19 @@ const WHO_COMMAND = {
   name: 'whoslive',
   description: 'Repost the Who’s Going Live schedule board',
 };
+
+const REMOVE_COMMAND = {
+  name: 'remove',
+  description: 'Remove a channel from the Going Live schedule',
+  default_member_permissions: Discord.PermissionFlagsBits.Administrator.toString(),
+};
+
+function isAdministrator(interaction) {
+  return Boolean(
+    interaction.memberPermissions?.has?.(Discord.PermissionFlagsBits.Administrator)
+    || interaction.member?.permissions?.has?.(Discord.PermissionFlagsBits.Administrator)
+  );
+}
 
 let commandsRegistered = false;
 
@@ -278,7 +288,7 @@ async function registerCommand(client) {
     console.error(`[Going Live] Could not fetch guild commands: ${error.message}`);
     return null;
   });
-  for (const command of [GOING_LIVE_COMMAND, WHO_COMMAND]) {
+  for (const command of [GOING_LIVE_COMMAND, WHO_COMMAND, REMOVE_COMMAND]) {
     const found = existing?.find(c => c.name === command.name);
     if (found) await found.edit(command);
     else await guild.commands.create(command);
@@ -341,19 +351,45 @@ async function handleWho(interaction, client) {
   return interaction.editReply({ content: '✅ The Who’s Going Live board was reposted.' });
 }
 
+async function handleRemove(interaction) {
+  if (!isAdministrator(interaction)) {
+    return interaction.reply({ content: 'Only administrators can remove scheduled streams.', ephemeral: true });
+  }
+  const entries = upcomingEntries().slice(0, 10);
+  if (!entries.length) {
+    return interaction.reply({ content: 'There are no scheduled streams to remove.', ephemeral: true });
+  }
+  const components = [];
+  for (let index = 0; index < entries.length; index += 5) {
+    components.push(new Discord.ActionRowBuilder().addComponents(
+      entries.slice(index, index + 5).map((entry, offset) => new Discord.ButtonBuilder()
+        .setCustomId(`gl:remove:${entry.id}`)
+        .setLabel(String(index + offset + 1))
+        .setStyle(Discord.ButtonStyle.Danger))
+    ));
+  }
+  const list = entries.map((entry, index) => `${index + 1}. **${entry.username || 'Streamer'}** — ${entry.displayTime} ET — ${entry.title || 'Scheduled stream'}`);
+  return interaction.reply({
+    content: `Choose the stream to remove:\n\n${list.join('\n')}${upcomingEntries().length > 10 ? '\n\nOnly the first 10 are shown. Run /remove again after removing one.' : ''}`,
+    components,
+    ephemeral: true,
+    allowedMentions: { parse: [] },
+  });
+}
+
 async function handleGoingLive(interaction, client) {
   try {
     await interaction.deferReply({ ephemeral: true });
-    const dateInput = interaction.options.getString('date');
-    const date = dateInput ? normalizeDate(dateInput) : easternParts().date;
-    const time = normalizeTime(interaction.options.getString('time'), interaction.options.getString('am_pm'));
+    const administrator = isAdministrator(interaction);
+    const date = easternParts().date;
+    const time = normalizeTime(interaction.options.getString('time'));
     const now = easternParts();
-    if (`${date} ${time.hm}` < `${now.date} ${now.hm}`) return interaction.editReply({ content: 'That time has already passed in Eastern Time. Pick an upcoming time.' });
+    if (!administrator && `${date} ${time.hm}` < `${now.date} ${now.hm}`) return interaction.editReply({ content: 'That time has already passed in Eastern Time. Pick an upcoming time.' });
 
     const store = cleanup(readStore());
     const entry = {
       id: crypto.randomUUID().slice(0,12), userId: interaction.user.id,
-      username: String(interaction.options.getString('streamer') || interaction.user.globalName || interaction.user.username).trim(),
+      username: String(interaction.options.getString('channel')).trim(),
       date, hm: time.hm, displayTime: time.display,
       title: String(interaction.options.getString('title') || '').trim(),
       link: normalizeLink(interaction.options.getString('link')),
@@ -361,9 +397,9 @@ async function handleGoingLive(interaction, client) {
     };
     const conflicts = store.entries.filter(e => e.status === 'active' && e.date === date && e.hm === time.hm && e.userId !== interaction.user.id);
     const own = store.entries.find(e => e.status === 'active' && e.userId === interaction.user.id && e.date === date && e.hm === time.hm);
-    if (own) return interaction.editReply({ content: `You are already scheduled for **${prettyDate(date)} at ${time.display} ET**.` });
+    if (!administrator && own) return interaction.editReply({ content: `You are already scheduled for **${prettyDate(date)} at ${time.display} ET**.` });
 
-    if (conflicts.length) {
+    if (!administrator && conflicts.length) {
       entry.status = 'pending';
       store.entries.push(entry); writeStore(store);
       for (const conflict of conflicts) await notifyConflict(client, conflict, entry);
@@ -377,7 +413,7 @@ async function handleGoingLive(interaction, client) {
       });
     }
 
-    store.entries = store.entries.filter(e => !(e.status === 'active' && e.userId === interaction.user.id && e.date === date));
+    if (!administrator) store.entries = store.entries.filter(e => !(e.status === 'active' && e.userId === interaction.user.id && e.date === date));
     store.entries.push(entry); writeStore(store);
     await repostBoard(client);
     return interaction.editReply({ content: `✅ Added to the live schedule: **${prettyDate(date)} at ${time.display} ET**${entry.title ? ` — ${entry.title}` : ''}.` });
@@ -401,6 +437,18 @@ async function handleButton(interaction, client) {
     await interaction.reply({ content: 'Only the streamer who owns this schedule request can use that button.', ephemeral: true }).catch(() => null);
     return true;
   };
+
+  if (action === 'remove') {
+    if (!isAdministrator(interaction)) {
+      await interaction.reply({ content: 'Only administrators can remove scheduled streams.', ephemeral: true }).catch(() => null);
+      return true;
+    }
+    store.entries = store.entries.filter(candidate => candidate.id !== id);
+    writeStore(store);
+    await interaction.update({ content: `Removed **${entry.username || 'Streamer'}** at **${entry.displayTime} ET** from the schedule.`, components: [] });
+    await repostBoard(client);
+    return true;
+  }
 
   if (action === 'anyway') {
     if (interaction.user.id !== entry.userId) return deny();
@@ -457,6 +505,7 @@ function install(client) {
       if (interaction.guildId !== GUILD_ID && interaction.guildId) return;
       if (interaction.isChatInputCommand() && interaction.commandName === 'goinglive') return await handleGoingLive(interaction, client);
       if (interaction.isChatInputCommand() && interaction.commandName === 'whoslive') return await handleWho(interaction, client);
+      if (interaction.isChatInputCommand() && interaction.commandName === 'remove') return await handleRemove(interaction);
       if (interaction.isButton() && interaction.customId.startsWith('gl:')) return await handleButton(interaction, client);
     } catch (error) {
       console.error('[Going Live] Interaction failed:', error);
@@ -481,4 +530,4 @@ function install(client) {
   });
 }
 
-module.exports = { install, upcomingEntries, refreshBoard, repostBoard, registerCommand, renderScheduleImages, schedulePages, boardEmbeds, normalizeGraphicText, outlineText, GOING_LIVE_COMMAND, WHO_COMMAND, FILE, GUILD_ID, BOARD_CHANNEL_ID, ZONE };
+module.exports = { install, upcomingEntries, refreshBoard, repostBoard, registerCommand, renderScheduleImages, schedulePages, boardEmbeds, normalizeGraphicText, outlineText, isAdministrator, GOING_LIVE_COMMAND, WHO_COMMAND, REMOVE_COMMAND, FILE, GUILD_ID, BOARD_CHANNEL_ID, ZONE };

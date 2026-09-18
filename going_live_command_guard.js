@@ -1,7 +1,7 @@
 'use strict';
 
 const Discord = require('discord.js');
-const { GOING_LIVE_COMMAND, WHO_COMMAND, GUILD_ID } = require('./going_live');
+const { GOING_LIVE_COMMAND, WHO_COMMAND, REMOVE_COMMAND, GUILD_ID } = require('./going_live');
 
 const CLIENT_READY = Discord.Events?.ClientReady || 'ready';
 const INSTALL_KEY = Symbol.for('the-commission.going-live-command-guard-installed');
@@ -12,7 +12,7 @@ async function ensureGoingLive(client) {
   try {
     const guild = client.guilds.cache.get(GUILD_ID) || await client.guilds.fetch(GUILD_ID);
     const commands = await guild.commands.fetch();
-    for (const definition of [GOING_LIVE_COMMAND, WHO_COMMAND]) {
+    for (const definition of [GOING_LIVE_COMMAND, WHO_COMMAND, REMOVE_COMMAND]) {
       const existing = commands.find(command => command.name === definition.name);
       if (!existing) {
         await guild.commands.create(definition);
@@ -37,4 +37,4 @@ function installGuard(client) {
   return client;
 }
 
-module.exports = { installGuard, ensureGoingLive, COMMAND: GOING_LIVE_COMMAND, COMMANDS: [GOING_LIVE_COMMAND, WHO_COMMAND] };
+module.exports = { installGuard, ensureGoingLive, COMMAND: GOING_LIVE_COMMAND, COMMANDS: [GOING_LIVE_COMMAND, WHO_COMMAND, REMOVE_COMMAND] };

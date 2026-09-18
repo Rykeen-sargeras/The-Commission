@@ -672,6 +672,7 @@ client.on('ready', async () => {
                 .setDescription('Clear the entire music queue')
                 .toJSON(),
             goingLive.GOING_LIVE_COMMAND,
+            goingLive.REMOVE_COMMAND,
             ...economyCommandData(),
             ...memberBridgeCommandData(),
         ];

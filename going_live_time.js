@@ -88,12 +88,13 @@ function normalizeDate(input, now = new Date()) {
 }
 
 function normalizeTime(input, ampm) {
-  const raw = String(input || '').trim().replace(/\s+/g, '');
-  const match = raw.match(/^(\d{1,2})(?::(\d{2}))?$/);
-  if (!match) throw new Error('Time must look like 7, 7:30, 11, or 11:45.');
+  const raw = String(input || '').trim().toUpperCase();
+  const combined = ampm ? null : raw.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/);
+  const match = combined || raw.replace(/\s+/g, '').match(/^(\d{1,2})(?::(\d{2}))?$/);
+  if (!match) throw new Error('Time must include AM or PM, such as 7 PM or 7:30 PM.');
   let hour = Number(match[1]);
   const minute = Number(match[2] || 0);
-  const period = String(ampm || '').toUpperCase();
+  const period = String(ampm || combined?.[3] || '').toUpperCase();
   if (hour < 1 || hour > 12 || minute < 0 || minute > 59 || !['AM', 'PM'].includes(period)) {
     throw new Error('Enter a valid 12-hour time and choose AM or PM.');
   }

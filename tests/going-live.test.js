@@ -3,6 +3,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
+const Discord = require('discord.js');
 const {
   easternParts,
   operationalDate,
@@ -36,6 +37,7 @@ test('AM and PM choices convert correctly', () => {
   assert.deepStrictEqual(normalizeTime('12', 'AM'), { display: '12:00 AM', hm: '00:00' });
   assert.deepStrictEqual(normalizeTime('12:30', 'PM'), { display: '12:30 PM', hm: '12:30' });
   assert.deepStrictEqual(normalizeTime('7:05', 'PM'), { display: '7:05 PM', hm: '19:05' });
+  assert.deepStrictEqual(normalizeTime('7:05 PM'), { display: '7:05 PM', hm: '19:05' });
   assert.throws(() => normalizeTime('13', 'PM'), /valid 12-hour time/);
 });
 
@@ -94,6 +96,14 @@ test('graphic schedules paginate after five streamers', () => {
   assert.strictEqual(embeds.length, 2);
   assert.strictEqual(embeds[0].toJSON().image.url, 'attachment://whos-live-1.jpg');
   assert.strictEqual(embeds[1].toJSON().image.url, 'attachment://whos-live-2.jpg');
+});
+
+test('/goinglive uses only channel, title, time, and link fields', () => {
+  const { GOING_LIVE_COMMAND, REMOVE_COMMAND } = require('../going_live');
+  assert.deepStrictEqual(GOING_LIVE_COMMAND.options.map(option => option.name), ['channel', 'title', 'time', 'link']);
+  assert.strictEqual(GOING_LIVE_COMMAND.options.every(option => option.required), true);
+  assert.strictEqual(REMOVE_COMMAND.name, 'remove');
+  assert.strictEqual(REMOVE_COMMAND.default_member_permissions, Discord.PermissionFlagsBits.Administrator.toString());
 });
 
 test('graphic text is converted to font-independent SVG outlines', () => {
