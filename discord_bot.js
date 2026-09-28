@@ -12,6 +12,7 @@ const goingLive = require('./going_live');
 const { installLiveVoicePairs } = require('./live_voice_pairs');
 const { findExistingJailChannel, installManualJailRoleWorkflow } = require('./manual_jail_role');
 const { parseDurationMs, PersistentJailScheduler } = require('./jail_scheduler');
+const { createConversationTts } = require('./conversation_tts');
 
 // Music dependencies
 // play-dl is used for YouTube searching/metadata.
@@ -46,6 +47,7 @@ const client = new Discord.Client({
         Discord.Partials.GuildMember,
     ]
 });
+const conversationTts = createConversationTts(client);
 goingLive.install(client);
 
 // Configuration - supplied by Railway or the Windows control panel.
@@ -5161,6 +5163,16 @@ function sendBlueprintMessage(message) {
 
 process.on('message', async message => {
     if (!message) return;
+    if (message.channel === 'commission:tts-request') {
+        const { id, action, payload = {} } = message;
+        try {
+            const data = await conversationTts.handle(action, payload);
+            if (typeof process.send === 'function') process.send({ channel: 'commission:tts-response', id, ok: true, data });
+        } catch (error) {
+            if (typeof process.send === 'function') process.send({ channel: 'commission:tts-response', id, ok: false, error: error.message });
+        }
+        return;
+    }
     if (message.channel === 'commission:moderation-request') {
         const { id, action, payload = {} } = message;
         try {
@@ -5312,6 +5324,7 @@ async function gracefulShutdown(signal) {
         if (typeof memberBridgeIntegration.stop === 'function') await memberBridgeIntegration.stop();
     } catch (error) { console.error('[MemberBridge shutdown]', error.message); }
     try { economy.close?.(); } catch (error) { console.error('[Economy shutdown]', error.message); }
+    try { conversationTts.destroy(); } catch (error) { console.error('[Conversation TTS shutdown]', error.message); }
     await flushActivityLogs();
     try { client.destroy(); } catch {}
     process.exit(0);
