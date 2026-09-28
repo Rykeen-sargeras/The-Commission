@@ -60,6 +60,10 @@ void (async () => {
             request = options;
             return Buffer.from([1, 2, 3]);
         },
+        synthesizeBrowser: async options => {
+            request = options;
+            return Buffer.from([4, 5, 6]);
+        },
     };
     const controller = new ConversationTts({ isReady: () => true }, {
         voices: 'emily,paul,sophie',
@@ -72,6 +76,17 @@ void (async () => {
         voice: 'paul',
         speed: 1.2,
         signal: undefined,
+    });
+    const browserAudio = await controller.browserAudio({
+        speaker: 'Road Captain',
+        text: 'Hello there',
+        voiceSlot: 2,
+    }, 1.25);
+    assert.deepStrictEqual([...browserAudio], [4, 5, 6]);
+    assert.deepStrictEqual(request, {
+        text: 'Road Captain: Hello there',
+        voice: 'sophie',
+        speed: 1.25,
     });
 
     const unconfiguredSynthesizer = { isConfigured: () => false, destroy() {} };

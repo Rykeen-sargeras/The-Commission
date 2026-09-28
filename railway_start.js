@@ -21,6 +21,7 @@ fs.mkdirSync(blueprintDir, { recursive: true });
 const dashboardPassword = String(process.env.WEB_DASHBOARD_PASSWORD || '');
 const sessionKey = crypto.createHash('sha256').update(`${dashboardPassword}|${process.env.DISCORD_TOKEN || ''}|commission-web-v1`).digest();
 const sessions = new Map();
+const ttsPlaybackSessions = new Map();
 let bot = null;
 let botState = 'stopped';
 let logs = [];
@@ -38,7 +39,7 @@ function readJson(file, fallback) { try { return JSON.parse(fs.readFileSync(file
 function parseEconomyEnv() { try { return JSON.parse(process.env.ECONOMY_CONFIG_JSON || '{}'); } catch { return {}; } }
 function loadSaved() { return readJson(configFile, { env: {}, economy: {} }); }
 function saveSaved(value) { const tmp=`${configFile}.tmp`; fs.writeFileSync(tmp, JSON.stringify(value,null,2)); fs.renameSync(tmp,configFile); }
-function mergedConfig() { const saved=loadSaved(); const env={}; for(const [key] of BASE_FIELDS) { const railwayValue=process.env[key]||''; const savedValue=Object.prototype.hasOwnProperty.call(saved.env||{},key)?saved.env[key]:''; env[key]=key==='DISCORD_TOKEN'&&railwayValue?railwayValue:(Object.prototype.hasOwnProperty.call(saved.env||{},key)?savedValue:railwayValue); } const economy={...parseEconomyEnv(),...(saved.economy||{})}; if((economy.dailyBase===undefined&&economy.dailyStreakStep===undefined&&economy.dailyStreakMaximum===undefined)||(Number(economy.dailyBase)===25&&Number(economy.dailyStreakStep)===5&&Number(economy.dailyStreakMaximum)===75)){economy.dailyBase=100;economy.dailyStreakStep=100;economy.dailyStreakMaximum=700;} return { env, economy }; }
+function mergedConfig() { const saved=loadSaved(); const env={}; const railwaySecrets=new Set(['DISCORD_TOKEN','HF_TOKEN']); for(const [key] of BASE_FIELDS) { const railwayValue=process.env[key]||''; const savedValue=Object.prototype.hasOwnProperty.call(saved.env||{},key)?saved.env[key]:''; env[key]=railwaySecrets.has(key)&&railwayValue?railwayValue:(Object.prototype.hasOwnProperty.call(saved.env||{},key)?savedValue:railwayValue); } const economy={...parseEconomyEnv(),...(saved.economy||{})}; if((economy.dailyBase===undefined&&economy.dailyStreakStep===undefined&&economy.dailyStreakMaximum===undefined)||(Number(economy.dailyBase)===25&&Number(economy.dailyStreakStep)===5&&Number(economy.dailyStreakMaximum)===75)){economy.dailyBase=100;economy.dailyStreakStep=100;economy.dailyStreakMaximum=700;} return { env, economy }; }
 function childEnv() { const cfg=mergedConfig(); return {...process.env,...cfg.env,ECONOMY_CONFIG_JSON:JSON.stringify(cfg.economy),COMMISSION_RAILWAY_MODE:'true',DATA_DIR:dataDir,PORT:String(port)}; }
 function maskConfig(cfg) { const out=JSON.parse(JSON.stringify(cfg)); for(const [key,,type] of BASE_FIELDS) if(type==='password') out.env[key]=out.env[key]?'••••••••':''; return out; }
 function addLog(source, line) { for(const part of String(line).split(/\r?\n/)){ if(!part) continue; logs.push({at:new Date().toISOString(),source,line:part}); if(logs.length>1000) logs.shift(); } }
@@ -46,7 +47,7 @@ function addLog(source, line) { for(const part of String(line).split(/\r?\n/)){ 
 function startBot(){
   if(bot) return;
   desiredRunning=true; botState='starting';
-  bot=fork(path.join(__dirname,'discord_bootstrap.js'),[],{cwd:dataDir,env:childEnv(),silent:true});
+  bot=fork(path.join(__dirname,'discord_bootstrap.js'),[],{cwd:dataDir,env:childEnv(),silent:true,serialization:'advanced'});
   addLog('system',`Started The Commission bot (PID ${bot.pid}).`);
   bot.stdout?.on('data',d=>{addLog('bot',d);process.stdout.write(d);}); bot.stderr?.on('data',d=>{addLog('error',d);process.stderr.write(d);});
   bot.on('message',msg=>{ if(!msg?.id) return; const p=pending.get(msg.id); if(!p) return; clearTimeout(p.timer); pending.delete(msg.id); msg.ok?p.resolve(msg.data):p.reject(new Error(msg.error||'Bot operation failed.')); });
@@ -66,6 +67,8 @@ function json(res,status,obj){send(res,status,'application/json; charset=utf-8',
 function redirect(res,to,headers={}){res.writeHead(302,{Location:to,...headers});res.end();}
 function body(req){return new Promise((resolve,reject)=>{let raw='';req.on('data',c=>{raw+=c;if(raw.length>2_000_000){reject(new Error('Request too large'));req.destroy();}});req.on('end',()=>resolve(raw));req.on('error',reject);});}
 function allowTtsRequest(req,bucket,limit,windowMs=60000){const forwarded=String(req.headers['x-forwarded-for']||'').split(',')[0].trim();const ip=forwarded||req.socket.remoteAddress||'unknown';const key=`${bucket}:${ip}`;const now=Date.now();if(ttsRateLimits.size>5000)for(const [entryKey,entry] of ttsRateLimits)if(entry.resetAt<=now)ttsRateLimits.delete(entryKey);const current=ttsRateLimits.get(key);if(!current||current.resetAt<=now){ttsRateLimits.set(key,{count:1,resetAt:now+windowMs});return true;}if(current.count>=limit)return false;current.count+=1;return true;}
+function createTtsPlaybackSession(result){const now=Date.now();for(const [id,entry] of ttsPlaybackSessions)if(entry.expiresAt<=now)ttsPlaybackSessions.delete(id);while(ttsPlaybackSessions.size>=500)ttsPlaybackSessions.delete(ttsPlaybackSessions.keys().next().value);const sessionId=crypto.randomBytes(24).toString('base64url');const messages=Array.isArray(result.messages)?result.messages:[];ttsPlaybackSessions.set(sessionId,{messages,expiresAt:now+2*3600000});return{...result,sessionId};}
+function ttsPlaybackMessage(sessionId,index){const entry=ttsPlaybackSessions.get(String(sessionId||''));if(!entry||entry.expiresAt<=Date.now()){if(entry)ttsPlaybackSessions.delete(String(sessionId||''));throw new Error('That playback session expired. Press Play again to reload the conversation.');}const position=Number.parseInt(index,10);if(!Number.isInteger(position)||position<0||position>=entry.messages.length)throw new Error('That conversation message is unavailable.');entry.expiresAt=Date.now()+2*3600000;return entry.messages[position];}
 function listBlueprints(){return fs.readdirSync(blueprintDir).filter(x=>x.endsWith('.json')).map(name=>{const b=readJson(path.join(blueprintDir,name),{});return{name,sourceGuild:b.sourceGuild||{},capturedAt:b.capturedAt||''};}).sort((a,b)=>String(b.capturedAt).localeCompare(String(a.capturedAt)));}
 function activitySnapshot(requestedDate=''){const stored=readJson(path.join(dataDir,'logs.json'),{});const voiceLogs=stored.voiceLogs&&typeof stored.voiceLogs==='object'?stored.voiceLogs:{};const memberLogs=stored.memberLogs&&typeof stored.memberLogs==='object'?stored.memberLogs:{};const dates=[...new Set([...Object.keys(voiceLogs),...Object.keys(memberLogs)])].sort().reverse();const selectedDate=String(requestedDate||dates[0]||new Date().toISOString().slice(0,10));return{dates,selectedDate,voiceLog:Array.isArray(voiceLogs[selectedDate])?voiceLogs[selectedDate]:[],memberLog:Array.isArray(memberLogs[selectedDate])?memberLogs[selectedDate]:[],lastSaved:stored.lastSaved||null};}
 
@@ -82,13 +85,24 @@ const server=http.createServer(async(req,res)=>{
     if(url.pathname==='/tts'&&req.method==='GET') return send(res,200,'text/html; charset=utf-8',ttsPage());
     if(url.pathname.startsWith('/api/tts/')&&req.method==='POST'){
       const action=url.pathname.slice('/api/tts/'.length);
-      const allowed=new Set(['resolve','conversation']);
+      const allowed=new Set(['resolve','conversation','audio']);
       if(!allowed.has(action))return json(res,404,{error:'Unknown conversation reader action.'});
-      const expensive=action==='conversation';
-      if(!allowTtsRequest(req,expensive?'playback':'control',expensive?10:90))return json(res,429,{error:'Too many requests. Wait a minute and try again.'});
+      const expensive=action==='conversation'||action==='audio';
+      const bucket=action==='audio'?'audio':expensive?'playback':'control';
+      const limit=action==='audio'?120:expensive?10:90;
+      if(!allowTtsRequest(req,bucket,limit))return json(res,429,{error:'Too many requests. Wait a minute and try again.'});
       const payload=JSON.parse(await body(req)||'{}');
-      const timeout=action==='conversation'?90000:action==='resolve'?30000:10000;
-      return json(res,200,await botRequest('commission:tts-request',action,payload,timeout));
+      if(action==='conversation'){
+        const result=await botRequest('commission:tts-request','conversation',payload,90000);
+        return json(res,200,createTtsPlaybackSession(result));
+      }
+      if(action==='audio'){
+        const message=ttsPlaybackMessage(payload.sessionId,payload.index);
+        const audio=await botRequest('commission:tts-request','browser-audio',{message,speed:payload.speed},20*60_000);
+        if(!Buffer.isBuffer(audio))throw new Error('NeuTTS returned an invalid audio response.');
+        return send(res,200,'audio/mpeg',audio,{'Content-Length':String(audio.length)});
+      }
+      return json(res,200,await botRequest('commission:tts-request','resolve',payload,30000));
     }
     if(await membershipWeb.handle(req,res,url,authed(req))) return;
     if(!authed(req)){if(url.pathname.startsWith('/api/'))return json(res,401,{error:'Not authenticated'});return send(res,200,'text/html; charset=utf-8',loginPage());}
