@@ -75,6 +75,16 @@ void (async () => {
     });
 
     const unconfiguredSynthesizer = { isConfigured: () => false, destroy() {} };
+    const defaultLimit = new ConversationTts({ isReady: () => true }, {
+        maxMessages: '',
+        synthesizer: unconfiguredSynthesizer,
+    });
+    assert.strictEqual(defaultLimit.maxMessages, 500);
+    const boundedLimit = new ConversationTts({ isReady: () => true }, {
+        maxMessages: '9999',
+        synthesizer: unconfiguredSynthesizer,
+    });
+    assert.strictEqual(boundedLimit.maxMessages, 2000);
     const restricted = new ConversationTts({ isReady: () => true }, {
         allowedGuildIds: '111',
         synthesizer: unconfiguredSynthesizer,
