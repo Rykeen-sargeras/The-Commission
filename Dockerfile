@@ -10,7 +10,8 @@ ENV CMAKE_ARGS="-DGGML_BLAS=ON -DGGML_BLAS_VENDOR=OpenBLAS"
 ENV FORCE_CMAKE=1
 COPY requirements-tts.txt /tmp/requirements-tts.txt
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel "cmake>=3.26" ninja \
-    && pip install --no-cache-dir -r /tmp/requirements-tts.txt
+    && pip install --no-cache-dir -r /tmp/requirements-tts.txt \
+    && python -c "from neutts import NeuTTS2E; print('NeuTTS import check passed')"
 
 FROM node:22-bookworm-slim
 
