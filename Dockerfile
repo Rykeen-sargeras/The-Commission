@@ -16,7 +16,7 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel "cmake>=3.26" ninj
 FROM node:22-bookworm-slim
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends python3 libopenblas0-pthread libsndfile1 ca-certificates \
+    && apt-get install -y --no-install-recommends python3 ffmpeg libopenblas0-pthread libsndfile1 ca-certificates \
     && rm -rf /var/lib/apt/lists/* \
     && npm install --global pnpm@10
 
