@@ -113,6 +113,14 @@ function numericSpeed(value) {
     return speed;
 }
 
+function messageLimit(value) {
+    const raw = String(value ?? '').trim();
+    if (!raw) return 500;
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed) || parsed < 1) return 500;
+    return Math.min(2000, Math.floor(parsed));
+}
+
 class ConversationTts {
     constructor(client, options = {}) {
         this.client = client;
@@ -130,7 +138,7 @@ class ConversationTts {
             ?? process.env.MEMBERSHIP_GUILD_ID
             ?? '',
         ).split(/[\s,]+/).filter(Boolean));
-        this.maxMessages = Math.max(1, Math.min(2000, Number(options.maxMessages ?? process.env.TTS_MAX_MESSAGES ?? 500)));
+        this.maxMessages = messageLimit(options.maxMessages ?? process.env.TTS_MAX_MESSAGES);
         this.state = initialState();
         this.queue = [];
         this.index = 0;
