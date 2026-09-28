@@ -375,6 +375,20 @@ class ConversationTts {
         return this.getState();
     }
 
+    async browserAudio(message, rawSpeed) {
+        if (!message || typeof message !== 'object') throw new Error('That conversation message is unavailable.');
+        const speed = numericSpeed(rawSpeed ?? 1);
+        const speaker = cleanForSpeech(message.speaker || 'Unknown speaker').slice(0, 120);
+        const text = cleanForSpeech(message.text || '');
+        if (!text) throw new Error('That conversation message has no readable text.');
+        const voiceSlot = Math.max(0, Number.parseInt(message.voiceSlot, 10) || 0);
+        return this.synthesizer.synthesizeBrowser({
+            text: `${speaker}: ${text}`,
+            voice: this.voices[voiceSlot % this.voices.length],
+            speed,
+        });
+    }
+
     destroy() {
         this.stop(false);
         this.synthesizer.destroy?.();
@@ -405,6 +419,7 @@ class ConversationTts {
         if (action === 'state') return this.getState();
         if (action === 'resolve') return this.resolve(payload.messageLink);
         if (action === 'conversation') return this.conversation(payload.messageLink);
+        if (action === 'browser-audio') return this.browserAudio(payload.message, payload.speed);
         if (action === 'play') {
             numericSpeed(payload.speed ?? 1);
             if (!payload.voiceChannelId) throw new Error('Choose a Discord voice channel.');

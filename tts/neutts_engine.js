@@ -12,10 +12,13 @@ function abortError() {
     return error;
 }
 
-function transcodeWavToOpus(wav, speed, signal, spawnImpl = spawn) {
+function transcodeWav(wav, speed, signal, format, spawnImpl = spawn) {
     if (!ffmpegPath) return Promise.reject(new Error('The bundled FFmpeg executable is unavailable.'));
     return new Promise((resolve, reject) => {
         if (signal?.aborted) return reject(abortError());
+        const codecArgs = format === 'mp3'
+            ? ['-c:a', 'libmp3lame', '-b:a', '96k', '-f', 'mp3']
+            : ['-c:a', 'libopus', '-b:a', '64k', '-vbr', 'on', '-f', 'ogg'];
         const child = spawnImpl(ffmpegPath, [
             '-hide_banner',
             '-loglevel', 'error',
@@ -23,13 +26,10 @@ function transcodeWavToOpus(wav, speed, signal, spawnImpl = spawn) {
             '-f', 'wav',
             '-i', 'pipe:0',
             '-filter:a', `atempo=${Number(speed).toFixed(2)}`,
-            '-c:a', 'libopus',
-            '-b:a', '64k',
-            '-vbr', 'on',
-            '-f', 'ogg',
+            ...codecArgs,
             'pipe:1',
         ], { windowsHide: true });
-        const output = [];
+        const chunks = [];
         const errors = [];
         let settled = false;
         const finish = (callback, value) => {
@@ -43,7 +43,7 @@ function transcodeWavToOpus(wav, speed, signal, spawnImpl = spawn) {
             finish(reject, abortError());
         };
         signal?.addEventListener('abort', onAbort, { once: true });
-        child.stdout.on('data', chunk => output.push(chunk));
+        child.stdout.on('data', chunk => chunks.push(chunk));
         child.stderr.on('data', chunk => errors.push(chunk));
         child.on('error', error => finish(reject, error));
         child.on('close', code => {
@@ -52,13 +52,21 @@ function transcodeWavToOpus(wav, speed, signal, spawnImpl = spawn) {
                 const detail = Buffer.concat(errors).toString('utf8').trim();
                 return finish(reject, new Error(`Audio conversion failed${detail ? `: ${detail}` : '.'}`));
             }
-            finish(resolve, Buffer.concat(output));
+            finish(resolve, Buffer.concat(chunks));
         });
         child.stdin.on('error', error => {
             if (error.code !== 'EPIPE') finish(reject, error);
         });
         child.stdin.end(wav);
     });
+}
+
+function transcodeWavToOpus(wav, speed, signal, spawnImpl = spawn) {
+    return transcodeWav(wav, speed, signal, 'opus', spawnImpl);
+}
+
+function transcodeWavToMp3(wav, speed, signal, spawnImpl = spawn) {
+    return transcodeWav(wav, speed, signal, 'mp3', spawnImpl);
 }
 
 class NeuttsSynthesizer {
@@ -75,6 +83,7 @@ class NeuttsSynthesizer {
             ?? path.join(process.env.DATA_DIR || os.tmpdir(), 'huggingface');
         this.spawnImpl = options.spawnImpl || spawn;
         this.transcode = options.transcode || transcodeWavToOpus;
+        this.browserTranscode = options.browserTranscode || transcodeWavToMp3;
         this.worker = null;
         this.stdoutBuffer = '';
         this.nextId = 1;
@@ -89,7 +98,7 @@ class NeuttsSynthesizer {
     ensureWorker() {
         if (this.worker) return this.worker;
         if (!this.isConfigured()) {
-            throw new Error('Add a free Hugging Face read token as HF_TOKEN in Railway before using Discord voice playback.');
+            throw new Error('Add a Hugging Face read token as HF_TOKEN in Railway before using NeuTTS playback.');
         }
         this.closing = false;
         const worker = this.spawnImpl(this.python, ['-u', this.workerPath], {
@@ -197,6 +206,14 @@ class NeuttsSynthesizer {
     }
 
     async synthesize({ text, voice, speed, signal }) {
+        return this.synthesizeWithTranscoder({ text, voice, speed, signal }, this.transcode);
+    }
+
+    async synthesizeBrowser({ text, voice, speed, signal }) {
+        return this.synthesizeWithTranscoder({ text, voice, speed, signal }, this.browserTranscode);
+    }
+
+    async synthesizeWithTranscoder({ text, voice, speed, signal }, transcoder) {
         const result = await this.request({ action: 'synthesize', text, speaker: voice, emotion: 'neutral' }, signal);
         let wav;
         try {
@@ -204,7 +221,7 @@ class NeuttsSynthesizer {
         } finally {
             if (result.audioPath) await fs.unlink(result.audioPath).catch(() => {});
         }
-        return this.transcode(wav, speed, signal);
+        return transcoder(wav, speed, signal);
     }
 
     destroy() {
@@ -215,4 +232,4 @@ class NeuttsSynthesizer {
     }
 }
 
-module.exports = { NeuttsSynthesizer, transcodeWavToOpus };
+module.exports = { NeuttsSynthesizer, transcodeWavToMp3, transcodeWavToOpus };

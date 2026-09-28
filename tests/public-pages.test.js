@@ -32,12 +32,11 @@ assert.doesNotMatch(terms, /name="password"/);
 
 const tts = ttsPage();
 assert.match(tts, /Play on this phone \/ browser/);
-assert.match(tts, /built into your phone or browser/);
-assert.match(tts, /queuedUtterances\.push\(utterance\)/);
-assert.match(tts, /for\(let index=messageIndex;index<messages\.length/);
-assert.match(tts, /waitForVoices\(\)/);
-assert.match(tts, /pitch:\.82/);
-assert.match(tts, /pitch:1\.18/);
+assert.match(tts, /NeuTTS audio is generated privately on Railway/);
+assert.match(tts, /fetch\('\/api\/tts\/audio'/);
+assert.match(tts, /prepareAudio\(messageIndex\+1\)/);
+assert.match(tts, /player\.addEventListener\('ended'/);
+assert.doesNotMatch(tts, /speechSynthesis/);
 assert.doesNotMatch(tts, /Discord voice channel/);
 assert.doesNotMatch(tts, /HF_TOKEN/);
 
@@ -46,5 +45,8 @@ assert.match(server, /url\.pathname==='\/privacy'.*privacyPage\(\)/s);
 assert.match(server, /url\.pathname==='\/terms'.*termsPage\(\)/s);
 assert.match(server, /url\.pathname==='\/control'.*dashboardPage\(\)/s);
 assert.match(server, /redirect\(res,'\/control'/);
+assert.match(server, /createTtsPlaybackSession/);
+assert.match(server, /'browser-audio'/);
+assert.match(server, /'audio\/mpeg'/);
 
 console.log('public homepage, privacy policy, terms, and control-room boundary tests passed');

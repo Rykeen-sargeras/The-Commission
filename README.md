@@ -19,7 +19,7 @@ The Commission is a Windows control panel for the existing Discord protection bo
 - Local persistence under the current Windows user's application-data folder
 - `/goinglive` Eastern Time stream scheduling with conflict resolution, a persistent Discord board, and a public hosted schedule
 - Password-protected hosted YouTube clipper at `/clipper` with direct MP4 downloads
-- Public, mobile-friendly Discord conversation reader at `/tts` with on-device browser speech
+- Public, mobile-friendly Discord conversation reader at `/tts` with NeuTTS audio generated on Railway
 
 ## Going Live schedule
 
@@ -39,16 +39,20 @@ Set `CLIPPER_PASSWORD` in Railway Variables. `MAX_CLIP_MINUTES` controls the max
 
 ## Discord conversation reader
 
-Open `/tts` on the Railway domain (for example, `https://YOUR-DOMAIN.up.railway.app/tts`). This page is public and does not use the control-room login. Paste a Discord message link and press **Play on this phone / browser**. The bot fetches the linked message and later messages in chronological order, then the device reads only each display name and message body. It never speaks timestamps. Up to three voices built into the device are assigned to speakers consistently within each playback. Pause/resume, skip, stop, speed, progress, and the current speaker are available as large driving-friendly controls.
+Open `/tts` on the Railway domain (for example, `https://YOUR-DOMAIN.up.railway.app/tts`). This page is public and does not use the control-room login. Paste a Discord message link and press **Play on this phone / browser**. The bot fetches the linked message and later messages in chronological order. Railway generates NeuTTS audio containing only each display name and message body, and the phone or browser plays that audio continuously. It never speaks timestamps. Up to three NeuTTS voices are assigned to speakers consistently within each playback. Pause/resume, skip, stop, speed, progress, and the current speaker are available as large driving-friendly controls.
 
-No Hugging Face or paid TTS API token is required. Configure these Railway variables:
+Accept the access terms for the two Neuphonic model repositories, create a Hugging Face read token, and configure these Railway variables:
 
 ```text
+HF_TOKEN=your-hugging-face-read-token
+TTS_BACKBONE_REPO=neuphonic/neutts-2e-q4-gguf
+TTS_CODEC_REPO=neuphonic/neucodec-onnx-decoder-int8
+TTS_VOICES=emily,paul,sophie
 TTS_MAX_MESSAGES=500
 TTS_ALLOWED_GUILD_IDS=your-discord-server-id
 ```
 
-`TTS_ALLOWED_GUILD_IDS` accepts comma-separated server IDs and falls back to `GOING_LIVE_GUILD_ID` or `MEMBERSHIP_GUILD_ID` when either is configured. If none of those variables is available, message access stays disabled. Keep an explicit allowlist because the reader has no login. Public endpoints are rate-limited, but the guild allowlist is the boundary that prevents the bot from reading links from other servers it may join. Playback uses the device's built-in voices and needs no token. Keep the page open while listening; mobile browsers may pause speech if the browser is closed or the phone is locked.
+`TTS_ALLOWED_GUILD_IDS` accepts comma-separated server IDs and falls back to `GOING_LIVE_GUILD_ID` or `MEMBERSHIP_GUILD_ID` when either is configured. If none of those variables is available, message access stays disabled. Keep an explicit allowlist because the reader has no login. Public endpoints are rate-limited, and short-lived playback sessions prevent callers from submitting arbitrary speech text. The model runs on Railway's CPU and caches downloaded model files under `DATA_DIR`; it does not call a paid speech API. The first message after a cold start can take several minutes while the model loads. Keep the page open while listening; mobile browsers may stop playback if the browser is closed or the phone is locked.
 
 The bot needs **View Channel** and **Read Message History** in linked text channels. The Discord application must have Message Content Intent enabled.
 
