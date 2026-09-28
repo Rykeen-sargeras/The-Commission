@@ -33,6 +33,8 @@ assert.doesNotMatch(terms, /name="password"/);
 const tts = ttsPage();
 assert.match(tts, /Play on this phone \/ browser/);
 assert.match(tts, /built into your phone or browser/);
+assert.match(tts, /queuedUtterances\.push\(utterance\)/);
+assert.match(tts, /for\(let index=messageIndex;index<messages\.length/);
 assert.doesNotMatch(tts, /Discord voice channel/);
 assert.doesNotMatch(tts, /HF_TOKEN/);
 
