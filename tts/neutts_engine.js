@@ -1,6 +1,7 @@
 'use strict';
 
 const fs = require('fs/promises');
+const { existsSync } = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawn } = require('child_process');
@@ -12,14 +13,20 @@ function abortError() {
     return error;
 }
 
+function resolveFfmpegPath() {
+    const configured = String(process.env.FFMPEG_PATH || '').trim();
+    if (configured) return configured;
+    if (ffmpegPath && existsSync(ffmpegPath)) return ffmpegPath;
+    return 'ffmpeg';
+}
+
 function transcodeWav(wav, speed, signal, format, spawnImpl = spawn) {
-    if (!ffmpegPath) return Promise.reject(new Error('The bundled FFmpeg executable is unavailable.'));
     return new Promise((resolve, reject) => {
         if (signal?.aborted) return reject(abortError());
         const codecArgs = format === 'mp3'
             ? ['-c:a', 'libmp3lame', '-b:a', '96k', '-f', 'mp3']
             : ['-c:a', 'libopus', '-b:a', '64k', '-vbr', 'on', '-f', 'ogg'];
-        const child = spawnImpl(ffmpegPath, [
+        const child = spawnImpl(resolveFfmpegPath(), [
             '-hide_banner',
             '-loglevel', 'error',
             '-nostdin',
@@ -232,4 +239,4 @@ class NeuttsSynthesizer {
     }
 }
 
-module.exports = { NeuttsSynthesizer, transcodeWavToMp3, transcodeWavToOpus };
+module.exports = { NeuttsSynthesizer, resolveFfmpegPath, transcodeWavToMp3, transcodeWavToOpus };
