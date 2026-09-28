@@ -1,4 +1,7 @@
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch==2.8.0+cpu
 torchaudio==2.8.0+cpu
+# NeuCodec declares torchao>=0.12 without an upper bound. Newer torchao
+# releases import Torch APIs that do not exist in the CPU Torch 2.8 build.
+torchao==0.13.0
 neutts[llama,onnx]==1.4.1
