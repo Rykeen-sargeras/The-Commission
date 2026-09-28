@@ -174,29 +174,12 @@ class ConversationTts {
         await channel.messages.fetch(reference.messageId).catch(() => {
             throw new Error('The starting message is missing or the bot cannot read it.');
         });
-        const voiceChannels = guild.channels.cache
-            .filter(candidate => {
-                if (candidate.type !== Discord.ChannelType.GuildVoice || !me) return false;
-                const allowed = candidate.permissionsFor(me);
-                return allowed?.has(Discord.PermissionFlagsBits.ViewChannel)
-                    && allowed.has(Discord.PermissionFlagsBits.Connect)
-                    && allowed.has(Discord.PermissionFlagsBits.Speak);
-            })
-            .map(candidate => ({
-                id: candidate.id,
-                name: candidate.name,
-                category: candidate.parent?.name || null,
-                memberCount: candidate.members.size,
-            }))
-            .sort((a, b) => (a.category || '').localeCompare(b.category || '') || a.name.localeCompare(b.name));
         return {
             guildId: guild.id,
             guildName: guild.name,
             channelId: channel.id,
             channelName: channel.name || 'Discord conversation',
             startMessageId: reference.messageId,
-            voiceChannels,
-            ttsConfigured: this.synthesizer.isConfigured(),
         };
     }
 

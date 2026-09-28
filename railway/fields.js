@@ -36,10 +36,6 @@ const BASE_FIELDS = [
   ['ALT_ACCOUNT_AGE_DAYS','New-account threshold (days)','number','Protection'],
   ['LOCATIONIQ_API_KEY','LocationIQ API key','password','API Services'],
   ['POSITIONSTACK_API_KEY','Positionstack API key','password','API Services'],
-  ['HF_TOKEN','Free Hugging Face read token for Discord TTS','password','API Services'],
-  ['TTS_BACKBONE_REPO','NeuTTS backbone model','text','API Services'],
-  ['TTS_CODEC_REPO','NeuTTS codec model','text','API Services'],
-  ['TTS_VOICES','NeuTTS voices (2–3, comma separated)','text','API Services'],
   ['TTS_MAX_MESSAGES','Maximum messages per playback','number','API Services'],
   ['TTS_ALLOWED_GUILD_IDS','TTS-enabled server IDs','text','API Services'],
 ];

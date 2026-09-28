@@ -4,6 +4,7 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const { publicPage, loginPage, privacyPage, termsPage } = require('../railway/ui');
+const { ttsPage } = require('../railway/tts_ui');
 
 const home = publicPage();
 assert.match(home, /Welcome to The Commission/);
@@ -28,6 +29,14 @@ const terms = termsPage();
 assert.match(terms, /Terms of Service/);
 assert.match(terms, /Authorized use/);
 assert.doesNotMatch(terms, /name="password"/);
+
+const tts = ttsPage();
+assert.match(tts, /Play on this phone \/ browser/);
+assert.match(tts, /built into your phone or browser/);
+assert.match(tts, /queuedUtterances\.push\(utterance\)/);
+assert.match(tts, /for\(let index=messageIndex;index<messages\.length/);
+assert.doesNotMatch(tts, /Discord voice channel/);
+assert.doesNotMatch(tts, /HF_TOKEN/);
 
 const server = fs.readFileSync(path.join(__dirname, '..', 'railway_start.js'), 'utf8');
 assert.match(server, /url\.pathname==='\/privacy'.*privacyPage\(\)/s);
