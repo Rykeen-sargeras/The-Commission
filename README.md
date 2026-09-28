@@ -41,19 +41,22 @@ Set `CLIPPER_PASSWORD` in Railway Variables. `MAX_CLIP_MINUTES` controls the max
 
 Open `/tts` on the Railway domain (for example, `https://YOUR-DOMAIN.up.railway.app/tts`). This page is public and does not use the control-room login. Paste a Discord message link, choose a voice channel that the bot can join, and press **Play conversation**. The bot starts with the linked message, fetches later messages in chronological order, and reads only each display name and message body. It never speaks timestamps. Two or three configured voices are assigned to speakers consistently within each playback. Pause/resume, skip, stop, speed, progress, and the current speaker are available as large driving-friendly controls.
 
-Discord voice playback uses OpenAI speech generation. Add these server-side Railway variables:
+Discord voice playback uses the self-hosted NeuTTS-2E Q4 model on Railway CPU. There is no per-character TTS provider bill. Before the first deployment, sign in to Hugging Face, accept the access conditions on both the [NeuTTS-2E Q4 model](https://huggingface.co/neuphonic/neutts-2e-q4-gguf) and [int8 codec model](https://huggingface.co/neuphonic/neucodec-onnx-decoder-int8), then create a free read-only token at [Hugging Face tokens](https://huggingface.co/settings/tokens). Add these server-side Railway variables:
 
 ```text
-OPENAI_API_KEY=your-secret-key
-OPENAI_TTS_MODEL=gpt-4o-mini-tts
-TTS_VOICES=marin,cedar,coral
+HF_TOKEN=your-free-read-token
+TTS_BACKBONE_REPO=neuphonic/neutts-2e-q4-gguf
+TTS_CODEC_REPO=neuphonic/neucodec-onnx-decoder-int8
+TTS_VOICES=emily,paul,sophie
 TTS_MAX_MESSAGES=500
 TTS_ALLOWED_GUILD_IDS=your-discord-server-id
 ```
 
-`TTS_ALLOWED_GUILD_IDS` accepts comma-separated server IDs and falls back to `GOING_LIVE_GUILD_ID` or `MEMBERSHIP_GUILD_ID` when either is configured. If none of those variables is available, message access stays disabled. Keep an explicit allowlist because the reader has no login. Public endpoints are rate-limited, but the guild allowlist is the boundary that prevents the bot from reading links from other servers it may join. Browser playback uses the device's built-in voices and does not require an OpenAI key, but the page must remain open. Discord playback continues through the bot when the phone screen locks.
+The Dockerfile installs the CPU-optimized model runtime; Railway automatically uses it for deployment. Model files total roughly 613 MB and download on first use. Mount a Railway volume at `DATA_DIR=/data` to cache them between deployments. The first Discord playback after a fresh deployment can take several minutes while the models download and load; later messages reuse the warm model. This uses more Railway CPU and memory than an external speech API, so review the service Metrics and set sensible resource limits.
 
-The bot needs **View Channel** and **Read Message History** in linked text channels, plus **View Channel**, **Connect**, and **Speak** in destination voice channels. The Discord application must have Message Content Intent enabled. OpenAI voices are AI-generated, and the page discloses this to listeners.
+`TTS_ALLOWED_GUILD_IDS` accepts comma-separated server IDs and falls back to `GOING_LIVE_GUILD_ID` or `MEMBERSHIP_GUILD_ID` when either is configured. If none of those variables is available, message access stays disabled. Keep an explicit allowlist because the reader has no login. Public endpoints are rate-limited, but the guild allowlist is the boundary that prevents the bot from reading links from other servers it may join. Browser playback uses the device's built-in voices and needs no token, but the page must remain open. Discord playback continues through the bot when the phone screen locks.
+
+The bot needs **View Channel** and **Read Message History** in linked text channels, plus **View Channel**, **Connect**, and **Speak** in destination voice channels. The Discord application must have Message Content Intent enabled. NeuTTS voices are AI-generated, and the page discloses this to listeners.
 
 ## First run
 

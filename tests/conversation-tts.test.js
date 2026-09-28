@@ -54,34 +54,38 @@ assert.strictEqual(messageToSpeech({
 
 void (async () => {
     let request;
-    const controller = new ConversationTts({ isReady: () => true }, {
-        apiKey: 'test-key',
-        model: 'gpt-4o-mini-tts',
-        voices: 'marin,cedar,coral',
-        fetchImpl: async (url, options) => {
-            request = { url, options };
-            return { ok: true, arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer };
+    const synthesizer = {
+        isConfigured: () => true,
+        synthesize: async options => {
+            request = options;
+            return Buffer.from([1, 2, 3]);
         },
+    };
+    const controller = new ConversationTts({ isReady: () => true }, {
+        voices: 'emily,paul,sophie',
+        synthesizer,
     });
     const audio = await controller.synthesize('Speaker: hello', 1, 1.2);
     assert.deepStrictEqual([...audio], [1, 2, 3]);
-    assert.strictEqual(request.url, 'https://api.openai.com/v1/audio/speech');
-    assert.strictEqual(request.options.headers.Authorization, 'Bearer test-key');
-    assert.deepStrictEqual(JSON.parse(request.options.body), {
-        model: 'gpt-4o-mini-tts',
-        voice: 'cedar',
-        input: 'Speaker: hello',
-        response_format: 'opus',
+    assert.deepStrictEqual(request, {
+        text: 'Speaker: hello',
+        voice: 'paul',
         speed: 1.2,
-        instructions: 'Speak clearly at a comfortable conversational pace for hands-free listening.',
+        signal: undefined,
     });
 
-    const restricted = new ConversationTts({ isReady: () => true }, { allowedGuildIds: '111' });
+    const unconfiguredSynthesizer = { isConfigured: () => false, destroy() {} };
+    const restricted = new ConversationTts({ isReady: () => true }, {
+        allowedGuildIds: '111',
+        synthesizer: unconfiguredSynthesizer,
+    });
     await assert.rejects(
         () => restricted.resolve('https://discord.com/channels/222/333/444'),
         /not in a server enabled/,
     );
-    const unconfigured = new ConversationTts({ isReady: () => true });
+    const unconfigured = new ConversationTts({ isReady: () => true }, {
+        synthesizer: unconfiguredSynthesizer,
+    });
     await assert.rejects(
         () => unconfigured.resolve('https://discord.com/channels/222/333/444'),
         /TTS_ALLOWED_GUILD_IDS must be configured/,

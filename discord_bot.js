@@ -5324,7 +5324,7 @@ async function gracefulShutdown(signal) {
         if (typeof memberBridgeIntegration.stop === 'function') await memberBridgeIntegration.stop();
     } catch (error) { console.error('[MemberBridge shutdown]', error.message); }
     try { economy.close?.(); } catch (error) { console.error('[Economy shutdown]', error.message); }
-    try { conversationTts.stop(false); } catch (error) { console.error('[Conversation TTS shutdown]', error.message); }
+    try { conversationTts.destroy(); } catch (error) { console.error('[Conversation TTS shutdown]', error.message); }
     await flushActivityLogs();
     try { client.destroy(); } catch {}
     process.exit(0);

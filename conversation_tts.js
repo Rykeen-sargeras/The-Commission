@@ -2,6 +2,7 @@
 
 const { Readable } = require('stream');
 const Discord = require('discord.js');
+const { NeuttsSynthesizer } = require('./tts/neutts_engine');
 const {
     AudioPlayerStatus,
     NoSubscriberBehavior,
@@ -115,14 +116,13 @@ function numericSpeed(value) {
 class ConversationTts {
     constructor(client, options = {}) {
         this.client = client;
-        this.apiKey = options.apiKey ?? process.env.OPENAI_API_KEY ?? '';
-        this.model = options.model ?? process.env.OPENAI_TTS_MODEL ?? 'gpt-4o-mini-tts';
-        this.voices = (options.voices ?? process.env.TTS_VOICES ?? 'marin,cedar,coral')
-            .split(',')
+        const configuredVoices = options.voices ?? process.env.TTS_VOICES ?? 'emily,paul,sophie';
+        this.voices = (Array.isArray(configuredVoices) ? configuredVoices : configuredVoices.split(','))
             .map(value => value.trim())
             .filter(Boolean)
             .slice(0, 3);
-        if (this.voices.length < 2) this.voices = ['marin', 'cedar', 'coral'];
+        if (this.voices.length < 2) this.voices = ['emily', 'paul', 'sophie'];
+        this.synthesizer = options.synthesizer || new NeuttsSynthesizer(options.neutts);
         this.allowedGuildIds = new Set(String(
             options.allowedGuildIds
             ?? process.env.TTS_ALLOWED_GUILD_IDS
@@ -131,7 +131,6 @@ class ConversationTts {
             ?? '',
         ).split(/[\s,]+/).filter(Boolean));
         this.maxMessages = Math.max(1, Math.min(2000, Number(options.maxMessages ?? process.env.TTS_MAX_MESSAGES ?? 500)));
-        this.fetchImpl = options.fetchImpl || globalThis.fetch;
         this.state = initialState();
         this.queue = [];
         this.index = 0;
@@ -143,7 +142,7 @@ class ConversationTts {
     }
 
     getState() {
-        return { ...this.state, ttsConfigured: Boolean(this.apiKey) };
+        return { ...this.state, ttsConfigured: this.synthesizer.isConfigured() };
     }
 
     setState(patch) {
@@ -197,7 +196,7 @@ class ConversationTts {
             channelName: channel.name || 'Discord conversation',
             startMessageId: reference.messageId,
             voiceChannels,
-            ttsConfigured: Boolean(this.apiKey),
+            ttsConfigured: this.synthesizer.isConfigured(),
         };
     }
 
@@ -244,35 +243,12 @@ class ConversationTts {
     }
 
     async synthesize(text, voiceSlot, speed, signal) {
-        if (!this.apiKey) throw new Error('Add OPENAI_API_KEY in Railway before using Discord voice playback.');
-        const requestBody = {
-            model: this.model,
+        return this.synthesizer.synthesize({
+            text,
             voice: this.voices[voiceSlot % this.voices.length],
-            input: text,
-            response_format: 'opus',
             speed,
-        };
-        if (this.model.startsWith('gpt-4o')) {
-            requestBody.instructions = 'Speak clearly at a comfortable conversational pace for hands-free listening.';
-        }
-        const response = await this.fetchImpl('https://api.openai.com/v1/audio/speech', {
-            method: 'POST',
-            headers: {
-                Authorization: `Bearer ${this.apiKey}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(requestBody),
             signal,
         });
-        if (!response.ok) {
-            let message = `Speech generation failed (${response.status}).`;
-            try {
-                const details = await response.json();
-                if (details?.error?.message) message = details.error.message;
-            } catch {}
-            throw new Error(message);
-        }
-        return Buffer.from(await response.arrayBuffer());
     }
 
     async start(rawLink, voiceChannelId, rawSpeed) {
@@ -406,6 +382,11 @@ class ConversationTts {
         this.disconnectTimer = null;
         if (publish) this.state = { ...initialState(), status: 'stopped', speed: this.state.speed };
         return this.getState();
+    }
+
+    destroy() {
+        this.stop(false);
+        this.synthesizer.destroy?.();
     }
 
     scheduleDisconnect() {
