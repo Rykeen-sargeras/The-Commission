@@ -36,6 +36,11 @@ const BASE_FIELDS = [
   ['ALT_ACCOUNT_AGE_DAYS','New-account threshold (days)','number','Protection'],
   ['LOCATIONIQ_API_KEY','LocationIQ API key','password','API Services'],
   ['POSITIONSTACK_API_KEY','Positionstack API key','password','API Services'],
+  ['OPENAI_API_KEY','OpenAI API key for Discord TTS','password','API Services'],
+  ['OPENAI_TTS_MODEL','OpenAI TTS model','text','API Services'],
+  ['TTS_VOICES','TTS voices (2–3, comma separated)','text','API Services'],
+  ['TTS_MAX_MESSAGES','Maximum messages per playback','number','API Services'],
+  ['TTS_ALLOWED_GUILD_IDS','TTS-enabled server IDs','text','API Services'],
 ];
 
 const ECON_FIELDS = [

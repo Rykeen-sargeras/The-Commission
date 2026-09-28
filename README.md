@@ -19,6 +19,7 @@ The Commission is a Windows control panel for the existing Discord protection bo
 - Local persistence under the current Windows user's application-data folder
 - `/goinglive` Eastern Time stream scheduling with conflict resolution, a persistent Discord board, and a public hosted schedule
 - Password-protected hosted YouTube clipper at `/clipper` with direct MP4 downloads
+- Public, mobile-friendly Discord conversation reader at `/tts` with Discord voice playback and browser speech fallback
 
 ## Going Live schedule
 
@@ -35,6 +36,24 @@ Configure `GOING_LIVE_GUILD_ID` and `GOING_LIVE_CHANNEL_ID`. The supplied exampl
 The Railway website includes a private clipper at `/clipper`. Friends sign in with the shared `CLIPPER_PASSWORD`, paste a YouTube video or livestream URL, enter start and end timestamps such as `01:00` and `01:01:05`, and download the finished MP4 in their browser. Clips are temporary downloads only: there is no clip library, Discord upload, Google Drive copy, or permanent-storage option.
 
 Set `CLIPPER_PASSWORD` in Railway Variables. `MAX_CLIP_MINUTES` controls the maximum clip length (default 15). Every MP4 expires after three hours and is deleted automatically; there is no permanent-storage setting. Mount Railway persistent storage at `DATA_DIR=/data` if downloads should survive a deployment during their three-hour window. Only clip content you have permission to use.
+
+## Discord conversation reader
+
+Open `/tts` on the Railway domain (for example, `https://YOUR-DOMAIN.up.railway.app/tts`). This page is public and does not use the control-room login. Paste a Discord message link, choose a voice channel that the bot can join, and press **Play conversation**. The bot starts with the linked message, fetches later messages in chronological order, and reads only each display name and message body. It never speaks timestamps. Two or three configured voices are assigned to speakers consistently within each playback. Pause/resume, skip, stop, speed, progress, and the current speaker are available as large driving-friendly controls.
+
+Discord voice playback uses OpenAI speech generation. Add these server-side Railway variables:
+
+```text
+OPENAI_API_KEY=your-secret-key
+OPENAI_TTS_MODEL=gpt-4o-mini-tts
+TTS_VOICES=marin,cedar,coral
+TTS_MAX_MESSAGES=500
+TTS_ALLOWED_GUILD_IDS=your-discord-server-id
+```
+
+`TTS_ALLOWED_GUILD_IDS` accepts comma-separated server IDs and falls back to `GOING_LIVE_GUILD_ID` or `MEMBERSHIP_GUILD_ID` when either is configured. If none of those variables is available, message access stays disabled. Keep an explicit allowlist because the reader has no login. Public endpoints are rate-limited, but the guild allowlist is the boundary that prevents the bot from reading links from other servers it may join. Browser playback uses the device's built-in voices and does not require an OpenAI key, but the page must remain open. Discord playback continues through the bot when the phone screen locks.
+
+The bot needs **View Channel** and **Read Message History** in linked text channels, plus **View Channel**, **Connect**, and **Speak** in destination voice channels. The Discord application must have Message Content Intent enabled. OpenAI voices are AI-generated, and the page discloses this to listeners.
 
 ## First run
 

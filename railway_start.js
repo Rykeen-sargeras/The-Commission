@@ -25,11 +25,13 @@ let bot = null;
 let botState = 'stopped';
 let logs = [];
 let pending = new Map();
+const ttsRateLimits = new Map();
 let shuttingDown = false;
 let desiredRunning = true;
 
 const { BASE_FIELDS, ECON_FIELDS } = require('./railway/fields');
 const { publicPage, loginPage, privacyPage, termsPage, dashboardPage } = require('./railway/ui');
+const { ttsPage } = require('./railway/tts_ui');
 const { MembershipWeb } = require('./membership_web');
 
 function readJson(file, fallback) { try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return fallback; } }
@@ -63,6 +65,7 @@ function send(res,status,type,body,headers={}){res.writeHead(status,{'Content-Ty
 function json(res,status,obj){send(res,status,'application/json; charset=utf-8',JSON.stringify(obj));}
 function redirect(res,to,headers={}){res.writeHead(302,{Location:to,...headers});res.end();}
 function body(req){return new Promise((resolve,reject)=>{let raw='';req.on('data',c=>{raw+=c;if(raw.length>2_000_000){reject(new Error('Request too large'));req.destroy();}});req.on('end',()=>resolve(raw));req.on('error',reject);});}
+function allowTtsRequest(req,bucket,limit,windowMs=60000){const forwarded=String(req.headers['x-forwarded-for']||'').split(',')[0].trim();const ip=forwarded||req.socket.remoteAddress||'unknown';const key=`${bucket}:${ip}`;const now=Date.now();if(ttsRateLimits.size>5000)for(const [entryKey,entry] of ttsRateLimits)if(entry.resetAt<=now)ttsRateLimits.delete(entryKey);const current=ttsRateLimits.get(key);if(!current||current.resetAt<=now){ttsRateLimits.set(key,{count:1,resetAt:now+windowMs});return true;}if(current.count>=limit)return false;current.count+=1;return true;}
 function listBlueprints(){return fs.readdirSync(blueprintDir).filter(x=>x.endsWith('.json')).map(name=>{const b=readJson(path.join(blueprintDir,name),{});return{name,sourceGuild:b.sourceGuild||{},capturedAt:b.capturedAt||''};}).sort((a,b)=>String(b.capturedAt).localeCompare(String(a.capturedAt)));}
 function activitySnapshot(requestedDate=''){const stored=readJson(path.join(dataDir,'logs.json'),{});const voiceLogs=stored.voiceLogs&&typeof stored.voiceLogs==='object'?stored.voiceLogs:{};const memberLogs=stored.memberLogs&&typeof stored.memberLogs==='object'?stored.memberLogs:{};const dates=[...new Set([...Object.keys(voiceLogs),...Object.keys(memberLogs)])].sort().reverse();const selectedDate=String(requestedDate||dates[0]||new Date().toISOString().slice(0,10));return{dates,selectedDate,voiceLog:Array.isArray(voiceLogs[selectedDate])?voiceLogs[selectedDate]:[],memberLog:Array.isArray(memberLogs[selectedDate])?memberLogs[selectedDate]:[],lastSaved:stored.lastSaved||null};}
 
@@ -76,6 +79,21 @@ const server=http.createServer(async(req,res)=>{
     if(url.pathname==='/terms'&&req.method==='GET') return send(res,200,'text/html; charset=utf-8',termsPage());
     if(url.pathname==='/login'&&req.method==='POST'){const raw=await body(req);const p=new URLSearchParams(raw).get('password')||'';if(!dashboardPassword)return send(res,500,'text/html; charset=utf-8',loginPage('WEB_DASHBOARD_PASSWORD is not configured.'));if(!safeEqual(p,dashboardPassword))return send(res,401,'text/html; charset=utf-8',loginPage('Wrong password.'));const token=newSession();return redirect(res,'/control',{'Set-Cookie':`commission_session=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=43200`});}
     if(url.pathname==='/logout'&&req.method==='POST'){const t=cookies(req).commission_session;if(t)sessions.delete(t);return redirect(res,'/',{'Set-Cookie':'commission_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0'});}
+    if(url.pathname==='/tts'&&req.method==='GET') return send(res,200,'text/html; charset=utf-8',ttsPage());
+    if(url.pathname==='/api/tts/state'&&req.method==='GET'){
+      if(!allowTtsRequest(req,'state',180))return json(res,429,{error:'Too many requests. Wait a moment and try again.'});
+      return json(res,200,await botRequest('commission:tts-request','state',{},10000));
+    }
+    if(url.pathname.startsWith('/api/tts/')&&req.method==='POST'){
+      const action=url.pathname.slice('/api/tts/'.length);
+      const allowed=new Set(['resolve','conversation','play','pause','resume','skip','stop','speed']);
+      if(!allowed.has(action))return json(res,404,{error:'Unknown conversation reader action.'});
+      const expensive=['conversation','play'].includes(action);
+      if(!allowTtsRequest(req,expensive?'playback':'control',expensive?10:90))return json(res,429,{error:'Too many requests. Wait a minute and try again.'});
+      const payload=JSON.parse(await body(req)||'{}');
+      const timeout=action==='conversation'?90000:action==='resolve'?30000:10000;
+      return json(res,200,await botRequest('commission:tts-request',action,payload,timeout));
+    }
     if(await membershipWeb.handle(req,res,url,authed(req))) return;
     if(!authed(req)){if(url.pathname.startsWith('/api/'))return json(res,401,{error:'Not authenticated'});return send(res,200,'text/html; charset=utf-8',loginPage());}
     if(url.pathname==='/control'&&req.method==='GET') return send(res,200,'text/html; charset=utf-8',dashboardPage());
