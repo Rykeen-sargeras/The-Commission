@@ -6,6 +6,7 @@ const discordEconomy = require('./economy_discord');
 const PROTECTED_HEIST_PING_IDS = new Set();
 const HEIST_PING_SETTING = 'special_heist_ping_message';
 const PATCH_FLAG = Symbol.for('commission.heistPingDeleteProtection');
+const PERSISTENT_PANEL_REFRESH_MS = 3 * 60 * 1000;
 
 function isHeistPingMessage(message) {
     const content = String(message?.content || '');
@@ -121,7 +122,7 @@ function installHeistPersistencePatch() {
                 }
             };
             refresh();
-            timer = setInterval(refresh, 5_000);
+            timer = setInterval(refresh, PERSISTENT_PANEL_REFRESH_MS);
             timer.unref?.();
         };
 

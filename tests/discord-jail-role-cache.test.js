@@ -10,8 +10,9 @@ const accessSource = fs.readFileSync(path.join(__dirname, '..', 'discord', 'staf
 assert.match(source, /createStaffAccess\(Discord, CONFIG\)/);
 assert.match(accessSource, /function configuredStaffRoleIds\(guild\)/);
 assert.match(accessSource, /guild\.roles\.cache\.has\(id\)/);
+assert.match(accessSource, /toLowerCase\(\) === 'moderators'/);
 assert.doesNotMatch(source, /\.\.\.staffPermissionOverwrites\(\)/);
 assert.doesNotMatch(source, /staffMentions\((?:userId|user\.id|reporter\.id|targetUser\.id)\)/);
-assert.strictEqual((source.match(/\.\.\.staffPermissionOverwrites\(guild\)/g) || []).length, 4);
+assert.strictEqual((source.match(/\.\.\.staffPermissionOverwrites\(guild\)/g) || []).length, 1);
 
 console.log('discord jail role-cache tests passed');

@@ -5,7 +5,6 @@ const fs = require('fs');
 const path = require('path');
 const Discord = require('discord.js');
 const { economyCommandData, createEconomyIntegration, gambleMenuPayload, wagerModal } = require('../economy_discord');
-const { findDoxWord, bannedWordAction } = require('../moderation_word_policy');
 
 const menuGames = new Set(['slots', 'dice', 'higher-lower', 'dragon-tower', 'poker', 'blackjack', 'duel']);
 const retiredStandaloneGames = new Set(['slots', 'dice', 'higher-lower', 'dragon-tower', 'poker', 'blackjack']);
@@ -190,20 +189,25 @@ function baseClient() {
     assert.match(grantReply, /2 human members/);
     assert.match(grantReply, /500/);
 
-    assert.strictEqual(findDoxWord('please dox nobody'), 'dox');
-    assert.strictEqual(findDoxWord('doxxing is forbidden'), 'doxxing');
-    assert.strictEqual(findDoxWord('ordinary message'), null);
-    assert.deepStrictEqual(bannedWordAction('doxxed'), { deleteMessage: true, postScold: true, incrementOffense: false, jail: false });
-    assert.deepStrictEqual(bannedWordAction('truly-banned-word'), { deleteMessage: true, postScold: false, incrementOffense: true, jail: true });
-
     const root = path.join(__dirname, '..');
     const bootstrap = fs.readFileSync(path.join(root, 'discord_bootstrap.js'), 'utf8');
     const railway = fs.readFileSync(path.join(root, 'railway_start.js'), 'utf8');
     const botSource = fs.readFileSync(path.join(root, 'discord_bot.js'), 'utf8');
+    const specialHeistSource = fs.readFileSync(path.join(root, 'economy_special_events.js'), 'utf8');
+    const fourDailySource = fs.readFileSync(path.join(root, 'economy_heist_four_daily_patch.js'), 'utf8');
+    const goonsSource = fs.readFileSync(path.join(root, 'economy_heist_goons_patch.js'), 'utf8');
     assert.doesNotMatch(bootstrap, /economy_command_cleanup_patch|gamble_interaction_patch|dox_word_policy_patch/);
     assert.match(railway, /fork\(path\.join\(__dirname,'discord_bootstrap\.js'/);
     assert.doesNotMatch(railway, /fork\(path\.join\(__dirname,'discord_bot\.js'/);
-    assert.match(botSource, /No offense recorded and no jail applied/);
+    assert.doesNotMatch(botSource, /isDoxWord|Dox Word Removed|knock it off/);
+    assert.match(goonsSource, /heistPanelOwner: 'goons'/);
+    assert.match(goonsSource, /createPanelUpserter\(economy\)/);
+    assert.match(specialHeistSource, /ownsPersistentPanel/);
+    assert.match(fourDailySource, /ownsPersistentPanel/);
+    for (const source of [specialHeistSource, fourDailySource, goonsSource]) {
+        assert.match(source, /PERSISTENT_PANEL_REFRESH_MS = 3 \* 60 \* 1000/);
+        assert.doesNotMatch(source, /setInterval\([^\n]+(?:5_000|10_000|15_000|30_000)/);
+    }
     console.log('economy Discord consolidation tests passed');
 })().catch(error => {
     console.error(error);

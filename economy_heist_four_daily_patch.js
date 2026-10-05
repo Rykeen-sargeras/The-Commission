@@ -17,6 +17,7 @@ const HEIST_LOCAL_HOURS = Object.freeze([3, 9, 15, 21]);
 const REMINDER_LOCAL_HOURS = new Set([9, 21]);
 const REMINDER_WINDOW_MINUTES = 15;
 const REMINDER_SLOT_SETTING = 'four_daily_heist_last_reminder_slot';
+const PERSISTENT_PANEL_REFRESH_MS = 3 * 60 * 1000;
 
 const easternFormatter = new Intl.DateTimeFormat('en-US', {
     timeZone: EASTERN_TIME_ZONE,
@@ -338,6 +339,7 @@ function installFourDailyHeists() {
         const integration = previousCreateIntegration(client, economy, options);
         const previousHandleButton = integration.handleButton;
         const previousStop = integration.stop;
+        const ownsPersistentPanel = !options.heistPanelOwner || options.heistPanelOwner === 'four-daily';
         let timer = null;
 
         function panelPayload(state) {
@@ -378,7 +380,9 @@ function installFourDailyHeists() {
         }
 
         async function refreshPanel(guild) {
-            const channel = guild.channels.cache.get(HEIST_CHANNEL_ID) || await guild.channels.fetch(HEIST_CHANNEL_ID).catch(() => null);
+            if (!ownsPersistentPanel) return null;
+            const channelId = economy.config.heistChannelId || HEIST_CHANNEL_ID;
+            const channel = guild.channels.cache.get(channelId) || await guild.channels.fetch(channelId).catch(() => null);
             if (!channel?.isTextBased()) return null;
             const state = economy.heistState(guild.id);
             let panelId = economy.setting(guild.id, 'heist_panel_message');
@@ -410,7 +414,8 @@ function installFourDailyHeists() {
             }
             if (!role) return;
 
-            const channel = guild.channels.cache.get(HEIST_CHANNEL_ID) || await guild.channels.fetch(HEIST_CHANNEL_ID).catch(() => null);
+            const channelId = economy.config.heistChannelId || HEIST_CHANNEL_ID;
+            const channel = guild.channels.cache.get(channelId) || await guild.channels.fetch(channelId).catch(() => null);
             if (!channel?.isTextBased()) return;
             const message = await channel.send({
                 content: `<@&${role.id}> 🔔 **A new heist has started.** Entry is **100,000 ${economy.config.currencyName}**. This round is a **Boss or PvP battle**. Signup closes <t:${Math.floor(Number(state.round.signup_ends_at) / 1000)}:R>.`,
@@ -467,12 +472,12 @@ function installFourDailyHeists() {
                 }
             };
             run();
-            timer = setInterval(run, 5_000);
+            timer = setInterval(run, PERSISTENT_PANEL_REFRESH_MS);
             timer.unref?.();
         };
         if (client.isReady?.()) start(); else client.once('ready', start);
 
-        integration.updateHeistPanel = async guild => refreshPanel(guild);
+        if (ownsPersistentPanel) integration.updateHeistPanel = async guild => refreshPanel(guild);
         integration.stop = async (...args) => {
             if (timer) clearInterval(timer);
             return previousStop?.(...args);

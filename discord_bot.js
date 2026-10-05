@@ -5,14 +5,17 @@ const http = require('http');
 const { applyGuildBlueprint, captureGuildBlueprint } = require('./blueprint');
 const { EconomyService } = require('./economy');
 const { economyCommandData, createEconomyIntegration } = require('./economy_discord');
-const { isDoxWord } = require('./moderation_word_policy');
 const { verifyAddressWithFreeGeocoders } = require('./address_verification');
+const { classifyMemberRemoval } = require('./moderation_audit');
+const { addSensitiveTextEvidence, safeEmbedText } = require('./moderation_evidence');
 const { MemberBridgeIntegration, memberBridgeCommandData = () => [] } = require('./memberbridge/integration');
 const goingLive = require('./going_live');
 const { installLiveVoicePairs } = require('./live_voice_pairs');
-const { findExistingJailChannel, installManualJailRoleWorkflow } = require('./manual_jail_role');
+const { findExistingJailChannel, installManualJailRoleWorkflow, resolveStaffRoles } = require('./manual_jail_role');
 const { parseDurationMs, PersistentJailScheduler } = require('./jail_scheduler');
 const { createConversationTts } = require('./conversation_tts');
+const { createStaffAccess } = require('./discord/staff_access');
+const { installDMTicketSystem } = require('./dm_ticket_system');
 
 // Music dependencies
 // play-dl is used for YouTube searching/metadata.
@@ -72,17 +75,16 @@ const CONFIG = {
     JAIL_CATEGORY_IDS: (process.env.JAIL_CATEGORY_IDS || '').split(',').filter(Boolean),
     JAIL_CATEGORY_ID: process.env.JAIL_CATEGORY_ID || '',
     JAIL_ROLE_ID: process.env.JAIL_ROLE_ID || '',
-    // This is the server's dedicated jail audit/transcript channel. Keep it
-    // authoritative so a stale Railway variable cannot route records elsewhere.
-    JAIL_LOG_CHANNEL_ID: '1532513789159669835',
+    JAIL_LOG_CHANNEL_ID: process.env.JAIL_LOG_CHANNEL_ID || '1532513789159669835',
     PREEMPTIVE_BAN_USER_IDS: (process.env.PREEMPTIVE_BAN_USER_IDS || '').split(/[\s,]+/).filter(Boolean),
     PREEMPTIVE_BAN_REASON: process.env.PREEMPTIVE_BAN_REASON || 'Listed in The Commission preemptive ban list',
     LIVE_VOICE_CATEGORY_ID: process.env.LIVE_VOICE_CATEGORY_ID || '1532513765701189683',
 };
 
 const PREEMPTIVE_BAN_USER_IDS = new Set(CONFIG.PREEMPTIVE_BAN_USER_IDS);
-const activeSlashJails = new Set();
 const jailProvisioningKey = (guildId, userId) => `${guildId}:${userId}`;
+const jailProvisioning = new Map();
+const managedJailRoleAssignments = new Map();
 installLiveVoicePairs(client, { categoryId: CONFIG.LIVE_VOICE_CATEGORY_ID });
 installManualJailRoleWorkflow(client, Discord, {
     jailRoleId: CONFIG.JAIL_ROLE_ID,
@@ -91,47 +93,15 @@ installManualJailRoleWorkflow(client, Discord, {
     jailLogChannelId: CONFIG.JAIL_LOG_CHANNEL_ID,
     staffRoleIds: CONFIG.STAFF_ROLE_IDS,
 }, {
-    // /jail owns its channel, duration, and scheduler state. Ignore the role
-    // update it causes so the manual-role workflow does not create a second one.
-    shouldSkip: member => activeSlashJails.has(jailProvisioningKey(member.guild.id, member.id)),
+    shouldSkip: member => (managedJailRoleAssignments.get(jailProvisioningKey(member.guild.id, member.id)) || 0) > Date.now(),
+    onJailRoleAdded: provisionJailFromRole,
 });
 
 // Music channel configuration
 const MUSIC_CHANNEL_ID = CONFIG.MUSIC_CHANNEL_ID;
 const MUSIC_VOICE_CHANNEL_ID = CONFIG.MUSIC_VOICE_CHANNEL_ID;
 
-const STAFF_CHANNEL_PERMISSIONS = [
-    Discord.PermissionFlagsBits.ViewChannel,
-    Discord.PermissionFlagsBits.SendMessages,
-    Discord.PermissionFlagsBits.ReadMessageHistory,
-];
-
-function configuredStaffRoleIds(guild) {
-    const configuredIds = [...new Set(CONFIG.STAFF_ROLE_IDS.map(id => String(id).trim()).filter(Boolean))];
-    const validIds = configuredIds.filter(id => guild.roles.cache.has(id));
-    const invalidIds = configuredIds.filter(id => !guild.roles.cache.has(id));
-
-    if (invalidIds.length) {
-        console.warn(`[Discord permissions] Ignoring staff role IDs that do not exist in guild ${guild.id}: ${invalidIds.join(', ')}`);
-    }
-
-    return validIds;
-}
-
-function staffPermissionOverwrites(guild) {
-    return configuredStaffRoleIds(guild).map(id => ({
-        id,
-        allow: STAFF_CHANNEL_PERMISSIONS,
-    }));
-}
-
-function staffMentions(guild, extraUserId = '') {
-    const mentions = [];
-    if (CONFIG.OWNER_USER_ID) mentions.push(`<@${CONFIG.OWNER_USER_ID}>`);
-    mentions.push(...configuredStaffRoleIds(guild).map(id => `<@&${id}>`));
-    if (extraUserId) mentions.push(`<@${extraUserId}>`);
-    return mentions.join(' ');
-}
+const { staffPermissionOverwrites, staffMentions } = createStaffAccess(Discord, CONFIG);
 
 // Patrol channel tracking
 const patrolCooldowns = new Map(); // userId -> lastPostTimestamp
@@ -143,6 +113,12 @@ const PATROL_COOLDOWN = 16 * 60 * 60 * 1000; // 16 hours in milliseconds
 
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 fs.mkdirSync(DATA_DIR, { recursive: true });
+installDMTicketSystem(client, {
+    categoryId: CONFIG.TICKET_CATEGORY_ID || CONFIG.REPORT_CATEGORY_ID,
+    dataDir: DATA_DIR,
+    staffRoleIds: CONFIG.STAFF_ROLE_IDS,
+    ownerUserId: CONFIG.OWNER_USER_ID,
+});
 const BANNED_WORDS_FILE = path.join(DATA_DIR, 'banned-words.json');
 let economyConfig = {};
 try {
@@ -190,7 +166,6 @@ let offenseTracker = new Map();
 
 // Default banned words list
 const DEFAULT_BANNED_WORDS = [
-    'dox', 'doxx', 'doxxing', 'doxing', 'doxed', 'doxxed', 'doxer', 'doxxer', 'doxxers',
     'swat', 'swatting', 'swatted',
     'kill your self', 'kill youre self', "kill you're self", 'kill yourself',
     'suicide', 'suicidebait', 'suicide bait',
@@ -222,6 +197,8 @@ const DEFAULT_BANNED_WORDS = [
 
 // Banned words list (editable via dashboard, persisted to disk)
 let bannedWords = [...DEFAULT_BANNED_WORDS];
+const BANNED_WORDS_SCHEMA_VERSION = 2;
+const LEGACY_DOX_DEFAULTS = new Set(['dox', 'doxx', 'doxxing', 'doxing', 'doxed', 'doxxed', 'doxer', 'doxxer', 'doxxers']);
 
 // Load banned words from disk
 function loadBannedWordsFromDisk() {
@@ -231,6 +208,16 @@ function loadBannedWordsFromDisk() {
             const data = JSON.parse(raw);
             if (data.bannedWords && Array.isArray(data.bannedWords)) {
                 bannedWords = data.bannedWords;
+                if (Number(data.schemaVersion || 1) < BANNED_WORDS_SCHEMA_VERSION) {
+                    bannedWords = bannedWords.filter(word => !LEGACY_DOX_DEFAULTS.has(String(word).trim().toLowerCase()));
+                    data.schemaVersion = BANNED_WORDS_SCHEMA_VERSION;
+                    fs.writeFileSync(BANNED_WORDS_FILE, JSON.stringify({
+                        ...data,
+                        bannedWords,
+                        lastSaved: new Date().toISOString(),
+                    }), 'utf-8');
+                    console.log('✅ Removed legacy dox-family defaults; they can be added back manually like any other filter.');
+                }
             }
             if (data.offenses) {
                 offenseTracker = new Map(Object.entries(data.offenses));
@@ -249,6 +236,7 @@ function saveBannedWordsToDisk() {
         saveBannedTimer = null;
         try {
             const data = {
+                schemaVersion: BANNED_WORDS_SCHEMA_VERSION,
                 bannedWords: bannedWords,
                 offenses: Object.fromEntries(offenseTracker),
                 lastSaved: new Date().toISOString(),
@@ -639,7 +627,7 @@ client.on('ready', async () => {
                 .toJSON(),
             new Discord.SlashCommandBuilder()
                 .setName('close')
-                .setDescription('Close a jail channel without unjailing (for bans)')
+                .setDescription('Archive and close the current jail or report channel')
                 .toJSON(),
             new Discord.SlashCommandBuilder()
                 .setName('join')
@@ -819,6 +807,17 @@ async function enforcePreemptiveBan(member) {
 // Alt account detection + name change detection on member join
 client.on('guildMemberAdd', async (member) => {
     try {
+        const joinedAt = new Date();
+        const joinedTime = joinedAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+        addMemberLog({
+            timestamp: joinedAt.toISOString(),
+            userId: member.user.id,
+            username: member.user.tag,
+            action: 'joined',
+            timeStr: joinedTime,
+        });
+        console.log(`📥 ${member.user.tag} joined the server at ${joinedTime}`);
+
         if (await enforcePreemptiveBan(member)) return;
 
         const userId = member.user.id;
@@ -878,57 +877,44 @@ client.on('guildMemberAdd', async (member) => {
         const accountAgeDays = Math.floor(accountAge / (1000 * 60 * 60 * 24));
 
         if (accountAgeDays < CONFIG.ALT_ACCOUNT_AGE_DAYS) {
-            let jailApplied = false;
-            let jailStatus = 'Auto-jail failed: jail role is not configured';
-
-            if (CONFIG.JAIL_ROLE_ID) {
-                try {
-                    await member.roles.add(
-                        CONFIG.JAIL_ROLE_ID,
-                        `Account is ${accountAgeDays} days old (under ${CONFIG.ALT_ACCOUNT_AGE_DAYS}-day minimum)`,
-                    );
-                    jailApplied = true;
-                    jailStatus = 'Auto-jailed pending moderator review';
-                    console.log(`Auto-jailed young account ${member.user.tag} (${member.user.id})`);
-                } catch (jailError) {
-                    jailStatus = `Auto-jail failed: ${jailError.message}`;
-                    console.error(`Error auto-jailing ${member.user.tag} (${member.user.id}):`, jailError);
+            const reason = `Account is ${accountAgeDays} days old (under the ${CONFIG.ALT_ACCOUNT_AGE_DAYS}-day minimum)`;
+            const altEmbed = new Discord.EmbedBuilder()
+                .setColor('#FFA500')
+                .setTitle('⚠️ Potential Alt Account Detected')
+                .setThumbnail(member.user.displayAvatarURL())
+                .addFields(
+                    { name: 'User', value: `${member.user.tag} (${member.user.id})`, inline: true },
+                    { name: 'Account Age', value: `${accountAgeDays} days old`, inline: true },
+                    { name: 'Threshold', value: `${CONFIG.ALT_ACCOUNT_AGE_DAYS} days`, inline: true },
+                    { name: 'Created', value: `<t:${Math.floor(member.user.createdTimestamp / 1000)}:R>`, inline: true },
+                    { name: 'Joined', value: `<t:${Math.floor(member.joinedTimestamp / 1000)}:R>`, inline: true },
+                    { name: 'Default Avatar', value: member.user.avatar ? 'No' : '**Yes** ⚠️', inline: true },
+                    { name: 'Status', value: 'Automatically jailed pending moderator review', inline: false },
+                )
+                .setFooter({ text: 'Alt Detection System' })
+                .setTimestamp();
+            try {
+                await provisionJail({
+                    member,
+                    actor: null,
+                    reason,
+                    durationLabel: 'Permanent / until staff review',
+                    source: 'alt-detection',
+                    evidenceEmbeds: [altEmbed],
+                    modEmbeds: [altEmbed],
+                });
+                console.log(`Auto-jailed young account ${member.user.tag} (${member.user.id})`);
+            } catch (jailError) {
+                console.error(`Error auto-jailing ${member.user.tag} (${member.user.id}):`, jailError);
+                const modChannel = CONFIG.MOD_CHANNEL_ID
+                    ? await client.channels.fetch(CONFIG.MOD_CHANNEL_ID).catch(() => null)
+                    : null;
+                if (modChannel?.isTextBased()) {
+                    altEmbed.addFields({ name: 'Jail Failure', value: safeEmbedText(jailError.message), inline: false });
+                    await modChannel.send({ embeds: [altEmbed] }).catch(() => {});
                 }
-            } else {
-                console.error(`Cannot auto-jail ${member.user.tag}: JAIL_ROLE_ID is not configured`);
+                addAuditLog('Young Account Auto-Jail Failed', member.user, `${reason} | ${jailError.message}`, 'error');
             }
-
-            const modChannel = CONFIG.MOD_CHANNEL_ID
-                ? await client.channels.fetch(CONFIG.MOD_CHANNEL_ID).catch(error => {
-                    console.error(`Error fetching alt-alert channel ${CONFIG.MOD_CHANNEL_ID}:`, error);
-                    return null;
-                })
-                : null;
-            if (modChannel) {
-                const embed = new Discord.EmbedBuilder()
-                    .setColor('#FFA500')
-                    .setTitle('⚠️ Potential Alt Account Detected')
-                    .setThumbnail(member.user.displayAvatarURL())
-                    .addFields(
-                        { name: 'User', value: `${member.user.tag} (${member.user.id})`, inline: true },
-                        { name: 'Account Age', value: `${accountAgeDays} days old`, inline: true },
-                        { name: 'Created', value: `<t:${Math.floor(member.user.createdTimestamp / 1000)}:R>`, inline: true },
-                        { name: 'Joined', value: `<t:${Math.floor(member.joinedTimestamp / 1000)}:R>`, inline: true },
-                        { name: 'Default Avatar', value: member.user.avatar ? 'No' : '**Yes** ⚠️', inline: true },
-                        { name: 'Status', value: jailStatus, inline: false }
-                    )
-                    .setFooter({ text: 'Alt Detection System' })
-                    .setTimestamp();
-
-                await modChannel.send({ embeds: [embed] });
-            }
-
-            addAuditLog(
-                jailApplied ? 'Young Account Auto-Jailed' : 'Young Account Auto-Jail Failed',
-                member.user,
-                `Account age: ${accountAgeDays} days | ${jailStatus}`,
-                jailApplied ? 'warning' : 'error',
-            );
         }
 
         addAuditLog('Member Joined', member.user, `Account age: ${accountAgeDays} days`, 'info');
@@ -1141,35 +1127,38 @@ client.on('voiceStateUpdate', (oldState, newState) => {
 });
 
 // ======================
-// MEMBER JOIN/LEAVE TRACKING
+// MEMBER REMOVAL TRACKING
 // ======================
-
-client.on('guildMemberAdd', async (member) => {
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-
-    addMemberLog({
-        timestamp: now.toISOString(),
-        userId: member.user.id,
-        username: member.user.tag,
-        action: 'joined',
-        timeStr: timeStr,
-    });
-    console.log(`📥 ${member.user.tag} joined the server at ${timeStr}`);
-});
 
 client.on('guildMemberRemove', async (member) => {
     const now = new Date();
     const timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    const removal = await classifyMemberRemoval(member, Discord).catch(error => {
+        console.error(`Could not classify removal for ${member.user.tag}:`, error);
+        return { action: 'left', executor: null, reason: '' };
+    });
+    const details = [
+        removal.executor ? `By: ${removal.executor.tag || removal.executor.id}` : '',
+        removal.reason ? `Reason: ${removal.reason}` : '',
+    ].filter(Boolean).join(' | ');
 
     addMemberLog({
         timestamp: now.toISOString(),
         userId: member.user.id,
         username: member.user.tag,
-        action: 'left',
+        action: removal.action,
         timeStr: timeStr,
+        details,
     });
-    console.log(`📤 ${member.user.tag} left the server at ${timeStr}`);
+    const actionLabel = removal.action === 'banned' ? 'was banned'
+        : removal.action === 'kicked' ? 'was kicked' : 'left the server';
+    console.log(`📤 ${member.user.tag} ${actionLabel} at ${timeStr}${details ? ` (${details})` : ''}`);
+    addAuditLog(
+        removal.action === 'banned' ? 'Member Banned' : removal.action === 'kicked' ? 'Member Kicked' : 'Member Left',
+        member.user,
+        details || actionLabel,
+        removal.action === 'left' ? 'info' : 'warning',
+    );
 });
 
 // ======================
@@ -1196,7 +1185,6 @@ client.on('messageCreate', async (message) => {
 
     // DM handling - report system
     if (!message.guild) {
-        await handleDMReport(message);
         return;
     }
 
@@ -1219,15 +1207,6 @@ client.on('messageCreate', async (message) => {
     if (!isStaffForFilter) {
         const bannedWordResult = checkBannedWords(message.content);
         if (bannedWordResult) {
-            if (isDoxWord(bannedWordResult)) {
-                await message.delete().catch(() => {});
-                await message.channel.send({
-                    content: `${message.author} knock it off. **${bannedWordResult}** is filtered here. Your message was removed — you are not being jailed for using the word.`,
-                    allowedMentions: { users: [message.author.id] },
-                }).catch(() => null);
-                addAuditLog('Dox Word Removed', message.author, `Word: "${bannedWordResult}" | No offense recorded and no jail applied`, 'warning');
-                return;
-            }
             await handleBannedWord(message, bannedWordResult);
             return;
         }
@@ -1441,18 +1420,16 @@ function checkBannedWords(text) {
 async function handleBannedWord(message, triggeredWord) {
     const userId = message.author.id;
     const guild = message.guild;
+    const deletedContent = String(message.content || '');
 
     try {
-        // Delete the message
         await message.delete();
         console.log(`🚫 Banned word "${triggeredWord}" detected from ${message.author.tag}`);
 
-        // Track offenses
         const currentOffenses = (offenseTracker.get(userId) || 0) + 1;
         offenseTracker.set(userId, currentOffenses);
         saveBannedWordsToDisk();
 
-        // Determine jail duration based on offense count
         let jailDuration;
         let jailLabel;
         if (currentOffenses === 1) {
@@ -1466,100 +1443,42 @@ async function handleBannedWord(message, triggeredWord) {
             jailLabel = 'Permanent (3rd+ offense)';
         }
 
-        // Apply jail - deny view on both categories
-        const targetMember = message.member;
+        const evidenceEmbed = new Discord.EmbedBuilder()
+            .setColor('#FF0000')
+            .setTitle('🚫 Banned-Word Evidence')
+            .addFields(
+                { name: 'Original Channel', value: `<#${message.channelId}>`, inline: true },
+                { name: 'Triggered Word', value: `||${safeEmbedText(triggeredWord, 'Unknown', 1000)}||`, inline: true },
+                { name: 'Offense #', value: `${currentOffenses}`, inline: true },
+            )
+            .setTimestamp();
+        const evidence = addSensitiveTextEvidence(Discord, evidenceEmbed, {
+            text: deletedContent,
+            fileName: `deleted-message-${message.id}.txt`,
+        });
+        const targetMember = message.member || await guild.members.fetch(userId);
+        const result = await provisionJail({
+            member: targetMember,
+            actor: null,
+            reason: `Banned word: ${triggeredWord}`,
+            durationLabel: jailLabel,
+            source: 'banned-word',
+            evidenceEmbeds: [evidence.embed],
+            evidenceFiles: evidence.files,
+        });
 
-        // Assign jail role
-        try {
-            await targetMember.roles.add(JAIL_ROLE_ID);
-            console.log(`✅ Jail role added to ${message.author.tag} (auto-jail)`);
-        } catch (err) {
-            console.error('❌ Error adding jail role:', err);
-        }
-
-        for (const categoryId of JAIL_CATEGORY_IDS) {
-            try {
-                const category = await guild.channels.fetch(categoryId);
-                if (!category) continue;
-
-                await category.permissionOverwrites.edit(userId, {
-                    ViewChannel: false, SendMessages: false, Connect: false,
-                });
-
-                const children = guild.channels.cache.filter(ch => ch.parentId === categoryId);
-                for (const [, child] of children) {
-                    await child.permissionOverwrites.edit(userId, {
-                        ViewChannel: false, SendMessages: false, Connect: false,
-                    });
-                }
-            } catch (err) {
-                console.error(`❌ Error jailing from category ${categoryId}:`, err);
-            }
-        }
-
-        // Create jail channel
-        const ticketNumber = Math.floor(Math.random() * 9999);
-        const channelName = `jail-${message.author.username.substring(0, 15)}-${ticketNumber}`;
-        const jailedAt = Date.now();
-        let createdJailChannelId = '';
-
-        try {
-            const jailChannel = await guild.channels.create({
-                name: channelName,
-                type: Discord.ChannelType.GuildText,
-                parent: JAIL_CATEGORY_ID,
-                topic: jailChannelTopic(userId, jailedAt),
-                permissionOverwrites: [
-                    { id: guild.id, deny: [Discord.PermissionFlagsBits.ViewChannel] },
-                    { id: userId, allow: [Discord.PermissionFlagsBits.ViewChannel, Discord.PermissionFlagsBits.SendMessages, Discord.PermissionFlagsBits.ReadMessageHistory] },
-                    ...staffPermissionOverwrites(guild),
-                ],
-            });
-
-            jailChannels.set(userId, jailChannel.id);
-            createdJailChannelId = jailChannel.id;
-
-            const embed = new Discord.EmbedBuilder()
-                .setColor('#FF0000')
-                .setTitle('🚫 Auto-Jailed: Banned Word')
-                .setThumbnail(message.author.displayAvatarURL())
-                .addFields(
-                    { name: 'User', value: `${message.author.tag} (${userId})`, inline: true },
-                    { name: 'Channel', value: `<#${message.channelId}>`, inline: true },
-                    { name: 'Triggered Word', value: `||${triggeredWord}||`, inline: true },
-                    { name: 'Offense #', value: `${currentOffenses}`, inline: true },
-                    { name: 'Jail Duration', value: jailLabel, inline: true },
-                    { name: 'Message Content', value: `||${message.content.substring(0, 200)}||` }
-                )
-                .setFooter({ text: jailDuration ? 'Will auto-unjail when time expires' : 'Use /unjail to release' })
-                .setTimestamp();
-
-            await jailChannel.send({ content: staffMentions(guild, userId), embeds: [embed] });
-            await sendJailStartedLog(guild, message.author, null, `Banned word: ${triggeredWord}`, jailLabel, jailChannel, jailedAt)
-                .catch(error => console.error('Could not send auto-jail start log:', error));
-            console.log(`✅ Jail channel created: #${jailChannel.name}`);
-
-        } catch (err) {
-            console.error('❌ Error creating auto-jail channel:', err);
-        }
-
-        // Persist the deadline even if channel creation failed. The scheduler can
-        // still restore the role and channel permissions after a Railway restart.
         if (jailDuration) {
             timedJailScheduler.schedule({
                 guildId: guild.id,
                 userId,
-                channelId: createdJailChannelId,
-                jailedAt,
-                releaseAt: jailedAt + jailDuration,
+                channelId: result.jailChannel.id,
+                jailedAt: result.jailedAt,
+                releaseAt: result.jailedAt + jailDuration,
                 durationLabel: jailLabel,
                 reason: `Banned word: ${triggeredWord}`,
                 source: 'banned-word',
             });
         }
-
-        addAuditLog('Banned Word Jail', { tag: message.author.tag, id: userId }, `Word: "${triggeredWord}" | Offense #${currentOffenses} | Duration: ${jailLabel}`, 'warning');
-
     } catch (error) {
         console.error('❌ Error handling banned word:', error);
     }
@@ -1657,73 +1576,38 @@ async function handleAddressDetection(message, addressText, apiResult) {
     try {
         const userId = message.author.id;
         const guild = message.guild;
+        const deletedContent = String(message.content || '');
 
-        // Delete the message immediately
         await message.delete();
         console.log('✅ Address message deleted');
 
-        // Jail the user
         try {
             const member = await guild.members.fetch(userId);
-            await member.roles.add(JAIL_ROLE_ID);
-
-            // Deny view on categories
-            for (const categoryId of JAIL_CATEGORY_IDS) {
-                try {
-                    const category = await guild.channels.fetch(categoryId);
-                    if (!category) continue;
-                    await category.permissionOverwrites.edit(userId, {
-                        ViewChannel: false, SendMessages: false, Connect: false,
-                    });
-                    const children = guild.channels.cache.filter(ch => ch.parentId === categoryId);
-                    for (const [, child] of children) {
-                        await child.permissionOverwrites.edit(userId, {
-                            ViewChannel: false, SendMessages: false, Connect: false,
-                        });
-                    }
-                } catch (e) {}
-            }
-
-            // Create jail channel
-            const ticketNumber = Math.floor(Math.random() * 9999);
-            const channelName = `jail-doxx-${message.author.username.substring(0, 10)}-${ticketNumber}`;
-            const jailedAt = Date.now();
-
-            const jailChannel = await guild.channels.create({
-                name: channelName,
-                type: Discord.ChannelType.GuildText,
-                parent: JAIL_CATEGORY_ID,
-                topic: jailChannelTopic(userId, jailedAt),
-                permissionOverwrites: [
-                    { id: guild.id, deny: [Discord.PermissionFlagsBits.ViewChannel] },
-                    { id: userId, allow: [Discord.PermissionFlagsBits.ViewChannel, Discord.PermissionFlagsBits.SendMessages, Discord.PermissionFlagsBits.ReadMessageHistory] },
-                    ...staffPermissionOverwrites(guild),
-                ],
-            });
-
-            jailChannels.set(userId, jailChannel.id);
-
-            const embed = new Discord.EmbedBuilder()
+            const evidenceEmbed = new Discord.EmbedBuilder()
                 .setColor('#FF0000')
-                .setTitle('🚨 Address Posted — User Jailed')
-                .setThumbnail(message.author.displayAvatarURL())
+                .setTitle('🚨 Verified-Address Evidence')
                 .addFields(
-                    { name: 'User', value: `${message.author.tag} (${userId})`, inline: true },
-                    { name: 'Channel', value: `<#${message.channelId}>`, inline: true },
-                    { name: 'Verified Address', value: `||${apiResult.displayName}||` },
+                    { name: 'Original Channel', value: `<#${message.channelId}>`, inline: true },
+                    { name: 'Verified Address', value: `||${safeEmbedText(apiResult.displayName, 'Unavailable', 1000).replaceAll('||', '¦¦')}||` },
                     { name: 'Confidence', value: `${Math.round(apiResult.confidence * 100)}%`, inline: true },
-                    { name: 'Original Text', value: `||${addressText.substring(0, 200)}||` },
-                    { name: 'Status', value: '🔒 Permanently jailed — use /unjail to release', inline: true }
                 )
-                .setFooter({ text: `Address verified via ${apiResult.provider || 'Google Maps Geocoding API'}` })
+                .setFooter({ text: `Address verified via ${safeEmbedText(apiResult.provider, 'free geocoder', 150)}` })
                 .setTimestamp();
-
-            await jailChannel.send({ content: staffMentions(guild, userId), embeds: [embed] });
-            await sendJailStartedLog(guild, message.author, null, 'Verified address posted', 'Permanent', jailChannel, jailedAt)
-                .catch(error => console.error('Could not send address jail start log:', error));
-
+            const evidence = addSensitiveTextEvidence(Discord, evidenceEmbed, {
+                fieldName: 'Full Deleted Message',
+                text: deletedContent || addressText,
+                fileName: `deleted-address-message-${message.id}.txt`,
+            });
+            await provisionJail({
+                member,
+                actor: null,
+                reason: 'Verified street address posted',
+                durationLabel: 'Permanent / until staff release',
+                source: 'address-detection',
+                evidenceEmbeds: [evidence.embed],
+                evidenceFiles: evidence.files,
+            });
             console.log(`✅ User ${message.author.tag} jailed for posting address`);
-
         } catch (jailError) {
             console.error('❌ Error jailing address poster:', jailError);
         }
@@ -1732,95 +1616,6 @@ async function handleAddressDetection(message, addressText, apiResult) {
 
     } catch (error) {
         console.error('❌ Error handling address detection:', error);
-    }
-}
-
-// ======================
-// DM REPORT SYSTEM
-// ======================
-
-const dmReportStates = new Map(); // userId -> { step, who, reason }
-
-async function handleDMReport(message) {
-    const userId = message.author.id;
-    const state = dmReportStates.get(userId);
-
-    try {
-        if (!state) {
-            await message.reply('👤 **Who are you reporting?** (Username or @mention)');
-            dmReportStates.set(userId, { step: 'who' });
-            console.log(`📝 DM Report started by ${message.author.tag}`);
-            return;
-        }
-
-        if (state.step === 'who') {
-            state.who = message.content;
-            state.step = 'reason';
-            await message.reply('📄 **Why are you reporting them?** (Describe what happened)');
-            return;
-        }
-
-        if (state.step === 'reason') {
-            state.reason = message.content;
-            dmReportStates.delete(userId);
-            await createDMReport(message.author, state);
-            return;
-        }
-    } catch (error) {
-        console.error('❌ Error in DM report system:', error);
-        dmReportStates.delete(userId);
-        try {
-            await message.reply('❌ Something went wrong. Please try again or use `/report` in the server.');
-        } catch (e) {}
-    }
-}
-
-async function createDMReport(user, state) {
-    const guild = client.guilds.cache.first();
-    if (!guild) {
-        await user.send('❌ Error creating report. Bot is not connected to a server.');
-        return;
-    }
-
-    const ticketNumber = Math.floor(Math.random() * 9999);
-    const channelName = `report-${ticketNumber}`;
-
-    try {
-        const channel = await guild.channels.create({
-            name: channelName,
-            type: Discord.ChannelType.GuildText,
-            parent: REPORT_CATEGORY_ID,
-            permissionOverwrites: [
-                { id: guild.id, deny: [Discord.PermissionFlagsBits.ViewChannel] },
-                { id: user.id, allow: [Discord.PermissionFlagsBits.ViewChannel, Discord.PermissionFlagsBits.SendMessages, Discord.PermissionFlagsBits.ReadMessageHistory] },
-                ...staffPermissionOverwrites(guild),
-            ],
-        });
-
-        const embed = new Discord.EmbedBuilder()
-            .setColor('#FF0000')
-            .setTitle('🚨 New User Report (via DM)')
-            .setThumbnail(user.displayAvatarURL())
-            .addFields(
-                { name: 'Reported By', value: `${user.tag} (${user.id})`, inline: true },
-                { name: 'Reporting', value: state.who, inline: true },
-                { name: 'Reason', value: state.reason },
-                { name: 'Status', value: '🔍 Awaiting mod review', inline: true }
-            )
-            .setFooter({ text: 'Use !close or /close to archive this report' })
-            .setTimestamp();
-
-        await channel.send({ content: `${staffMentions(guild, user.id)}\n\nMods will be with you shortly. You can chat here.`, embeds: [embed] });
-
-        addAuditLog('DM Report Created', { tag: user.tag, id: user.id }, `Report #${ticketNumber} against ${state.who}`, 'warning');
-
-        await user.send(`✅ Your report has been created! Head to <#${channel.id}> to chat with the mods.`);
-
-    } catch (error) {
-        console.error('❌ Error creating DM report:', error);
-        try {
-            await user.send('❌ Error creating the report. Please try `/report` in the server.');
-        } catch (e) {}
     }
 }
 
@@ -2014,6 +1809,211 @@ function jailedUserId(channel) {
     return String(channel?.topic || '').match(/commission-jail-user:(\d+)/)?.[1] || '';
 }
 
+function safeJailChannelPart(value) {
+    return String(value || 'member').toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').slice(0, 15);
+}
+
+async function applyJailRestrictions(guild, userId) {
+    const failures = [];
+    const results = await Promise.allSettled(JAIL_CATEGORY_IDS.map(async categoryId => {
+        const category = await guild.channels.fetch(categoryId);
+        if (!category) throw new Error(`Category ${categoryId} was not found.`);
+        await category.permissionOverwrites.edit(userId, {
+            ViewChannel: false,
+            SendMessages: false,
+            Connect: false,
+        });
+        const children = [...guild.channels.cache
+            .filter(channel => channel.parentId === categoryId && channel.permissionsLocked !== true)
+            .values()];
+        const childResults = await Promise.allSettled(children.map(channel => (
+            channel.permissionOverwrites.edit(userId, {
+                ViewChannel: false,
+                SendMessages: false,
+                Connect: false,
+            })
+        )));
+        childResults.forEach((result, index) => {
+            if (result.status === 'rejected') failures.push(`#${children[index].name}: ${result.reason?.message || result.reason}`);
+        });
+    }));
+    results.forEach((result, index) => {
+        if (result.status === 'rejected') failures.push(`category ${JAIL_CATEGORY_IDS[index]}: ${result.reason?.message || result.reason}`);
+    });
+    return failures;
+}
+
+async function performJailProvisioning({
+    member,
+    actor = null,
+    reason = 'No reason provided',
+    durationLabel = 'Permanent / until staff release',
+    source = 'moderation',
+    evidenceEmbeds = [],
+    evidenceFiles = [],
+    modEmbeds = [],
+} = {}) {
+    if (!member?.guild || !member?.user) throw new Error('A guild member is required to provision a jail.');
+    const guild = member.guild;
+    const user = member.user;
+    const clearReason = String(reason || '').trim() || 'No additional reason was provided.';
+    const jailParent = await guild.channels.fetch(JAIL_CATEGORY_ID).catch(() => null);
+    if (!jailParent || jailParent.type !== Discord.ChannelType.GuildCategory) {
+        throw new Error(`Jail category ${JAIL_CATEGORY_ID || '(not configured)'} is missing or is not a category.`);
+    }
+
+    const [channels, staffRoles] = await Promise.all([
+        guild.channels.fetch(),
+        resolveStaffRoles(guild, CONFIG.STAFF_ROLE_IDS),
+    ]);
+    let jailChannel = findExistingJailChannel(channels, user.id, jailParent.id);
+    let created = false;
+    const jailedAt = Date.now();
+
+    if (!jailChannel) {
+        jailChannel = await guild.channels.create({
+            name: `jail-${safeJailChannelPart(user.username)}-${Math.floor(Math.random() * 9999)}`,
+            type: Discord.ChannelType.GuildText,
+            parent: jailParent.id,
+            topic: jailChannelTopic(user.id, jailedAt),
+            permissionOverwrites: [
+                { id: guild.roles.everyone.id, deny: [Discord.PermissionFlagsBits.ViewChannel] },
+                {
+                    id: user.id,
+                    allow: [
+                        Discord.PermissionFlagsBits.ViewChannel,
+                        Discord.PermissionFlagsBits.SendMessages,
+                        Discord.PermissionFlagsBits.ReadMessageHistory,
+                    ],
+                },
+                ...staffRoles.map(role => ({
+                    id: role.id,
+                    allow: [
+                        Discord.PermissionFlagsBits.ViewChannel,
+                        Discord.PermissionFlagsBits.SendMessages,
+                        Discord.PermissionFlagsBits.ReadMessageHistory,
+                        Discord.PermissionFlagsBits.ManageMessages,
+                    ],
+                })),
+            ],
+            reason: `Jail for ${user.tag}: ${clearReason}`.slice(0, 512),
+        });
+        created = true;
+    }
+    jailChannels.set(user.id, jailChannel.id);
+
+    const failures = [];
+    if (!JAIL_ROLE_ID) {
+        failures.push('jail role is not configured');
+    } else if (!member.roles.cache.has(JAIL_ROLE_ID)) {
+        const roleAssignmentKey = jailProvisioningKey(guild.id, user.id);
+        managedJailRoleAssignments.set(roleAssignmentKey, Date.now() + 30_000);
+        const cleanupTimer = setTimeout(() => managedJailRoleAssignments.delete(roleAssignmentKey), 30_000);
+        cleanupTimer.unref?.();
+        await member.roles.add(JAIL_ROLE_ID, clearReason.slice(0, 512)).catch(error => {
+            failures.push(`jail role: ${error.message}`);
+        });
+    }
+    failures.push(...await applyJailRestrictions(guild, user.id));
+
+    if (!(source === 'startup-repair' && !created)) {
+        const sourceLabel = {
+            'slash-command': 'Slash command',
+            'banned-word': 'Banned-word automation',
+            'address-detection': 'Address detection',
+            'alt-detection': 'Alt detection',
+            'manual-role': 'Manual jail-role assignment',
+            'startup-repair': 'Startup repair',
+        }[source] || source;
+        const reasonEmbed = new Discord.EmbedBuilder()
+            .setColor(failures.length ? '#FF9900' : '#FF0000')
+            .setTitle(created ? '🔒 Jail Started' : '🔒 Jail Updated')
+            .setThumbnail(user.displayAvatarURL())
+            .addFields(
+                { name: 'User', value: `${user.tag} (${user.id})`, inline: true },
+                { name: 'Jailed By', value: actor ? `${actor.tag || actor.username || actor.id}` : 'Automated moderation', inline: true },
+                { name: 'Reason', value: safeEmbedText(clearReason), inline: false },
+                { name: 'Duration', value: safeEmbedText(durationLabel), inline: true },
+                { name: 'Source', value: safeEmbedText(sourceLabel), inline: true },
+                {
+                    name: 'Status',
+                    value: failures.length ? `⚠️ Partial setup: ${safeEmbedText(failures.join('; '), 'Unknown failure', 900)}` : 'Active — staff will review this case here.',
+                    inline: false,
+                },
+            )
+            .setTimestamp();
+        const roleIds = staffRoles.map(role => role.id);
+        const mentions = [
+            ...roleIds.map(id => `<@&${id}>`),
+            CONFIG.OWNER_USER_ID ? `<@${CONFIG.OWNER_USER_ID}>` : '',
+            `<@${user.id}>`,
+        ].filter(Boolean).join(' ');
+        await jailChannel.send({
+            content: mentions,
+            embeds: [reasonEmbed, ...evidenceEmbeds].slice(0, 10),
+            files: evidenceFiles,
+            allowedMentions: {
+                roles: roleIds,
+                users: [CONFIG.OWNER_USER_ID, user.id].filter(Boolean),
+            },
+        });
+
+        await sendJailStartedLog(guild, user, actor, clearReason, durationLabel, jailChannel, jailedAt)
+            .catch(error => console.error('Could not send jail audit entry:', error));
+
+        if (CONFIG.MOD_CHANNEL_ID) {
+            const modChannel = await guild.channels.fetch(CONFIG.MOD_CHANNEL_ID).catch(() => null);
+            if (modChannel?.isTextBased()) {
+                const alertEmbeds = modEmbeds.length ? modEmbeds : [new Discord.EmbedBuilder()
+                    .setColor(failures.length ? '#FF9900' : '#FF0000')
+                    .setTitle('🔒 Member Jailed')
+                    .addFields(
+                        { name: 'Member', value: `<@${user.id}> (${user.tag})`, inline: true },
+                        { name: 'Jail Channel', value: `<#${jailChannel.id}>`, inline: true },
+                        { name: 'Reason', value: safeEmbedText(clearReason), inline: false },
+                    )
+                    .setTimestamp()];
+                await modChannel.send({
+                    content: `${roleIds.map(id => `<@&${id}>`).join(' ')} Jail channel: <#${jailChannel.id}>`.trim(),
+                    embeds: alertEmbeds,
+                    allowedMentions: { roles: roleIds, users: [] },
+                }).catch(error => console.error('[Jail workflow] Could not alert the mod channel:', error));
+            }
+        }
+    }
+
+    addAuditLog(
+        failures.length ? 'Jail Partially Applied' : 'User Jailed',
+        actor || { tag: 'Automated moderation', id: 'system' },
+        `${user.tag} (${user.id}) | ${clearReason} | #${jailChannel.name}${failures.length ? ` | ${failures.join('; ')}` : ''}`,
+        failures.length ? 'error' : 'warning',
+    );
+    return { jailChannel, jailedAt, created, failures };
+}
+
+function provisionJail(options = {}) {
+    const member = options.member;
+    if (!member?.guild?.id || !member.id) return Promise.reject(new Error('A guild member is required to provision a jail.'));
+    const key = jailProvisioningKey(member.guild.id, member.id);
+    if (jailProvisioning.has(key)) return jailProvisioning.get(key);
+    const task = performJailProvisioning(options).finally(() => jailProvisioning.delete(key));
+    jailProvisioning.set(key, task);
+    return task;
+}
+
+function provisionJailFromRole(member, details) {
+    const restored = details.source === 'startup-repair' && timedJailScheduler.has(member.guild.id, member.id)
+        ? timedJailScheduler.list().find(record => record.guildId === member.guild.id && record.userId === member.id)
+        : null;
+    return provisionJail({
+        member,
+        actor: details.actor,
+        reason: restored?.reason || details.reason,
+        durationLabel: restored?.durationLabel || 'Permanent / until staff release',
+        source: details.source,
+    });
+}
+
 function discordDate(timestamp) {
     return `<t:${Math.floor(Number(timestamp || Date.now()) / 1000)}:F>`;
 }
@@ -2035,7 +2035,7 @@ async function sendJailStartedLog(guild, user, actor, reason, duration, jailChan
         throw new Error(`Jail audit channel ${JAIL_LOG_CHANNEL_ID} is missing or is not a text channel.`);
     }
     return logChannel.send({
-        content: `<@${user.id}> Was Jailed at ${easternTime(jailedAt)}.`,
+        content: `🔒 <@${user.id}> jailed at ${easternTime(jailedAt)} · ${safeEmbedText(duration, 'Unspecified duration', 80)} · ${safeEmbedText(reason, 'No reason provided', 180)} · <#${jailChannel.id}>${actor ? ` · by ${actor.tag || actor.username || actor.id}` : ''}`,
         allowedMentions: { users: [] },
     });
 }
@@ -2045,20 +2045,19 @@ async function sendJailClosedLog(logChannel, details) {
     const oldReportsChannel = OLD_REPORTS_CHANNEL_ID
         ? await client.channels.fetch(OLD_REPORTS_CHANNEL_ID).catch(() => null)
         : null;
-    if (!oldReportsChannel?.isTextBased()) {
-        throw new Error(`Old-reports channel ${OLD_REPORTS_CHANNEL_ID || '(not configured)'} is missing or is not a text channel.`);
-    }
-
     const attachment = new Discord.AttachmentBuilder(Buffer.from(details.transcript, 'utf8'), {
         name: details.fileName,
     });
-    const outcomeLabel = details.outcome === 'banned' ? 'User banned at' : 'User unjailed at';
-    const transcriptMessage = await oldReportsChannel.send({
+    const outcomeLabel = details.outcome === 'banned' ? 'User banned at'
+        : details.outcome === 'closed' ? 'Jail closed at' : 'User unjailed at';
+    const transcriptDestination = oldReportsChannel?.isTextBased() ? oldReportsChannel : logChannel;
+    const transcriptMessage = await transcriptDestination.send({
         content: `Jail transcript for <@${details.user.id}> — ${outcomeLabel.toLowerCase()} ${discordDate(details.closedAt)}`,
         files: [attachment],
         allowedMentions: { users: [] },
     });
-    const outcomeVerb = details.outcome === 'banned' ? 'banned' : 'UNjailed';
+    const outcomeVerb = details.outcome === 'banned' ? 'banned'
+        : details.outcome === 'closed' ? 'jail case closed' : 'unjailed';
     return logChannel.send({
         content: `<@${details.user.id}> was ${outcomeVerb} at ${easternTime(details.closedAt)}. Transcript here: ${transcriptMessage.url}`,
         allowedMentions: { users: [] },
@@ -2125,17 +2124,20 @@ async function releasePersistedTimedJail(record) {
             '===============================================',
         ].join('\n');
 
-    const logChannel = await client.channels.fetch(JAIL_LOG_CHANNEL_ID);
-    if (!logChannel?.isTextBased()) throw new Error(`Jail audit channel ${JAIL_LOG_CHANNEL_ID} is unavailable.`);
-    await sendJailClosedLog(logChannel, {
-        user: targetUser,
-        actor: null,
-        outcome: 'unjailed',
-        jailedAt: record.jailedAt || (jailChannel ? jailStartedAt(jailChannel) : null),
-        closedAt: Date.now(),
-        transcript,
-        fileName: `${jailChannel?.name || `jail-${record.userId}`}-transcript.txt`,
-    });
+    const logChannel = await client.channels.fetch(JAIL_LOG_CHANNEL_ID).catch(() => null);
+    if (logChannel?.isTextBased()) {
+        await sendJailClosedLog(logChannel, {
+            user: targetUser,
+            actor: null,
+            outcome: 'unjailed',
+            jailedAt: record.jailedAt || (jailChannel ? jailStartedAt(jailChannel) : null),
+            closedAt: Date.now(),
+            transcript,
+            fileName: `${jailChannel?.name || `jail-${record.userId}`}-transcript.txt`,
+        }).catch(error => console.error('Could not archive timed-jail transcript:', error));
+    } else {
+        console.error(`Jail audit channel ${JAIL_LOG_CHANNEL_ID} is unavailable; timed release will continue without an archive.`);
+    }
 
     if (jailChannel) {
         await jailChannel.send('Jail time expired. This channel will be deleted in 5 seconds.').catch(() => {});
@@ -2167,22 +2169,12 @@ async function handleJailCommand(interaction) {
     await interaction.deferReply({ ephemeral: true });
     await interaction.editReply({ content: '🔒 Starting the jail workflow…' });
 
-    const targetUser = interaction.options.getUser('user');
+    const targetUser = interaction.options.getUser('user', true);
     const reason = interaction.options.getString('reason') || 'No reason provided';
     const durationChoice = interaction.options.getString('duration') || 'perm';
     const guild = interaction.guild;
-    const provisioningKey = jailProvisioningKey(guild.id, targetUser.id);
-    if (activeSlashJails.has(provisioningKey)) {
-        await interaction.editReply({ content: `⚠️ A jail is already being created for ${targetUser.tag}.` });
-        return;
-    }
-    activeSlashJails.add(provisioningKey);
-    const provisioningTimeout = setTimeout(() => activeSlashJails.delete(provisioningKey), 60_000);
-    provisioningTimeout.unref?.();
-
     const targetMember = await guild.members.fetch(targetUser.id);
 
-    // Parse duration
     const DURATION_MAP = {
         '5m': { ms: 5 * 60 * 1000, label: '5 minutes' },
         '30m': { ms: 30 * 60 * 1000, label: '30 minutes' },
@@ -2195,127 +2187,34 @@ async function handleJailCommand(interaction) {
     const duration = DURATION_MAP[durationChoice] || DURATION_MAP['perm'];
 
     console.log(`🔒 /jail used by ${interaction.user.tag} on ${targetUser.tag} - Duration: ${duration.label}`);
-
-    const jailParent = await guild.channels.fetch(JAIL_CATEGORY_ID).catch(() => null);
-    if (!jailParent || jailParent.type !== Discord.ChannelType.GuildCategory) {
-        await interaction.editReply({
-            content: `❌ Jail category <#${JAIL_CATEGORY_ID}> does not exist in this server or is not a category. Update Protection → Jail room category ID, save, and restart the bot.`,
-        });
-        return;
-    }
-
-    const existingJailChannel = findExistingJailChannel(guild.channels.cache, targetUser.id, jailParent.id);
-    if (existingJailChannel) {
-        await interaction.editReply({
-            content: `⚠️ ${targetUser.tag} already has an active jail channel: <#${existingJailChannel.id}>`,
-        });
-        return;
-    }
-
-    // Assign jail role
     try {
-        await targetMember.roles.add(JAIL_ROLE_ID);
-        console.log(`✅ Jail role added to ${targetUser.tag}`);
-    } catch (err) {
-        console.error('❌ Error adding jail role:', err);
-    }
-
-    // Deny view on text & voice categories
-    const categoryResults = await Promise.allSettled(JAIL_CATEGORY_IDS.map(async categoryId => {
-        const category = await guild.channels.fetch(categoryId);
-        if (!category) return false;
-
-        await category.permissionOverwrites.edit(targetUser.id, {
-            ViewChannel: false, SendMessages: false, Connect: false,
+        const result = await provisionJail({
+            member: targetMember,
+            actor: interaction.user,
+            reason,
+            durationLabel: duration.label,
+            source: 'slash-command',
         });
-
-        // Synchronized children inherit the category edit automatically. Only
-        // touch unsynchronized channels, and update those concurrently.
-        const unsyncedChildren = [...guild.channels.cache
-            .filter(ch => ch.parentId === categoryId && ch.permissionsLocked !== true)
-            .values()];
-        const childResults = await Promise.allSettled(unsyncedChildren.map(child => (
-            child.permissionOverwrites.edit(targetUser.id, {
-                ViewChannel: false, SendMessages: false, Connect: false,
-            })
-        )));
-        childResults.forEach((result, index) => {
-            if (result.status === 'rejected') {
-                console.error(`❌ Error jailing from #${unsyncedChildren[index].name}:`, result.reason);
-            }
-        });
-        return true;
-    }));
-    const categoriesUpdated = categoryResults.filter(result => result.status === 'fulfilled' && result.value).length;
-    categoryResults.forEach((result, index) => {
-        if (result.status === 'rejected') {
-            console.error(`❌ Error jailing from category ${JAIL_CATEGORY_IDS[index]}:`, result.reason);
-        }
-    });
-
-    // Create jail channel under jail category
-    const ticketNumber = Math.floor(Math.random() * 9999);
-    const channelName = `jail-${targetUser.username.substring(0, 15)}-${ticketNumber}`;
-    const jailedAt = Date.now();
-
-    try {
-        const jailChannel = await guild.channels.create({
-            name: channelName,
-            type: Discord.ChannelType.GuildText,
-            parent: jailParent.id,
-            topic: jailChannelTopic(targetUser.id, jailedAt),
-            permissionOverwrites: [
-                { id: guild.id, deny: [Discord.PermissionFlagsBits.ViewChannel] },
-                { id: targetUser.id, allow: [Discord.PermissionFlagsBits.ViewChannel, Discord.PermissionFlagsBits.SendMessages, Discord.PermissionFlagsBits.ReadMessageHistory] },
-                ...staffPermissionOverwrites(guild),
-            ],
-        });
-
-        // Track this jail channel
-        jailChannels.set(targetUser.id, jailChannel.id);
-
-        const embed = new Discord.EmbedBuilder()
-            .setColor('#FF0000')
-            .setTitle('🔒 You Have Been Jailed')
-            .setThumbnail(targetUser.displayAvatarURL())
-            .addFields(
-                { name: 'User', value: `${targetUser.tag} (${targetUser.id})`, inline: true },
-                { name: 'Jailed By', value: `${interaction.user.tag}`, inline: true },
-                { name: 'Reason', value: reason },
-                { name: 'Duration', value: duration.label, inline: true },
-                { name: 'Status', value: duration.ms ? '⏱️ Timed jail' : '🔒 Permanent — use /unjail to release', inline: true }
-            )
-            .setFooter({ text: duration.ms ? 'Will auto-unjail when time expires' : 'Staff can use /unjail to restore access' })
-            .setTimestamp();
-
-        await jailChannel.send({ content: staffMentions(guild, targetUser.id), embeds: [embed] });
-        await sendJailStartedLog(guild, targetUser, interaction.user, reason, duration.label, jailChannel, jailedAt)
-            .catch(error => console.error('Could not send jail start log:', error));
-
-        console.log(`✅ Jail channel created: #${jailChannel.name}`);
-        // Persist before replying so a restart immediately after /jail cannot
-        // leave the member jailed without a recoverable deadline.
         if (duration.ms) {
             timedJailScheduler.schedule({
                 guildId: guild.id,
                 userId: targetUser.id,
-                channelId: jailChannel.id,
-                jailedAt,
-                releaseAt: jailedAt + duration.ms,
+                channelId: result.jailChannel.id,
+                jailedAt: result.jailedAt,
+                releaseAt: result.jailedAt + duration.ms,
                 durationLabel: duration.label,
                 reason,
                 source: 'slash-command',
             });
         }
-
-        await interaction.editReply({ content: `✅ ${targetUser.tag} has been jailed for ${duration.label}. Jail channel: <#${jailChannel.id}>` });
-
+        const partial = result.failures.length ? ` Partial setup warning: ${result.failures.join('; ')}` : '';
+        await interaction.editReply({
+            content: `✅ ${targetUser.tag} has been jailed for ${duration.label}. Jail channel: <#${result.jailChannel.id}>.${partial}`,
+        });
     } catch (error) {
-        console.error('❌ Error creating jail channel:', error);
-        await interaction.editReply({ content: `✅ ${targetUser.tag} has been jailed (but could not create jail channel: ${error.message})` });
+        console.error('❌ Error provisioning jail:', error);
+        await interaction.editReply({ content: `❌ Could not jail ${targetUser.tag}: ${error.message}` });
     }
-
-    addAuditLog('User Jailed', interaction.user, `Jailed ${targetUser.tag} - Reason: ${reason}`, 'warning');
 }
 
 // ======================
@@ -2452,7 +2351,7 @@ async function handleUnjailCommand(interaction) {
 }
 
 // ======================
-// /CLOSE HANDLER (close jail channel without unjailing - for bans)
+// /CLOSE HANDLER (archive and close a jail/report channel without changing member state)
 // ======================
 
 async function handleUnjailCommandV2(interaction) {
@@ -2754,7 +2653,7 @@ async function handleCloseCommand(interaction) {
                 await sendJailClosedLog(logChannel, {
                     user: jailedUser,
                     actor: interaction.user,
-                    outcome: 'banned',
+                    outcome: 'closed',
                     jailedAt: jailStartedAt(channel),
                     closedAt: Date.now(),
                     transcript,

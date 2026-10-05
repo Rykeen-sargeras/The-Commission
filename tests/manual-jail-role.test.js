@@ -4,6 +4,7 @@ const assert = require('assert');
 const {
     findExistingJailChannel,
     installManualJailRoleWorkflow,
+    resolveStaffRoles,
     wasJailRoleAdded,
 } = require('../manual_jail_role');
 
@@ -30,108 +31,64 @@ const existingByTopic = {
 };
 assert.strictEqual(findExistingJailChannel(new Map([['existing-topic', existingByTopic]]), 'member', 'category'), existingByTopic);
 
-class EmbedBuilder {
-    setColor() { return this; }
-    setTitle() { return this; }
-    setDescription() { return this; }
-    setThumbnail() { return this; }
-    addFields() { return this; }
-    setTimestamp() { return this; }
-}
-
 const Discord = {
     AuditLogEvent: { MemberRoleUpdate: 25 },
-    ChannelType: { GuildCategory: 4, GuildText: 0 },
-    PermissionFlagsBits: {
-        ViewChannel: 1n,
-        SendMessages: 2n,
-        ReadMessageHistory: 4n,
-        ManageMessages: 8n,
-    },
-    EmbedBuilder,
+    Events: { ClientReady: 'ready' },
 };
 
 (async () => {
+    const roles = new Map([
+        ['staff', { id: 'staff', name: 'Staff' }],
+        ['mods', { id: 'mods', name: 'Moderators' }],
+    ]);
+    const resolved = await resolveStaffRoles({
+        id: 'guild',
+        roles: { cache: roles, fetch: async () => roles },
+    }, ['staff', 'missing']);
+    assert.deepStrictEqual(resolved.map(role => role.id), ['staff', 'mods']);
+
     let listener;
-    let created = 0;
-    let modNotices = 0;
-    let jailNotice = '';
-    let createOptions;
-    const modChannel = { isTextBased: () => true, send: async () => { modNotices += 1; } };
-    const category = { id: 'category', type: Discord.ChannelType.GuildCategory };
-    const channels = new Map([['category', category]]);
-    const roles = new Map([['staff', { id: 'staff' }]]);
+    let received = null;
+    const actor = { id: 'moderator', tag: 'Moderator#0001' };
     const guild = {
         id: 'guild',
-        roles: {
-            everyone: { id: 'everyone' },
-            cache: roles,
-            fetch: async () => roles,
-        },
-        fetchAuditLogs: async () => ({ entries: new Map() }),
-        channels: {
-            fetch: async id => id === 'mods' ? modChannel : channels,
-            create: async options => {
-                createOptions = options;
-                const resolvableIds = new Set(['everyone', 'member', 'staff']);
-                if (options.permissionOverwrites.some(overwrite => !resolvableIds.has(overwrite.id))) {
-                    throw new TypeError('Supplied parameter is not a cached User or Role.');
-                }
-                created += 1;
-                const channel = {
-                    id: 'new-jail',
-                    name: options.name,
-                    parentId: options.parent,
-                    permissionOverwrites: { cache: new Map([['member', true]]) },
-                    send: async message => { jailNotice = message.content; },
-                };
-                channels.set(channel.id, channel);
-                return channel;
-            },
-        },
+        fetchAuditLogs: async () => ({
+            entries: new Map([['entry', {
+                target: { id: 'member' },
+                executor: actor,
+                reason: 'Manual review required',
+                createdTimestamp: Date.now(),
+            }]]),
+        }),
     };
-    const oldMember = { ...memberWithRoles(), id: 'member' };
-    const newMember = {
-        ...memberWithRoles('jail'),
-        id: 'member',
-        guild,
-        user: {
-            username: 'Member_Name',
-            tag: 'Member_Name#0001',
-            displayAvatarURL: () => 'https://example.test/avatar.png',
-        },
-    };
-    const client = { on: (_event, handler) => { listener = handler; } };
+    const oldMember = { ...memberWithRoles(), id: 'member', guild };
+    const newMember = { ...memberWithRoles('jail'), id: 'member', guild, user: { id: 'member' } };
+    const client = { on: (_event, handler) => { listener = handler; }, once() {} };
 
-    installManualJailRoleWorkflow(client, Discord, {
-        jailRoleId: 'jail',
-        jailCategoryId: 'category',
-        modChannelId: 'mods',
-        staffRoleIds: ['staff', 'stale-role', 'staff', ''],
-    }, { delayMs: 0, reconcileOnReady: false });
-
+    installManualJailRoleWorkflow(client, Discord, { jailRoleId: 'jail' }, {
+        delayMs: 0,
+        reconcileOnReady: false,
+        onJailRoleAdded: async (member, details) => { received = { member, details }; },
+    });
     await listener(oldMember, newMember);
-    assert.strictEqual(created, 1);
-    assert.strictEqual(modNotices, 1);
-    assert.deepStrictEqual(createOptions.permissionOverwrites.map(overwrite => overwrite.id), ['everyone', 'member', 'staff']);
-    assert.strictEqual(jailNotice, '<@&staff> <@member>');
+    assert.strictEqual(received.member, newMember);
+    assert.strictEqual(received.details.actor, actor);
+    assert.strictEqual(received.details.reason, 'Manual review required');
 
-    const before = created;
+    received = null;
     await listener(newMember, newMember);
-    assert.strictEqual(created, before);
+    assert.strictEqual(received, null, 'an unchanged role must not dispatch');
 
     let skippedListener;
-    installManualJailRoleWorkflow({ on: (_event, handler) => { skippedListener = handler; } }, Discord, {
+    installManualJailRoleWorkflow({ on: (_event, handler) => { skippedListener = handler; }, once() {} }, Discord, {
         jailRoleId: 'jail',
-        jailCategoryId: 'category',
-        staffRoleIds: ['staff'],
     }, {
         delayMs: 0,
         reconcileOnReady: false,
         shouldSkip: member => member.id === 'member',
+        onJailRoleAdded: async () => { throw new Error('should not run'); },
     });
     await skippedListener(oldMember, newMember);
-    assert.strictEqual(created, before);
     console.log('manual-jail-role tests passed');
 })().catch(error => {
     console.error(error);

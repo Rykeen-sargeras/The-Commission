@@ -3,6 +3,7 @@
 const Discord = require('discord.js');
 const economyModule = require('./economy');
 const discordEconomy = require('./economy_discord');
+const { createPanelUpserter } = require('./economy/persistent_panels');
 
 const HOT_TIP_KEY = 'hot-tip';
 const GOON_KEY = 'hired-goon';
@@ -13,6 +14,7 @@ const HOT_TIP_MULTIPLIER = 1.25;
 const GOON_COST = 100_000;
 const GOON_DURATION_MS = 24 * 60 * 60 * 1000;
 const GOON_MAX_ACTIVE = 2;
+const PERSISTENT_PANEL_REFRESH_MS = 3 * 60 * 1000;
 const GOON_BOSS_CUT = 0.50;
 const GOON_PVP_LOSS_SHARE = 0.25;
 const HEIST_ENTRY_FEE = 100_000;
@@ -254,9 +256,10 @@ function installHeistGoonsPatch() {
 
     const previousCreateIntegration = discordEconomy.createEconomyIntegration;
     discordEconomy.createEconomyIntegration = function createGoonsHeistIntegration(client, economy, options = {}) {
-        const integration = previousCreateIntegration(client, economy, options);
+        const integration = previousCreateIntegration(client, economy, { ...options, heistPanelOwner: 'goons' });
         const previousHandleButton = integration.handleButton;
         const previousStop = integration.stop;
+        const upsertPanel = createPanelUpserter(economy);
         let panelTimer = null;
         let storeTimer = null;
 
@@ -295,17 +298,8 @@ function installHeistGoonsPatch() {
         async function refreshHeistPanel(guild) {
             const channelId = economy.config.heistChannelId;
             if (!channelId) return;
-            const channel = guild.channels.cache.get(channelId) || await guild.channels.fetch(channelId).catch(() => null);
-            if (!channel?.isTextBased()) return;
             const state = economy.heistState(guild.id);
-            const storedId = economy.setting(guild.id, 'heist_panel_message');
-            let message = storedId ? await channel.messages.fetch(storedId).catch(() => null) : null;
-            if (!message) {
-                message = await channel.send(heistPanelPayload(state));
-                economy.setSetting(guild.id, 'heist_panel_message', message.id);
-            } else {
-                await message.edit(heistPanelPayload(state)).catch(() => {});
-            }
+            return upsertPanel(guild, channelId, 'heist_panel_message', heistPanelPayload(state));
         }
 
         function storePayload(guildId) {
@@ -356,19 +350,10 @@ function installHeistGoonsPatch() {
             };
         }
 
-        async function refreshStorePanel() {
+        async function refreshStorePanel(force = false) {
             const guild = client.guilds.cache.get(LUCK_SHOP_GUILD_ID) || await client.guilds.fetch(LUCK_SHOP_GUILD_ID).catch(() => null);
             if (!guild) return;
-            const channel = guild.channels.cache.get(LUCK_SHOP_CHANNEL_ID) || await guild.channels.fetch(LUCK_SHOP_CHANNEL_ID).catch(() => null);
-            if (!channel?.isTextBased()) return;
-            const storedId = economy.setting(guild.id, LUCK_PANEL_SETTING);
-            let message = storedId ? await channel.messages.fetch(storedId).catch(() => null) : null;
-            if (!message) {
-                message = await channel.send(storePayload(guild.id));
-                economy.setSetting(guild.id, LUCK_PANEL_SETTING, message.id);
-            } else {
-                await message.edit(storePayload(guild.id)).catch(() => {});
-            }
+            return upsertPanel(guild, LUCK_SHOP_CHANNEL_ID, LUCK_PANEL_SETTING, storePayload(guild.id), force);
         }
 
         integration.handleButton = async interaction => {
@@ -426,13 +411,14 @@ function installHeistGoonsPatch() {
             }
 
             if (id === 'econ:luckpanel:refresh') {
-                await refreshStorePanel();
+                await refreshStorePanel(true);
                 await interaction.reply({ content: '🔄 Shop refreshed.', ephemeral: true }).catch(() => {});
                 return true;
             }
 
             const handled = await previousHandleButton(interaction);
             if (id === 'econ:luckpanel:heistconfirm:hot-tip' && handled) await refreshStorePanel();
+            if (handled && id.startsWith('econ:heist:')) await refreshHeistPanel(interaction.guild).catch(() => {});
             return handled;
         };
 
@@ -442,12 +428,14 @@ function installHeistGoonsPatch() {
             };
             refreshHeists();
             refreshStorePanel().catch(() => {});
-            panelTimer = setInterval(refreshHeists, 10_000);
-            storeTimer = setInterval(() => refreshStorePanel().catch(() => {}), 30_000);
+            panelTimer = setInterval(refreshHeists, PERSISTENT_PANEL_REFRESH_MS);
+            storeTimer = setInterval(() => refreshStorePanel().catch(() => {}), PERSISTENT_PANEL_REFRESH_MS);
             panelTimer.unref?.();
             storeTimer.unref?.();
         };
         if (client.isReady?.()) start(); else client.once('ready', start);
+
+        integration.updateHeistPanel = refreshHeistPanel;
 
         integration.stop = async (...args) => {
             if (panelTimer) clearInterval(panelTimer);

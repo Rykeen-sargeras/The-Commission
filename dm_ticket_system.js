@@ -283,7 +283,7 @@ function installDMTicketSystem(client, config = defaultConfig(), options = {}) {
     if (!client || client[INSTALL_KEY]) return client;
     client[INSTALL_KEY] = true;
     const system = createDMTicketSystem(client, config, options);
-    client.on(Discord.Events.MessageCreate || 'messageCreate', async message => {
+    client.on(Discord.Events?.MessageCreate || 'messageCreate', async message => {
         if (!message?.author || message.author.bot) return;
         if (!message.guild) return system.handleDirectMessage(message);
         await system.handleClose(message);

@@ -4,7 +4,8 @@ const Discord = require('discord.js');
 const economyModule = require('./economy');
 const discordEconomy = require('./economy_discord');
 
-const HEIST_CHANNEL_ID = '1547079010637578301';
+const HEIST_CHANNEL_ID = process.env.HEIST_CHANNEL_ID || '1547079010637578301';
+const PERSISTENT_PANEL_REFRESH_MS = 3 * 60 * 1000;
 const HEIST_ENTRY_FEE = 10_000;
 const HEIST_INTERVAL_MS = 30 * 60 * 1000;
 const HEIST_SIGNUP_MS = (9 * 60 + 30) * 1000;
@@ -124,7 +125,7 @@ function installSpecialEconomyEvents() {
         constructor(options = {}) {
             super(options);
             Object.assign(this.config, {
-                heistChannelId: HEIST_CHANNEL_ID,
+                heistChannelId: options.config?.heistChannelId || HEIST_CHANNEL_ID,
                 heistEntryFee: HEIST_ENTRY_FEE,
                 heistEntryMinutes: 9,
                 heistCooldownMinutes: 20,
@@ -316,6 +317,7 @@ function installSpecialEconomyEvents() {
     discordEconomy.createEconomyIntegration = function createSpecialEventIntegration(client, economy, options = {}) {
         const integration = previousCreateIntegration(client, economy, { ...options, customHeistPanel: true });
         const originalHandleButton = integration.handleButton;
+        const ownsPersistentPanel = !options.heistPanelOwner || options.heistPanelOwner === 'special-events';
         let timer = null;
 
         function signupPayload(state) {
@@ -351,13 +353,13 @@ function installSpecialEconomyEvents() {
         }
 
         async function updateMysteryPanel(guild) {
-            const channel = await guild.channels.fetch(HEIST_CHANNEL_ID).catch(() => null);
+            const channel = await guild.channels.fetch(economy.config.heistChannelId).catch(() => null);
             if (!channel?.isTextBased()) return null;
             const state = economy.heistState(guild.id);
             const panelId = economy.setting(guild.id, 'heist_panel_message');
             let panel = panelId ? await channel.messages.fetch(panelId).catch(() => null) : null;
 
-            if (state.phase === 'signup') {
+            if (state.phase === 'signup' && ownsPersistentPanel) {
                 const signup = signupPayload(state);
                 if (panel) await panel.edit(signup);
                 else {
@@ -387,7 +389,7 @@ function installSpecialEconomyEvents() {
             return panel;
         }
 
-        const start = () => { const refresh = () => { for (const guild of client.guilds.cache.values()) updateMysteryPanel(guild).catch(error => console.error(`Mystery heist panel error in ${guild.name}:`, error.message)); }; refresh(); timer = setInterval(refresh, 15_000); };
+        const start = () => { const refresh = () => { for (const guild of client.guilds.cache.values()) updateMysteryPanel(guild).catch(error => console.error(`Mystery heist panel error in ${guild.name}:`, error.message)); }; refresh(); timer = setInterval(refresh, PERSISTENT_PANEL_REFRESH_MS); timer.unref?.(); };
         if (client.isReady?.()) start(); else client.once('ready', start);
         integration.updateHeistPanel = updateMysteryPanel;
         integration.handleButton = async interaction => { const handled = await originalHandleButton(interaction); if (handled && interaction.customId?.startsWith('econ:heist:')) await updateMysteryPanel(interaction.guild).catch(() => {}); return handled; };

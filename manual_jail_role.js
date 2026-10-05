@@ -19,33 +19,17 @@ function findExistingJailChannel(channels, memberId, categoryId) {
     )) || null;
 }
 
-function safeChannelPart(value) {
-    return String(value || 'member').toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').slice(0, 15);
-}
-
-function easternTime(timestamp) {
-    const time = new Intl.DateTimeFormat('en-US', {
-        timeZone: 'America/New_York',
-        hour: 'numeric',
-        minute: '2-digit',
-    }).format(new Date(timestamp || Date.now()));
-    return `${time} EST`;
-}
-
 async function resolveStaffRoles(guild, staffRoleIds) {
     let roles = guild.roles.cache;
     try {
         roles = await guild.roles.fetch();
     } catch (error) {
-        console.warn('[Manual jail] Could not refresh guild roles; using the current role cache:', error.message);
+        console.warn('[Jail workflow] Could not refresh guild roles; using the current role cache:', error.message);
     }
 
-    const configuredIds = [...new Set(staffRoleIds.map(id => String(id).trim()).filter(Boolean))];
+    const configuredIds = [...new Set((staffRoleIds || []).map(id => String(id).trim()).filter(Boolean))];
     const validRoles = configuredIds.map(id => roles?.get(id)).filter(Boolean);
     const invalidRoleIds = configuredIds.filter(id => !roles?.has(id));
-
-    // Always include the server's @Moderators role in jail access/pings, even if
-    // it was not included in STAFF_ROLE_IDS. Do not create or alter the role.
     const moderatorsRole = [...(roles?.values?.() || [])].find(role => (
         String(role?.name || '').trim().toLowerCase() === 'moderators'
     ));
@@ -54,20 +38,16 @@ async function resolveStaffRoles(guild, staffRoleIds) {
     }
 
     if (invalidRoleIds.length) {
-        console.warn(`[Manual jail] Ignoring staff role IDs that do not exist in guild ${guild.id}: ${invalidRoleIds.join(', ')}`);
+        console.warn(`[Jail workflow] Ignoring staff role IDs that do not exist in guild ${guild.id}: ${invalidRoleIds.join(', ')}`);
     }
-
     return validRoles;
 }
 
 function installManualJailRoleWorkflow(client, Discord, config, options = {}) {
     const jailRoleId = config.jailRoleId || '';
-    const jailCategoryId = config.jailCategoryId || '';
-    const modChannelId = config.modChannelId || '';
-    const jailLogChannelId = config.jailLogChannelId || '1532513789159669835';
-    const staffRoleIds = config.staffRoleIds || [];
     const delayMs = options.delayMs ?? 1500;
     const reconcileOnReady = options.reconcileOnReady !== false;
+    const onJailRoleAdded = options.onJailRoleAdded;
     const shouldSkip = typeof options.shouldSkip === 'function' ? options.shouldSkip : () => false;
     const provisioning = new Map();
 
@@ -75,141 +55,55 @@ function installManualJailRoleWorkflow(client, Discord, config, options = {}) {
         console.warn('[Manual jail] Disabled because JAIL_ROLE_ID is not configured.');
         return;
     }
+    if (typeof onJailRoleAdded !== 'function') {
+        throw new TypeError('installManualJailRoleWorkflow requires options.onJailRoleAdded.');
+    }
 
-    async function findModerator(guild, memberId) {
+    async function findRoleAuditEntry(guild, memberId) {
         try {
             const logs = await guild.fetchAuditLogs({
                 type: Discord.AuditLogEvent.MemberRoleUpdate,
                 limit: 6,
             });
-            const entry = logs.entries.find(item => (
+            return [...(logs.entries?.values?.() || [])].find(item => (
                 item.target?.id === memberId
                 && Date.now() - item.createdTimestamp < 15000
-            ));
-            return entry?.executor || null;
+            )) || null;
         } catch (_error) {
             return null;
         }
     }
 
-    async function completeJailWorkflow(member, workflowOptions = {}) {
+    async function dispatch(member, workflowOptions = {}) {
         if (!workflowOptions.skipDelay && delayMs) await new Promise(resolve => setTimeout(resolve, delayMs));
+        const auditEntry = await findRoleAuditEntry(member.guild, member.id);
+        const actor = auditEntry?.executor || null;
+        const reason = String(auditEntry?.reason || '').trim()
+            || (actor
+                ? `Jail role manually assigned by ${actor.tag || actor.username || actor.id}; no additional reason was recorded.`
+                : 'Jail role assigned manually or by an automation; no additional reason was recorded.');
+        return onJailRoleAdded(member, {
+            actor,
+            reason,
+            source: workflowOptions.source || 'manual-role',
+            auditEntry,
+        });
+    }
 
-        const guild = member.guild;
-        const channels = await guild.channels.fetch();
-        let jailChannel = findExistingJailChannel(channels, member.id, jailCategoryId);
-        let created = false;
-        let failure = '';
-
-        if (workflowOptions.skipExisting && jailChannel) return;
-
-        if (!jailChannel) {
-            const category = jailCategoryId ? channels.get(jailCategoryId) : null;
-            if (!category || category.type !== Discord.ChannelType.GuildCategory) {
-                failure = 'The configured jail category is missing or invalid.';
-            } else {
-                try {
-                    const staffRoles = await resolveStaffRoles(guild, staffRoleIds);
-                    const jailedAt = Date.now();
-                    jailChannel = await guild.channels.create({
-                        name: `jail-${safeChannelPart(member.user.username)}-${Math.floor(Math.random() * 9999)}`,
-                        type: Discord.ChannelType.GuildText,
-                        parent: jailCategoryId,
-                        topic: `commission-jail-user:${member.id};jailed-at:${jailedAt}`,
-                        permissionOverwrites: [
-                            { id: guild.roles.everyone.id, deny: [Discord.PermissionFlagsBits.ViewChannel] },
-                            {
-                                id: member.id,
-                                allow: [
-                                    Discord.PermissionFlagsBits.ViewChannel,
-                                    Discord.PermissionFlagsBits.SendMessages,
-                                    Discord.PermissionFlagsBits.ReadMessageHistory,
-                                ],
-                            },
-                            ...staffRoles.map(role => ({
-                                id: role.id,
-                                allow: [
-                                    Discord.PermissionFlagsBits.ViewChannel,
-                                    Discord.PermissionFlagsBits.SendMessages,
-                                    Discord.PermissionFlagsBits.ReadMessageHistory,
-                                    Discord.PermissionFlagsBits.ManageMessages,
-                                ],
-                            })),
-                        ],
-                        reason: `Jail role assigned to ${member.user.tag}`,
-                    });
-                    created = true;
-                    const staffMentions = staffRoles.map(role => `<@&${role.id}>`).join(' ');
-                    const embed = new Discord.EmbedBuilder()
-                        .setColor('#FF0000')
-                        .setTitle('🔒 You Have Been Jailed')
-                        .setDescription('The Jail role was assigned. Staff will review this case here.')
-                        .addFields(
-                            { name: 'User', value: `${member.user.tag} (${member.id})` },
-                            { name: 'Status', value: 'Waiting for staff review' },
-                        )
-                        .setTimestamp();
-                    await jailChannel.send({
-                        content: `${staffMentions} <@${member.id}>`.trim(),
-                        embeds: [embed],
-                        allowedMentions: {
-                            roles: staffRoles.map(role => role.id),
-                            users: [member.id],
-                        },
-                    });
-
-                    if (jailLogChannelId) {
-                        const jailLogChannel = await guild.channels.fetch(jailLogChannelId).catch(() => null);
-                        if (jailLogChannel?.isTextBased()) {
-                            await jailLogChannel.send({
-                                content: `<@${member.id}> Was Jailed at ${easternTime(jailedAt)}.`,
-                                allowedMentions: { users: [] },
-                            });
-                        }
-                    }
-                } catch (error) {
-                    failure = `Could not create the jail channel: ${error.message}`;
-                }
-            }
-        }
-
-        const moderator = await findModerator(guild, member.id);
-        if (modChannelId) {
-            try {
-                const modChannel = await guild.channels.fetch(modChannelId);
-                if (modChannel?.isTextBased()) {
-                    const embed = new Discord.EmbedBuilder()
-                        .setColor(failure ? '#FF9900' : '#FF0000')
-                        .setTitle('🔒 Jail Role Assigned')
-                        .setThumbnail(member.user.displayAvatarURL())
-                        .addFields(
-                            { name: 'Member', value: `<@${member.id}> (${member.user.tag})` },
-                            { name: 'Assigned By', value: moderator ? `<@${moderator.id}> (${moderator.tag})` : 'Unknown or automated' },
-                            { name: 'Jail Channel', value: jailChannel ? `<#${jailChannel.id}>` : failure || 'Not created' },
-                            { name: 'Workflow', value: created ? 'Created automatically from role assignment' : 'Existing jail channel detected' },
-                        )
-                        .setTimestamp();
-                    await modChannel.send({ embeds: [embed] });
-                }
-            } catch (error) {
-                console.error('[Manual jail] Could not notify the mod channel:', error);
-            }
-        }
-
-        if (failure) console.error(`[Manual jail] ${member.user.tag}: ${failure}`);
-        else console.log(`[Manual jail] Completed workflow for ${member.user.tag} in #${jailChannel.name}`);
+    function queue(member, workflowOptions = {}) {
+        const key = `${member.guild.id}:${member.id}`;
+        if (provisioning.has(key)) return provisioning.get(key);
+        const task = dispatch(member, workflowOptions)
+            .catch(error => console.error('[Manual jail] Workflow failed:', error))
+            .finally(() => provisioning.delete(key));
+        provisioning.set(key, task);
+        return task;
     }
 
     client.on('guildMemberUpdate', async (oldMember, newMember) => {
         if (!wasJailRoleAdded(oldMember, newMember, jailRoleId)) return;
         if (shouldSkip(newMember)) return;
-        if (provisioning.has(newMember.id)) return provisioning.get(newMember.id);
-
-        const task = completeJailWorkflow(newMember)
-            .catch(error => console.error('[Manual jail] Workflow failed:', error))
-            .finally(() => provisioning.delete(newMember.id));
-        provisioning.set(newMember.id, task);
-        return task;
+        return queue(newMember);
     });
 
     if (reconcileOnReady) {
@@ -218,12 +112,8 @@ function installManualJailRoleWorkflow(client, Discord, config, options = {}) {
                 try {
                     const members = await guild.members.fetch();
                     for (const member of members.values()) {
-                        if (!member.roles.cache.has(jailRoleId) || provisioning.has(member.id)) continue;
-                        const task = completeJailWorkflow(member, { skipDelay: true, skipExisting: true })
-                            .catch(error => console.error('[Manual jail] Startup repair failed:', error))
-                            .finally(() => provisioning.delete(member.id));
-                        provisioning.set(member.id, task);
-                        await task;
+                        if (!member.roles.cache.has(jailRoleId)) continue;
+                        await queue(member, { skipDelay: true, source: 'startup-repair' });
                     }
                 } catch (error) {
                     console.error(`[Manual jail] Could not reconcile guild ${guild.id}:`, error);

@@ -16,6 +16,10 @@ function createStaffAccess(Discord, config) {
             console.warn(`[Discord permissions] Ignoring staff role IDs that do not exist in guild ${guild.id}: ${invalidIds.join(', ')}`);
         }
 
+        const moderatorsRole = [...guild.roles.cache.values()].find(role => (
+            String(role?.name || '').trim().toLowerCase() === 'moderators'
+        ));
+        if (moderatorsRole && !validIds.includes(moderatorsRole.id)) validIds.push(moderatorsRole.id);
         return validIds;
     }
 

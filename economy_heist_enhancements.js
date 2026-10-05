@@ -3,6 +3,7 @@
 const Discord = require('discord.js');
 const economyModule = require('./economy');
 const discordEconomy = require('./economy_discord');
+const PERSISTENT_PANEL_REFRESH_MS = 3 * 60 * 1000;
 const {
     HEIST_ENTRY_FEE,
     HEIST_INTERVAL_MS,
@@ -419,7 +420,8 @@ function installHeistEnhancements() {
                 for (const guild of client.guilds.cache.values()) enhanceGuild(guild).catch(error => console.error(`Heist enhancement error in ${guild.name}:`, error.message));
             };
             refresh();
-            alertButtonTimer = setInterval(refresh, 5_000);
+            alertButtonTimer = setInterval(refresh, PERSISTENT_PANEL_REFRESH_MS);
+            alertButtonTimer.unref?.();
         };
         if (client.isReady?.()) startEnhancer(); else client.once('ready', startEnhancer);
 
