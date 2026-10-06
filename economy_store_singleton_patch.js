@@ -94,29 +94,36 @@ function installStoreSingletonPatch() {
 
         async function rebuildStorePanelOnce() {
             const channel = await getStoreChannel();
-            if (!channel?.isTextBased()) return;
+            if (!channel?.isTextBased()) return null;
 
-            const batch = await channel.messages.fetch({ limit: 100 }).catch(() => null);
-            const botId = client.user?.id;
-            const storeMessages = batch
-                ? [...batch.values()].filter(message => message.author?.id === botId && isStorePanel(message))
-                : [];
-
-            const alreadyRebuilt = economy.setting(STORE_GUILD_ID, REBUILD_SETTING) === 'complete';
             const storedId = economy.setting(STORE_GUILD_ID, STORE_PANEL_SETTING) || '';
-            const stored = storeMessages.find(message => message.id === storedId) || null;
-            const hasOldButtons = stored?.components?.some(row => row.components?.some(component => {
-                const id = String(component.customId || component.data?.custom_id || '');
-                return id.includes('loaded-van') || id.includes('pvp-contract');
-            }));
+            if (storedId) {
+                try {
+                    const stored = channel.messages.cache.get(storedId)
+                        || await channel.messages.fetch(storedId);
+                    if (stored) {
+                        economy.setSetting(STORE_GUILD_ID, REBUILD_SETTING, 'complete');
+                        return stored;
+                    }
+                } catch (error) {
+                    // Only recreate when Discord explicitly says the saved message was deleted.
+                    // Transient API/rate-limit/network errors must never create duplicate store cards.
+                    if (Number(error?.code) !== 10008) {
+                        console.warn(`Store singleton verification failed without recreating panel: ${error.message}`);
+                        return null;
+                    }
+                }
+            }
 
-            if (!alreadyRebuilt || hasOldButtons || storeMessages.length > 1 || !stored) {
-                for (const message of storeMessages) await message.delete().catch(() => {});
-                economy.setSetting(STORE_GUILD_ID, STORE_PANEL_SETTING, '');
-                const fresh = await integration.refreshLuckShopPanel?.().catch(() => null);
-                if (fresh) economy.setSetting(STORE_GUILD_ID, STORE_PANEL_SETTING, fresh.id);
+            const fresh = await integration.refreshLuckShopPanel?.().catch(error => {
+                console.error(`Store singleton recreation failed: ${error.message}`);
+                return null;
+            });
+            if (fresh) {
+                economy.setSetting(STORE_GUILD_ID, STORE_PANEL_SETTING, fresh.id);
                 economy.setSetting(STORE_GUILD_ID, REBUILD_SETTING, 'complete');
             }
+            return fresh || null;
         }
 
         const start = () => setTimeout(() => {
