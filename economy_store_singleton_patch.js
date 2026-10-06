@@ -50,6 +50,13 @@ function isStorePanel(message) {
         String(component.customId || component.data?.custom_id || '').startsWith('econ:luckpanel:')));
 }
 
+async function findRecentStorePanel(channel) {
+    const messages = await channel.messages.fetch({ limit: 50 });
+    const candidates = [...messages.values()].filter(isStorePanel);
+    candidates.sort((a, b) => Number(b.createdTimestamp || 0) - Number(a.createdTimestamp || 0));
+    return candidates[0] || null;
+}
+
 function installDiscordLowChurnGuards() {
     if (Discord.Message?.prototype?.[PATCH_FLAG]) return;
     Object.defineProperty(Discord.Message.prototype, PATCH_FLAG, { value: true });
@@ -97,33 +104,38 @@ function installStoreSingletonPatch() {
             if (!channel?.isTextBased()) return null;
 
             const storedId = economy.setting(STORE_GUILD_ID, STORE_PANEL_SETTING) || '';
+            let stored = null;
             if (storedId) {
                 try {
-                    const stored = channel.messages.cache.get(storedId)
+                    stored = channel.messages.cache.get(storedId)
                         || await channel.messages.fetch(storedId);
-                    if (stored) {
-                        economy.setSetting(STORE_GUILD_ID, REBUILD_SETTING, 'complete');
-                        return stored;
-                    }
                 } catch (error) {
-                    // Only recreate when Discord explicitly says the saved message was deleted.
-                    // Transient API/rate-limit/network errors must never create duplicate store cards.
-                    if (Number(error?.code) !== 10008) {
-                        console.warn(`Store singleton verification failed without recreating panel: ${error.message}`);
-                        return null;
-                    }
+                    console.warn(`Store singleton saved-message lookup failed; checking channel history: ${error.message}`);
                 }
+            }
+
+            if (!stored) {
+                try {
+                    stored = await findRecentStorePanel(channel);
+                } catch (error) {
+                    // If history cannot be verified, do not risk adding a duplicate card.
+                    console.warn(`Store singleton history verification failed without recreating panel: ${error.message}`);
+                    return null;
+                }
+                if (stored) economy.setSetting(STORE_GUILD_ID, STORE_PANEL_SETTING, stored.id);
+                else economy.setSetting(STORE_GUILD_ID, STORE_PANEL_SETTING, '');
             }
 
             const fresh = await integration.refreshLuckShopPanel?.().catch(error => {
                 console.error(`Store singleton recreation failed: ${error.message}`);
                 return null;
             });
-            if (fresh) {
-                economy.setSetting(STORE_GUILD_ID, STORE_PANEL_SETTING, fresh.id);
+            const panel = fresh || stored;
+            if (panel) {
+                economy.setSetting(STORE_GUILD_ID, STORE_PANEL_SETTING, panel.id);
                 economy.setSetting(STORE_GUILD_ID, REBUILD_SETTING, 'complete');
             }
-            return fresh || null;
+            return panel || null;
         }
 
         const start = () => setTimeout(() => {
@@ -138,5 +150,7 @@ function installStoreSingletonPatch() {
 
 module.exports = {
     STORE_CHANNEL_ID,
+    findRecentStorePanel,
+    isStorePanel,
     installStoreSingletonPatch,
 };

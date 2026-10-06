@@ -127,19 +127,29 @@ function duelOpponentId(raw) {
 
 function slotsPayload(result, guild, currencyName) {
     const symbols = slots.serverSymbols(guild);
-    const board = [0, 3, 6].map(start => result.grid.slice(start, start + 3).map(symbol => symbol.render).join('  ')).join('\n');
-    const paytable = symbols.map(symbol => `${symbol.render} **${symbol.multiplier}×**`).join(' · ');
+    const board = Array.from({ length: slots.SLOT_ROWS }, (_, row) => {
+        const start = row * slots.SLOT_COLUMNS;
+        return result.grid.slice(start, start + slots.SLOT_COLUMNS).map(symbol => symbol.render).join('  ');
+    }).join('\n');
+    const paytable = symbols.filter(symbol => !symbol.wild).map(symbol => {
+        const ranges = [3, 4, 5].map(count => {
+            const [low, high] = slots.MATCH_PAYOUT_FACTORS[count];
+            return `${Number((symbol.multiplier * low).toFixed(1))}–${Number((symbol.multiplier * high).toFixed(1))}×`;
+        });
+        return `${symbol.render} ${ranges.join(' / ')}`;
+    }).join('\n');
     const wins = result.wins.length
-        ? result.wins.map(win => `Line ${win.line}: ${win.symbol.render} ${win.symbol.render} ${win.symbol.render} → **${win.multiplier}×**`).join('\n')
+        ? result.wins.map(win => `Line ${win.line}: ${win.symbol.render} × ${win.count}${win.wilds ? ` (${win.wilds} wild)` : ''} → **${win.multiplier}×**`).join('\n')
         : 'No matching payline this spin.';
     return { embeds: [new Discord.EmbedBuilder().setColor(result.payout > 0 ? 0x2ea043 : 0x9b1c31)
-        .setTitle('🎰 The Commission — 3×3 Slots').setDescription(`${board}\n\n${wins}`).addFields(
+        .setTitle('🎰 The Commission — 5×4 Wild Slots').setDescription(`${board}\n\n${wins}`).addFields(
             { name: 'Wager', value: `${money(result.wager)} ${currencyName}`, inline: true },
             { name: 'Total multiplier', value: `${result.multiplier}×`, inline: true },
             { name: 'Payout', value: `${money(result.payout)} ${currencyName}`, inline: true },
             { name: 'Balance', value: `${money(result.balance)} ${currencyName}`, inline: true },
-            { name: 'Paytable · 3 matching on any line', value: paytable },
-        ).setFooter({ text: '8 paylines · winning lines stack' }).setTimestamp()] };
+            { name: 'Random payout ranges · 3 / 4 / 5 matches', value: paytable },
+            { name: '🃏 Wild', value: 'Substitutes for every symbol. Wins count matching symbols from the leftmost reel.' },
+        ).setFooter({ text: `${slots.PAYLINES.length} paylines · winning lines stack and roll independently` }).setTimestamp()] };
 }
 
 function higherLowerPayload(game, userMention, currencyName, note = '') {

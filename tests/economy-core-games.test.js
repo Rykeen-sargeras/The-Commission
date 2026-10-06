@@ -6,12 +6,43 @@ const os = require('os');
 const path = require('path');
 
 const economy = require('../economy');
+const slots = require('../economy/slots');
 const { EconomyService } = economy;
 
 assert.strictEqual(economy.GAME_HOURLY_LIMIT, null);
 assert.strictEqual(economy.DICE_PAYOUT_TABLE.reduce((sum, outcome) => sum + outcome.weight, 0), 10000);
 assert.strictEqual(Number(economy.diceExpectedReturn().toFixed(3)), 0.934);
 assert.strictEqual(Number(economy.diceHouseEdge().toFixed(3)), 0.066);
+
+const slotSymbols = slots.serverSymbols({ emojis: { cache: new Map() } });
+assert.strictEqual(slotSymbols.length, 10);
+assert.strictEqual(slotSymbols.at(-1).wild, true);
+assert.strictEqual(slots.spinGrid(slotSymbols, () => 0.5).length, 20);
+assert.strictEqual(Number(slots.slotsExpectedReturn().toFixed(3)), 0.954);
+
+const uniqueGrid = Array.from({ length: 20 }, (_, index) => ({
+    key: `unique-${index}`, render: String(index), multiplier: 2, weight: 1, wild: false,
+}));
+const winningSymbol = { key: 'winner', render: '🍒', multiplier: 2, weight: 1, wild: false };
+uniqueGrid[0] = winningSymbol;
+uniqueGrid[1] = { ...slots.WILD };
+uniqueGrid[2] = winningSymbol;
+uniqueGrid[3] = winningSymbol;
+uniqueGrid[4] = winningSymbol;
+const wildResult = slots.evaluateGrid(uniqueGrid, () => 0);
+assert.strictEqual(wildResult.wins.length, 1);
+assert.strictEqual(wildResult.wins[0].count, 5);
+assert.strictEqual(wildResult.wins[0].wilds, 1);
+assert.strictEqual(wildResult.wins[0].multiplier, 1.5);
+
+const shortWinGrid = Array.from({ length: 20 }, (_, index) => ({
+    key: `short-${index}`, render: String(index), multiplier: 2, weight: 1, wild: false,
+}));
+shortWinGrid[0] = winningSymbol;
+shortWinGrid[1] = winningSymbol;
+shortWinGrid[2] = winningSymbol;
+assert.strictEqual(slots.evaluateGrid(shortWinGrid, () => 0).wins[0].multiplier, 0.3);
+assert.strictEqual(slots.evaluateGrid(shortWinGrid, () => 1).wins[0].multiplier, 0.7);
 
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'commission-balance-patch-'));
 const service = new EconomyService({

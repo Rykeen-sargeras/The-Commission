@@ -10,6 +10,9 @@ const DISCORD_ID = /^\d{17,20}$/;
 const SERVER_PROFILE_VERSION = 8;
 const HEIST_SCHEDULE_VERSION = 1;
 const ECONOMY_REWARD_VERSION = 1;
+const HEIST_CHANNEL_ROUTING_VERSION = 1;
+const LEGACY_STORE_AS_HEIST_CHANNEL_ID = '1532787416098672750';
+const DEFAULT_HEIST_CHANNEL_ID = '1547079010637578301';
 const DESTINATION_SERVER_PROFILE = {
     modChannelId: '1532529016479682774',
     altAccountAgeDays: 14,
@@ -31,7 +34,7 @@ const DESTINATION_SERVER_PROFILE = {
     economyArchiveChannelId: '1532792745385529455',
     economyAuditChannelId: '1532792745385529455',
     economyLeaderboardChannelId: '1532786508459671734',
-    economyHeistChannelId: '1532787416098672750',
+    economyHeistChannelId: DEFAULT_HEIST_CHANNEL_ID,
     economyGamblingChannelId: '1532786549773832255',
     economyHeistEntryFee: 0,
     rememberLogin: true,
@@ -72,7 +75,7 @@ const DEFAULT_SETTINGS = {
     economyAuditChannelId: '1532792745385529455',
     economyArchiveChannelId: '1532792745385529455',
     economyLeaderboardChannelId: '1532786508459671734',
-    economyHeistChannelId: '1532787416098672750',
+    economyHeistChannelId: DEFAULT_HEIST_CHANNEL_ID,
     economyGamblingChannelId: '1532786549773832255',
     economyExcludedChannelIds: '',
     economyMediaChannelIds: '',
@@ -214,6 +217,10 @@ function loadConfig() {
             settings.economyHeistEntryMinutes = 58;
             settings.economyHeistCooldownMinutes = 2;
         }
+        if ((parsed.heistChannelRoutingVersion || 0) < HEIST_CHANNEL_ROUTING_VERSION
+            && settings.economyHeistChannelId === LEGACY_STORE_AS_HEIST_CHANNEL_ID) {
+            settings.economyHeistChannelId = DEFAULT_HEIST_CHANNEL_ID;
+        }
         if ((parsed.economyRewardVersion || 0) < ECONOMY_REWARD_VERSION
             && Number(settings.economyDailyBase) === 25
             && Number(settings.economyDailyStreakStep) === 5
@@ -226,6 +233,7 @@ function loadConfig() {
             serverProfileVersion: SERVER_PROFILE_VERSION,
             heistScheduleVersion: HEIST_SCHEDULE_VERSION,
             economyRewardVersion: ECONOMY_REWARD_VERSION,
+            heistChannelRoutingVersion: HEIST_CHANNEL_ROUTING_VERSION,
             settings,
             secrets: parsed.secrets || {},
         };
@@ -234,6 +242,7 @@ function loadConfig() {
             serverProfileVersion: SERVER_PROFILE_VERSION,
             heistScheduleVersion: HEIST_SCHEDULE_VERSION,
             economyRewardVersion: ECONOMY_REWARD_VERSION,
+            heistChannelRoutingVersion: HEIST_CHANNEL_ROUTING_VERSION,
             settings: { ...DEFAULT_SETTINGS, ...DESTINATION_SERVER_PROFILE },
             secrets: {},
         };

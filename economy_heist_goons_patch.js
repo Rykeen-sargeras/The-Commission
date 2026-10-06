@@ -22,9 +22,6 @@ const HEIST_BASE_REWARD = 150_000;
 const HEIST_MAX_REWARD = 1_000_000;
 const HEIST_BASE_SUCCESS = 66;
 const HEIST_SUCCESS_PER_PLAYER = 1.5;
-const LUCK_SHOP_GUILD_ID = '1532503754350264571';
-const LUCK_SHOP_CHANNEL_ID = '1532787416098672750';
-const LUCK_PANEL_SETTING = 'luck_shop_panel_message';
 
 const HEIST_STORE_ITEMS = Object.freeze({
     [HOT_TIP_KEY]: Object.freeze({
@@ -301,58 +298,10 @@ function installHeistGoonsPatch() {
             return upsertPanel(guild, channelId, 'heist_panel_message', heistPanelPayload(state));
         }
 
-        function storePayload(guildId) {
-            let globalLuck = 0;
-            let boosts = 0;
-            try {
-                const rows = economy.db.prepare('SELECT luck_percent FROM global_luck_contributions WHERE guild_id=? AND expires_at>?').all(guildId, Date.now());
-                globalLuck = rows.reduce((sum, row) => sum + Number(row.luck_percent || 0), 0);
-                boosts = rows.length;
-            } catch {}
-            return {
-                embeds: [new Discord.EmbedBuilder()
-                    .setColor(0x2ea043)
-                    .setTitle('🍀 The Commission · Luck & Heist Shop')
-                    .setDescription(
-                        '**Permanent Personal Luck**\n' +
-                        '🍀 **Lucky Break** — +1% luck — **5,000 Blood Money**\n' +
-                        '🎩 **Made Luck** — +5% luck — **30,000 Blood Money**\n' +
-                        '👑 **Boss Luck** — +10% luck — **250,000 Blood Money**\n\n' +
-                        '**Heist Items**\n' +
-                        `🗺️ **Hot Tip** — +25% personal payout on your next **2 winning heists** — **${money(HOT_TIP_COST)} Blood Money**\n` +
-                        `🤵 **Hired Goon** — **${money(GOON_COST)} Blood Money each** · active for **24 hours** · max **2 active**. ` +
-                        'Each goon counts as another participant for success/reward scaling. You receive **50% of each goon\'s cut**. On a failed PvP battle, you absorb **25% of each goon\'s 100K loss exposure**.\n\n' +
-                        '**Community Luck Pot**\nSpend **1,000 Blood Money** to add **+0.5% GLOBAL luck** for 24 hours.'
-                    )
-                    .addFields(
-                        { name: '🌐 Current Global Modifier', value: `+${globalLuck}% LUCK`, inline: true },
-                        { name: '🍀 Active Community Boosts', value: String(boosts), inline: true },
-                    )
-                    .setFooter({ text: 'Loaded Getaway Van and PvP Contract have been removed' })
-                    .setTimestamp()],
-                components: [
-                    new Discord.ActionRowBuilder().addComponents(
-                        new Discord.ButtonBuilder().setCustomId('econ:luckpanel:buy:luck-1').setLabel('+1% · 5,000').setEmoji('🍀').setStyle(Discord.ButtonStyle.Secondary),
-                        new Discord.ButtonBuilder().setCustomId('econ:luckpanel:buy:luck-5').setLabel('+5% · 30,000').setEmoji('🎩').setStyle(Discord.ButtonStyle.Primary),
-                        new Discord.ButtonBuilder().setCustomId('econ:luckpanel:buy:luck-10').setLabel('+10% · 250,000').setEmoji('👑').setStyle(Discord.ButtonStyle.Danger),
-                    ),
-                    new Discord.ActionRowBuilder().addComponents(
-                        new Discord.ButtonBuilder().setCustomId('econ:luckpanel:heistbuy:hot-tip').setLabel('Hot Tip · 50K').setEmoji('🗺️').setStyle(Discord.ButtonStyle.Primary),
-                        new Discord.ButtonBuilder().setCustomId('econ:luckpanel:heistbuy:hired-goon').setLabel('Hire Goon · 100K').setEmoji('🤵').setStyle(Discord.ButtonStyle.Danger),
-                    ),
-                    new Discord.ActionRowBuilder().addComponents(
-                        new Discord.ButtonBuilder().setCustomId('econ:luckpanel:global').setLabel('Add +0.5% Global · 1,000').setEmoji('🌐').setStyle(Discord.ButtonStyle.Success),
-                        new Discord.ButtonBuilder().setCustomId('econ:luckpanel:mine').setLabel('My Luck / Inventory').setEmoji('📊').setStyle(Discord.ButtonStyle.Secondary),
-                        new Discord.ButtonBuilder().setCustomId('econ:luckpanel:refresh').setLabel('Refresh').setEmoji('🔄').setStyle(Discord.ButtonStyle.Secondary),
-                    ),
-                ],
-            };
-        }
-
-        async function refreshStorePanel(force = false) {
-            const guild = client.guilds.cache.get(LUCK_SHOP_GUILD_ID) || await client.guilds.fetch(LUCK_SHOP_GUILD_ID).catch(() => null);
-            if (!guild) return;
-            return upsertPanel(guild, LUCK_SHOP_CHANNEL_ID, LUCK_PANEL_SETTING, storePayload(guild.id), force);
+        async function refreshStorePanel() {
+            // The outer luck-shop integration owns the canonical singleton payload.
+            // Delegating avoids older heist shop markup racing the current store card.
+            return integration.refreshLuckShopPanel?.();
         }
 
         integration.handleButton = async interaction => {

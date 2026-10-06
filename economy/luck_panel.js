@@ -148,6 +148,18 @@ function installLuckPanel(discordEconomy) {
             const guild = await targetGuild();
             const channel = await targetChannel();
             if (!guild || !channel?.isTextBased() || !channel.permissionOverwrites?.edit) return;
+            const botUserId = client.user?.id;
+            if (!botUserId) return;
+            try {
+                // A member-specific allow wins over the @everyone write lock. Without it,
+                // non-administrator bot roles can lock themselves out of an empty shop.
+                await channel.permissionOverwrites.edit(botUserId, {
+                    ViewChannel: true, SendMessages: true, EmbedLinks: true, ReadMessageHistory: true,
+                });
+            } catch (error) {
+                console.warn(`Luck Shop bot permission setup failed; channel was not locked: ${error.message}`);
+                return;
+            }
             await channel.permissionOverwrites.edit(guild.roles.everyone, {
                 SendMessages: false, AddReactions: false, CreatePublicThreads: false,
                 CreatePrivateThreads: false, SendMessagesInThreads: false,
