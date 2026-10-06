@@ -191,12 +191,22 @@ function installLuckRebalancePatch() {
             if (!channel?.isTextBased()) return null;
             const payload = storePayload(economy, guild.id);
             const storedId = economy.setting(guild.id, STORE_PANEL_SETTING);
-            let message = storedId ? (channel.messages.cache.get(storedId) || await channel.messages.fetch(storedId).catch(() => null)) : null;
+            let message = null;
+            if (storedId) {
+                try {
+                    message = channel.messages.cache.get(storedId) || await channel.messages.fetch(storedId);
+                } catch (error) {
+                    if (Number(error?.code) !== 10008) {
+                        console.warn(`Store panel fetch failed; preserving saved message ID ${storedId}: ${error.message}`);
+                        return null;
+                    }
+                }
+            }
             if (!message) {
                 message = await channel.send(payload);
                 economy.setSetting(guild.id, STORE_PANEL_SETTING, message.id);
             } else {
-                await message.edit(payload).catch(() => {});
+                await message.edit(payload).catch(error => console.warn(`Store panel edit failed: ${error.message}`));
             }
             return message;
         }

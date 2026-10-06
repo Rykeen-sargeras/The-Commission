@@ -135,7 +135,6 @@ function installLuckPanel(discordEconomy) {
     discordEconomy.createEconomyIntegration = function createPersistentLuckShopIntegration(client, economy, options = {}) {
         const integration = previousCreateIntegration(client, economy, options);
         const originalHandleButton = integration.handleButton;
-        let refreshTimer = null;
 
         async function targetGuild() {
             return client.guilds.cache.get(LUCK_SHOP_GUILD_ID) || client.guilds.fetch(LUCK_SHOP_GUILD_ID).catch(() => null);
@@ -160,12 +159,24 @@ function installLuckPanel(discordEconomy) {
             if (!guild || !channel?.isTextBased()) return null;
             const payload = panelPayload(economy, guild.id);
             const storedId = economy.setting(guild.id, PANEL_SETTING_KEY);
-            let message = storedId ? await channel.messages.fetch(storedId).catch(() => null) : null;
-            if (message) await message.edit(payload).catch(() => null);
-            if (!message) {
-                message = await channel.send(payload);
-                economy.setSetting(guild.id, PANEL_SETTING_KEY, message.id);
+            let message = null;
+            if (storedId) {
+                try {
+                    message = channel.messages.cache.get(storedId) || await channel.messages.fetch(storedId);
+                } catch (error) {
+                    // Recreate only if Discord confirms the message no longer exists.
+                    if (Number(error?.code) !== 10008) {
+                        console.warn(`Luck Shop panel fetch failed; keeping stored ID ${storedId}: ${error.message}`);
+                        return null;
+                    }
+                }
             }
+            if (message) {
+                await message.edit(payload).catch(error => console.warn(`Luck Shop panel edit failed: ${error.message}`));
+                return message;
+            }
+            message = await channel.send(payload);
+            economy.setSetting(guild.id, PANEL_SETTING_KEY, message.id);
             return message;
         }
 
@@ -236,14 +247,11 @@ function installLuckPanel(discordEconomy) {
         const start = async () => {
             await lockChannel().catch(() => {});
             await refreshPanel().catch(error => console.error(`Luck Shop panel startup failed: ${error.message}`));
-            refreshTimer = setInterval(() => refreshPanel().catch(error => console.error(`Luck Shop panel refresh failed: ${error.message}`)), 60 * 1000);
-            refreshTimer.unref?.();
         };
         if (client.isReady?.()) start(); else client.once('ready', start);
 
         const previousStop = integration.stop;
         integration.stop = async (...args) => {
-            if (refreshTimer) clearInterval(refreshTimer);
             return previousStop?.(...args);
         };
         integration.refreshLuckShopPanel = refreshPanel;

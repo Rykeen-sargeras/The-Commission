@@ -38,6 +38,7 @@ function createEconomyIntegration(client, economy, options = {}) {
     let rolloverTimer = null;
     let panelTimer = null;
     let heistBoundaryTimer = null;
+    let dailyChannelCleanupTimer = null;
     let panelsRefreshing = false;
     const upsertPanel = createPanelUpserter(economy);
     const resetPreviews = new Map();
@@ -475,11 +476,88 @@ function createEconomyIntegration(client, economy, options = {}) {
         }
     }
 
+    function easternCleanupKey(now = new Date()) {
+        const parts = new Intl.DateTimeFormat('en-US', {
+            timeZone: 'America/New_York',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            hourCycle: 'h23',
+        }).formatToParts(now);
+        const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+        return {
+            dateKey: `${values.year}-${values.month}-${values.day}`,
+            hour: Number(values.hour || 0),
+        };
+    }
+
+    async function clearDailyGameMessages(guild) {
+        const channelIds = [...new Set([
+            economy.config.gamblingChannelId,
+            economy.config.heistChannelId,
+        ].map(value => String(value || '').trim()).filter(Boolean))];
+
+        const protectedIds = new Set([
+            economy.setting(guild.id, 'luck_shop_panel_message'),
+            economy.setting(guild.id, 'heist_panel_message'),
+        ].map(value => String(value || '').trim()).filter(Boolean));
+
+        let deleted = 0;
+        for (const channelId of channelIds) {
+            const channel = guild.channels.cache.get(channelId)
+                || await guild.channels.fetch(channelId).catch(() => null);
+            if (!channel?.isTextBased()) continue;
+
+            let before;
+            for (;;) {
+                const batch = await channel.messages.fetch({ limit: 100, ...(before ? { before } : {}) }).catch(error => {
+                    console.error(`Daily game cleanup could not read #${channel.name}: ${error.message}`);
+                    return null;
+                });
+                if (!batch?.size) break;
+
+                const botMessages = [...batch.values()].filter(message =>
+                    message.author?.id === client.user?.id && !protectedIds.has(message.id));
+                for (let index = 0; index < botMessages.length; index += 10) {
+                    const chunk = botMessages.slice(index, index + 10);
+                    const results = await Promise.allSettled(chunk.map(message => message.delete()));
+                    deleted += results.filter(result => result.status === 'fulfilled').length;
+                }
+
+                const oldest = [...batch.values()].at(-1);
+                before = oldest?.id;
+                if (batch.size < 100 || !before) break;
+            }
+        }
+        return deleted;
+    }
+
+    async function runDailyChannelCleanup() {
+        const { dateKey, hour } = easternCleanupKey();
+        if (hour < 9) return;
+
+        for (const guild of client.guilds.cache.values()) {
+            const settingKey = 'daily_discord_game_cleanup_date';
+            if (economy.setting(guild.id, settingKey) === dateKey) continue;
+            try {
+                const deleted = await clearDailyGameMessages(guild);
+                economy.setSetting(guild.id, settingKey, dateKey);
+                console.log(`🧹 9 AM ET game cleanup removed ${deleted} bot message(s) in ${guild.name}.`);
+            } catch (error) {
+                console.error(`Daily game cleanup failed in ${guild.name}: ${error.message}`);
+            }
+        }
+    }
+
     client.once('ready', async () => {
         await runWeeklyRollover().catch(error => console.error('Economy weekly rollover error:', error));
         await runMonthlyRollover().catch(error => console.error('Economy monthly rollover error:', error));
         await runRepRollover().catch(error => console.error('REP monthly rollover error:', error));
         await updatePersistentPanels().catch(error => console.error('Economy panel startup error:', error));
+        await runDailyChannelCleanup().catch(error => console.error('Daily game cleanup startup error:', error));
+        dailyChannelCleanupTimer = setInterval(() => runDailyChannelCleanup().catch(error => console.error('Daily game cleanup error:', error)), 60 * 1000);
+        dailyChannelCleanupTimer.unref?.();
         scheduleHeistBoundaryRefresh();
         voiceTimer = setInterval(() => rewardVoice().catch(error => console.error('Economy voice reward error:', error)), economy.config.voiceIntervalMinutes * 60000);
         repVoiceTimer = setInterval(() => rewardRepVoice().catch(error => console.error('REP voice reward error:', error)), 60000);
@@ -976,6 +1054,7 @@ function createEconomyIntegration(client, economy, options = {}) {
         if (rolloverTimer) clearInterval(rolloverTimer);
         if (panelTimer) clearInterval(panelTimer);
         if (heistBoundaryTimer) clearTimeout(heistBoundaryTimer);
+        if (dailyChannelCleanupTimer) clearInterval(dailyChannelCleanupTimer);
         economy.close();
     }
 

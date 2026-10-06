@@ -261,7 +261,6 @@ function installHeistGoonsPatch() {
         const previousStop = integration.stop;
         const upsertPanel = createPanelUpserter(economy);
         let panelTimer = null;
-        let storeTimer = null;
 
         function heistPanelPayload(state) {
             const round = state.round;
@@ -429,9 +428,7 @@ function installHeistGoonsPatch() {
             refreshHeists();
             refreshStorePanel().catch(() => {});
             panelTimer = setInterval(refreshHeists, PERSISTENT_PANEL_REFRESH_MS);
-            storeTimer = setInterval(() => refreshStorePanel().catch(() => {}), PERSISTENT_PANEL_REFRESH_MS);
             panelTimer.unref?.();
-            storeTimer.unref?.();
         };
         if (client.isReady?.()) start(); else client.once('ready', start);
 
@@ -439,7 +436,6 @@ function installHeistGoonsPatch() {
 
         integration.stop = async (...args) => {
             if (panelTimer) clearInterval(panelTimer);
-            if (storeTimer) clearInterval(storeTimer);
             return previousStop?.(...args);
         };
 
