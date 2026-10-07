@@ -18,6 +18,10 @@ const REMINDER_LOCAL_HOURS = new Set([9, 21]);
 const REMINDER_WINDOW_MINUTES = 15;
 const REMINDER_SLOT_SETTING = 'four_daily_heist_last_reminder_slot';
 const PERSISTENT_PANEL_REFRESH_MS = 3 * 60 * 1000;
+const SOLO_HEIST_ENTRY_FEE = 1_000_000;
+const SOLO_HEIST_COOLDOWN_MS = 3 * 60 * 60 * 1000;
+const SOLO_HEIST_SUCCESS_CHANCE = 55;
+const SOLO_HEIST_PAYOUT_MULTIPLIER = 1.5;
 
 const easternFormatter = new Intl.DateTimeFormat('en-US', {
     timeZone: EASTERN_TIME_ZONE,
@@ -142,6 +146,44 @@ function installFourDailyHeists() {
             super(options);
             this.config.heistEntryFee = HEIST_ENTRY_FEE;
             this.config.heistMinimumPlayers = 1;
+        }
+
+        soloHeist(guildId, userId, interactionId, now = Date.now()) {
+            return this.transaction(() => {
+                const cooldownKey = `solo_heist_last:${userId}`;
+                const lastAt = Number(super.setting(guildId, cooldownKey) || 0);
+                const remaining = SOLO_HEIST_COOLDOWN_MS - (now - lastAt);
+                if (lastAt && remaining > 0) {
+                    return { cooldown: remaining, nextAt: lastAt + SOLO_HEIST_COOLDOWN_MS };
+                }
+
+                const member = this.ensureMember(guildId, userId, now);
+                this.assertUsable(member);
+                const reserved = this.reserveWager(
+                    guildId,
+                    userId,
+                    SOLO_HEIST_ENTRY_FEE,
+                    interactionId,
+                    `solo-heist:${interactionId}`,
+                    now,
+                );
+                const success = (this.random() * 100) < SOLO_HEIST_SUCCESS_CHANCE;
+                const payout = success ? Math.floor(SOLO_HEIST_ENTRY_FEE * SOLO_HEIST_PAYOUT_MULTIPLIER) : 0;
+                let balance = reserved.balance;
+                if (payout > 0) {
+                    balance = this.applyDelta(guildId, userId, payout, 'solo-heist-payout', `x${SOLO_HEIST_PAYOUT_MULTIPLIER}`, null, now);
+                }
+                this.setSetting(guildId, cooldownKey, String(now));
+                return {
+                    success,
+                    wager: SOLO_HEIST_ENTRY_FEE,
+                    payout,
+                    multiplier: SOLO_HEIST_PAYOUT_MULTIPLIER,
+                    chance: SOLO_HEIST_SUCCESS_CHANCE,
+                    balance,
+                    nextAt: now + SOLO_HEIST_COOLDOWN_MS,
+                };
+            });
         }
 
         // Disable the older round-based automatic pinger. This patch owns the
@@ -356,6 +398,7 @@ function installFourDailyHeists() {
                     new Discord.ButtonBuilder().setCustomId(`econ:heist:join:${round.round_id}`).setLabel('Join Heist · 100K').setEmoji('⚔️').setStyle(Discord.ButtonStyle.Danger),
                     new Discord.ButtonBuilder().setCustomId(`econ:heist:status:${round.round_id}`).setLabel('My Entry').setStyle(Discord.ButtonStyle.Secondary),
                 ] : []),
+                new Discord.ButtonBuilder().setCustomId('econ:heist:solo').setLabel('Solo Heist · 1M').setEmoji('🥷').setStyle(Discord.ButtonStyle.Primary),
                 new Discord.ButtonBuilder().setCustomId('econ:heist:notify').setLabel('Ping Me for Heists').setEmoji('🔔').setStyle(Discord.ButtonStyle.Secondary),
             )];
             return {
@@ -370,7 +413,8 @@ function installFourDailyHeists() {
                         { name: 'Reward scaling', value: '150K per player · 1,000,000 maximum total payout', inline: false },
                         { name: 'Success rate', value: signup ? `${chance.toFixed(1)}% now · 66% base + 1.5% per player` : '66% base + 1.5% per player', inline: false },
                         { name: 'Schedule', value: '4 heists/day · 3 AM · 9 AM · 3 PM · 9 PM Eastern', inline: false },
-                        { name: 'Battles', value: 'Every heist is either a **Boss Battle** or **PvP Battle**.', inline: false },
+                        { name: 'Battles', value: 'Every scheduled heist is either a **Boss Battle** or **PvP Battle**.', inline: false },
+                        { name: 'Solo Heist', value: `1,000,000 ${economy.config.currencyName} entry · 55% success · 1.5× payout · 3-hour personal cooldown`, inline: false },
                         { name: 'Heist pings', value: 'Opt-in reminders are sent at **9 AM and 9 PM Eastern only**.', inline: false },
                     )
                     .setFooter({ text: 'Persistent heist panel · 100K entry · PvP balance theft capped at 10%' })
@@ -425,6 +469,33 @@ function installFourDailyHeists() {
         }
 
         integration.handleButton = async interaction => {
+            if (interaction.isButton?.() && interaction.customId === 'econ:heist:solo') {
+                try {
+                    const minimumAge = Number(economy.config.minimumAccountAgeDays || 0);
+                    if (Date.now() - interaction.user.createdTimestamp < minimumAge * 86400000) {
+                        throw new Error(`Your Discord account must be at least ${minimumAge} days old.`);
+                    }
+                    const result = economy.soloHeist(interaction.guild.id, interaction.user.id, interaction.id);
+                    if (result.cooldown) {
+                        await interaction.reply({
+                            content: `🥷 Your solo-heist crew is laying low. You can run another solo heist <t:${Math.floor(result.nextAt / 1000)}:R>.`,
+                            ephemeral: true,
+                        });
+                        return true;
+                    }
+                    const outcome = result.success
+                        ? `✅ **Solo heist succeeded.** Your **${Number(result.wager).toLocaleString('en-US')}** entry paid **${Number(result.payout).toLocaleString('en-US')} ${economy.config.currencyName}** at **${result.multiplier}×**.`
+                        : `❌ **Solo heist failed.** The **${Number(result.wager).toLocaleString('en-US')} ${economy.config.currencyName}** entry was lost.`;
+                    await interaction.reply({
+                        content: `${outcome}\nSuccess chance: **${result.chance}%** · Balance: **${Number(result.balance).toLocaleString('en-US')}**\nNext solo heist <t:${Math.floor(result.nextAt / 1000)}:R>.`,
+                        ephemeral: true,
+                    });
+                } catch (error) {
+                    await interaction.reply({ content: `❌ ${error.message}`, ephemeral: true }).catch(() => {});
+                }
+                return true;
+            }
+
             if (interaction.isButton?.() && interaction.customId.startsWith('econ:heist:join:')) {
                 try {
                     const minimumAge = Number(economy.config.minimumAccountAgeDays || 0);
@@ -494,6 +565,10 @@ module.exports = {
     HEIST_LOCAL_HOURS,
     HEIST_MAX_REWARD,
     HEIST_SUCCESS_PER_PLAYER,
+    SOLO_HEIST_ENTRY_FEE,
+    SOLO_HEIST_COOLDOWN_MS,
+    SOLO_HEIST_SUCCESS_CHANCE,
+    SOLO_HEIST_PAYOUT_MULTIPLIER,
     fourDailySchedule,
     heistSuccessChance,
     installFourDailyHeists,
