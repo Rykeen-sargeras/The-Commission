@@ -18,36 +18,48 @@ const slotSymbols = slots.serverSymbols({ emojis: { cache: new Map() } });
 assert.strictEqual(slotSymbols.length, 10);
 assert.strictEqual(slotSymbols.at(-1).wild, true);
 assert.strictEqual(slots.spinGrid(slotSymbols, () => 0.5).length, 20);
-assert.strictEqual(Number(slots.slotsExpectedReturn().toFixed(3)), 0.954);
-assert.strictEqual(slots.SLOT_CONSOLATION_MIN, 0.01);
-assert.strictEqual(slots.SLOT_CONSOLATION_MAX, 1.10);
-assert.strictEqual(slots.consolationMultiplier(() => 0), 0.01);
-assert.strictEqual(slots.consolationMultiplier(() => 0.5), 0.56);
-assert.strictEqual(slots.consolationMultiplier(() => 0.999999), 1.10);
+assert.deepStrictEqual(slotSymbols.map(symbol => symbol.chance), [24, 20, 15.5, 12, 9, 7, 5, 3, 1, 3.5]);
+assert.strictEqual(slots.symbolChanceTotal(slotSymbols), 100);
+assert.strictEqual(Number(slots.slotsExpectedReturn().toFixed(3)), 1.028);
 
 const uniqueGrid = Array.from({ length: 20 }, (_, index) => ({
-    key: `unique-${index}`, render: String(index), multiplier: 2, weight: 1, wild: false,
+    key: `unique-${index}`, render: String(index), payouts: { 3: 0.5, 4: 2, 5: 6 }, chance: 1, wild: false,
 }));
-const winningSymbol = { key: 'winner', render: '🍒', multiplier: 2, weight: 1, wild: false };
+const winningSymbol = { key: 'winner', render: '🍒', payouts: { 3: 0.5, 4: 2, 5: 6 }, chance: 24, wild: false };
 uniqueGrid[0] = winningSymbol;
 uniqueGrid[1] = { ...slots.WILD };
 uniqueGrid[2] = winningSymbol;
 uniqueGrid[3] = winningSymbol;
 uniqueGrid[4] = winningSymbol;
-const wildResult = slots.evaluateGrid(uniqueGrid, () => 0);
+const wildResult = slots.evaluateGrid(uniqueGrid);
 assert.strictEqual(wildResult.wins.length, 1);
 assert.strictEqual(wildResult.wins[0].count, 5);
 assert.strictEqual(wildResult.wins[0].wilds, 1);
-assert.strictEqual(wildResult.wins[0].multiplier, 1.5);
+assert.strictEqual(wildResult.wins[0].multiplier, 6);
 
 const shortWinGrid = Array.from({ length: 20 }, (_, index) => ({
-    key: `short-${index}`, render: String(index), multiplier: 2, weight: 1, wild: false,
+    key: `short-${index}`, render: String(index), payouts: { 3: 0.5, 4: 2, 5: 6 }, chance: 1, wild: false,
 }));
 shortWinGrid[0] = winningSymbol;
 shortWinGrid[1] = winningSymbol;
 shortWinGrid[2] = winningSymbol;
-assert.strictEqual(slots.evaluateGrid(shortWinGrid, () => 0).wins[0].multiplier, 0.3);
-assert.strictEqual(slots.evaluateGrid(shortWinGrid, () => 1).wins[0].multiplier, 0.7);
+assert.strictEqual(slots.evaluateGrid(shortWinGrid).wins[0].multiplier, 0.5);
+
+let simulationSeed = 0x5eed1234;
+const simulationRandom = () => {
+    simulationSeed = (Math.imul(1664525, simulationSeed) + 1013904223) >>> 0;
+    return simulationSeed / 0x100000000;
+};
+let aboveFive = 0;
+let aboveTen = 0;
+const simulationSpins = 50_000;
+for (let index = 0; index < simulationSpins; index += 1) {
+    const result = slots.evaluateGrid(slots.spinGrid(slotSymbols, simulationRandom));
+    if (result.multiplier > 5) aboveFive += 1;
+    if (result.multiplier > 10) aboveTen += 1;
+}
+assert(aboveFive / simulationSpins > 0.045, 'More than 4.5% of spins should pay above 5×.');
+assert(aboveTen / simulationSpins > 0.009, 'More than 0.9% of spins should pay above 10×.');
 
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'commission-balance-patch-'));
 const service = new EconomyService({

@@ -2,17 +2,22 @@
 
 const SLOT_COLUMNS = 5;
 const SLOT_ROWS = 4;
-const SLOT_MULTIPLIERS = Object.freeze([2, 3, 5, 8, 12, 18, 30, 50, 100]);
-const SLOT_WEIGHTS = Object.freeze([260, 210, 160, 125, 90, 65, 45, 25, 10]);
+const SLOT_CHANCES = Object.freeze([24, 20, 15.5, 12, 9, 7, 5, 3, 1]);
+const SLOT_PAYOUTS = Object.freeze([
+    Object.freeze({ 3: 0.5, 4: 2, 5: 6 }),
+    Object.freeze({ 3: 0.75, 4: 2.5, 5: 8 }),
+    Object.freeze({ 3: 1.25, 4: 3.5, 5: 10 }),
+    Object.freeze({ 3: 1.5, 4: 5, 5: 15 }),
+    Object.freeze({ 3: 2.5, 4: 7, 5: 20 }),
+    Object.freeze({ 3: 4, 4: 10, 5: 30 }),
+    Object.freeze({ 3: 6, 4: 15, 5: 50 }),
+    Object.freeze({ 3: 10, 4: 30, 5: 100 }),
+    Object.freeze({ 3: 25, 4: 75, 5: 250 }),
+]);
 const SLOT_FALLBACK = Object.freeze(['🍒','🍋','🍊','🍇','🔔','💎','🍀','👑','💰']);
-const WILD = Object.freeze({ key: 'wild', render: '🃏', name: 'Wild', multiplier: 25, weight: 45, wild: true });
-const SLOT_CONSOLATION_MIN = 0.01;
-const SLOT_CONSOLATION_MAX = 1.10;
-
-const MATCH_PAYOUT_FACTORS = Object.freeze({
-    3: Object.freeze([0.15, 0.35]),
-    4: Object.freeze([0.35, 0.65]),
-    5: Object.freeze([0.75, 1.15]),
+const WILD = Object.freeze({
+    key: 'wild', render: '🃏', name: 'Wild', chance: 3.5, weight: 3.5,
+    payouts: Object.freeze({ 3: 50, 4: 150, 5: 500 }), wild: true,
 });
 
 // Each payline crosses the five reels from left to right on the row-major 5×4 grid.
@@ -35,19 +40,24 @@ function serverSymbols(guild) {
     }
     const regular = symbols.slice(0, 9).map((symbol, index) => ({
         ...symbol,
-        multiplier: SLOT_MULTIPLIERS[index],
-        weight: SLOT_WEIGHTS[index],
+        chance: SLOT_CHANCES[index],
+        weight: SLOT_CHANCES[index],
+        payouts: SLOT_PAYOUTS[index],
         wild: false,
     }));
     return [...regular, { ...WILD }];
 }
 
+function symbolChanceTotal(symbols) {
+    return symbols.reduce((sum, symbol) => sum + Number(symbol.chance || 0), 0);
+}
+
 function weightedSymbol(symbols, random) {
-    const total = symbols.reduce((sum, symbol) => sum + symbol.weight, 0);
-    let pick = Math.floor(Math.min(0.999999999, Math.max(0, random())) * total);
+    const total = symbolChanceTotal(symbols);
+    let pick = Math.min(0.999999999, Math.max(0, random())) * total;
     for (const symbol of symbols) {
-        if (pick < symbol.weight) return symbol;
-        pick -= symbol.weight;
+        if (pick < symbol.chance) return symbol;
+        pick -= symbol.chance;
     }
     return symbols[0];
 }
@@ -61,39 +71,25 @@ function roundedMultiplier(value) {
 }
 
 function slotsExpectedReturn() {
-    const totalWeight = SLOT_WEIGHTS.reduce((sum, weight) => sum + weight, WILD.weight);
-    const wildProbability = WILD.weight / totalWeight;
-    const averageFactor = count => {
-        const [low, high] = MATCH_PAYOUT_FACTORS[count];
-        return (low + high) / 2;
-    };
+    const wildProbability = WILD.chance / 100;
     let expectedPerLine = 0;
-    SLOT_WEIGHTS.forEach((weight, index) => {
-        const probability = weight / totalWeight;
+    SLOT_CHANCES.forEach((chance, index) => {
+        const probability = chance / 100;
         const allowed = probability + wildProbability;
-        const three = ((allowed ** 3) - (wildProbability ** 3)) * (1 - allowed);
-        const four = ((allowed ** 4) - (wildProbability ** 4)) * (1 - allowed);
-        const five = (allowed ** 5) - (wildProbability ** 5);
-        expectedPerLine += SLOT_MULTIPLIERS[index] * (
-            (three * averageFactor(3)) + (four * averageFactor(4)) + (five * averageFactor(5))
-        );
+        const matchProbabilities = {
+            3: ((allowed ** 3) - (wildProbability ** 3)) * (1 - allowed),
+            4: ((allowed ** 4) - (wildProbability ** 4)) * (1 - allowed),
+            5: (allowed ** 5) - (wildProbability ** 5),
+        };
+        for (const count of [3, 4, 5]) {
+            expectedPerLine += matchProbabilities[count] * SLOT_PAYOUTS[index][count];
+        }
     });
-    expectedPerLine += (wildProbability ** 5) * WILD.multiplier * averageFactor(5);
+    expectedPerLine += (wildProbability ** 5) * WILD.payouts[5];
     return expectedPerLine * PAYLINES.length;
 }
 
-function consolationMultiplier(random = Math.random) {
-    const roll = Math.min(0.999999999, Math.max(0, random()));
-    return roundedMultiplier(SLOT_CONSOLATION_MIN + ((SLOT_CONSOLATION_MAX - SLOT_CONSOLATION_MIN) * roll));
-}
-
-function randomizedPayout(symbol, count, random) {
-    const [minimumFactor, maximumFactor] = MATCH_PAYOUT_FACTORS[count];
-    const roll = Math.min(0.999999999, Math.max(0, random()));
-    return roundedMultiplier(symbol.multiplier * (minimumFactor + ((maximumFactor - minimumFactor) * roll)));
-}
-
-function evaluateLine(grid, line, random) {
+function evaluateLine(grid, line) {
     const lineSymbols = line.map(position => grid[position]);
     const payingSymbol = lineSymbols.find(symbol => !symbol.wild) || WILD;
     let count = 0;
@@ -108,17 +104,17 @@ function evaluateLine(grid, line, random) {
         symbol: payingSymbol,
         count,
         wilds,
-        multiplier: randomizedPayout(payingSymbol, count, random),
+        multiplier: payingSymbol.payouts[count],
     };
 }
 
-function evaluateGrid(grid, random = Math.random) {
+function evaluateGrid(grid) {
     if (!Array.isArray(grid) || grid.length !== SLOT_COLUMNS * SLOT_ROWS) {
         throw new Error(`Slots grid must contain exactly ${SLOT_COLUMNS * SLOT_ROWS} symbols.`);
     }
     const wins = [];
     PAYLINES.forEach((line, index) => {
-        const win = evaluateLine(grid, line, random);
+        const win = evaluateLine(grid, line);
         if (win) wins.push({ line: index + 1, ...win });
     });
     return {
@@ -135,11 +131,11 @@ EconomyService.prototype.slots = function slots(guildId, userId, wager, interact
         const reserved = this.reserveWager(guildId, userId, amount, interactionId, `slots:${interactionId}`, now);
 
         let grid = spinGrid(symbols, this.random);
-        let result = evaluateGrid(grid, this.random);
+        let result = evaluateGrid(grid);
         let luckyRespins = false;
         if (result.multiplier === 0 && typeof this.luckProc === 'function' && this.luckProc(guildId, userId, now)) {
             const secondGrid = spinGrid(symbols, this.random);
-            const secondResult = evaluateGrid(secondGrid, this.random);
+            const secondResult = evaluateGrid(secondGrid);
             if (secondResult.multiplier > result.multiplier) {
                 grid = secondGrid;
                 result = secondResult;
@@ -147,15 +143,7 @@ EconomyService.prototype.slots = function slots(guildId, userId, wager, interact
             luckyRespins = true;
         }
 
-        let consolation = false;
-        if (result.multiplier === 0) {
-            result = { ...result, multiplier: consolationMultiplier(this.random) };
-            consolation = true;
-        }
-
-        const payout = consolation
-            ? Math.max(1, Math.floor(reserved.amount * result.multiplier))
-            : Math.floor(reserved.amount * result.multiplier);
+        const payout = Math.floor(reserved.amount * result.multiplier);
         let balance = reserved.balance;
         if (payout > 0) balance = this.applyDelta(guildId, userId, payout, 'slots-payout', `x${result.multiplier}`, null, now);
         const won = payout > reserved.amount;
@@ -171,7 +159,6 @@ EconomyService.prototype.slots = function slots(guildId, userId, wager, interact
             payout,
             balance,
             luckyRespins,
-            consolation,
         };
     });
 };
@@ -180,18 +167,15 @@ EconomyService.prototype.slots = function slots(guildId, userId, wager, interact
 module.exports = {
     SLOT_COLUMNS,
     SLOT_ROWS,
-    SLOT_MULTIPLIERS,
-    SLOT_WEIGHTS,
+    SLOT_CHANCES,
+    SLOT_PAYOUTS,
     SLOT_FALLBACK,
     WILD,
-    MATCH_PAYOUT_FACTORS,
-    SLOT_CONSOLATION_MIN,
-    SLOT_CONSOLATION_MAX,
     PAYLINES,
     serverSymbols,
+    symbolChanceTotal,
     spinGrid,
     slotsExpectedReturn,
-    consolationMultiplier,
     evaluateGrid,
     installSlots,
 };

@@ -131,27 +131,21 @@ function slotsPayload(result, guild, currencyName) {
         const start = row * slots.SLOT_COLUMNS;
         return result.grid.slice(start, start + slots.SLOT_COLUMNS).map(symbol => symbol.render).join('  ');
     }).join('\n');
-    const paytable = symbols.filter(symbol => !symbol.wild).map(symbol => {
-        const ranges = [3, 4, 5].map(count => {
-            const [low, high] = slots.MATCH_PAYOUT_FACTORS[count];
-            return `${Number((symbol.multiplier * low).toFixed(1))}–${Number((symbol.multiplier * high).toFixed(1))}×`;
-        });
-        return `${symbol.render} ${ranges.join(' / ')}`;
-    }).join('\n');
+    const paytable = symbols.filter(symbol => !symbol.wild)
+        .map(symbol => `${symbol.render} **${symbol.chance}%** → ${symbol.payouts[3]}× / ${symbol.payouts[4]}× / ${symbol.payouts[5]}×`)
+        .join('\n');
     const wins = result.wins.length
         ? result.wins.map(win => `Line ${win.line}: ${win.symbol.render} × ${win.count}${win.wilds ? ` (${win.wilds} wild)` : ''} → **${win.multiplier}×**`).join('\n')
-        : result.consolation
-            ? `No matching payline. Low-tier return triggered → **${result.multiplier}×**.`
-            : 'No matching payline this spin.';
+        : 'No matching payline this spin.';
     return { embeds: [new Discord.EmbedBuilder().setColor(result.payout > 0 ? 0x2ea043 : 0x9b1c31)
         .setTitle('🎰 The Commission — 5×4 Wild Slots').setDescription(`${board}\n\n${wins}`).addFields(
             { name: 'Wager', value: `${money(result.wager)} ${currencyName}`, inline: true },
             { name: 'Total multiplier', value: `${result.multiplier}×`, inline: true },
             { name: 'Payout', value: `${money(result.payout)} ${currencyName}`, inline: true },
             { name: 'Balance', value: `${money(result.balance)} ${currencyName}`, inline: true },
-            { name: 'Random payout ranges · 3 / 4 / 5 matches', value: paytable },
-            { name: '🃏 Wild', value: 'Substitutes for every symbol. Wins count matching symbols from the leftmost reel.' },
-        ).setFooter({ text: `${slots.PAYLINES.length} paylines · normal 0× results are replaced by a weighted 0.01×–1.10× fallback; >1× is rare` }).setTimestamp()] };
+            { name: 'Symbol chance → fixed 3 / 4 / 5-match payout', value: paytable },
+            { name: '🃏 Wild · 3.5%', value: 'Substitutes for every symbol. Five wilds pay 500×. Wins count from the leftmost reel.' },
+        ).setFooter({ text: `${slots.PAYLINES.length} paylines · fixed symbol odds and payouts · winning lines stack · no consolation roll` }).setTimestamp()] };
 }
 
 function higherLowerPayload(game, userMention, currencyName, note = '') {
