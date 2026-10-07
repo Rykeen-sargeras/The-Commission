@@ -7,6 +7,12 @@ const PERSONAL_LUCK_ITEMS = Object.freeze({
     'luck-5': Object.freeze({ key: 'luck-5', name: 'Made Luck', percent: 5, cost: 30000 }),
     'luck-10': Object.freeze({ key: 'luck-10', name: 'Boss Luck', percent: 10, cost: 250000 }),
 });
+const PRESTIGE_ITEMS = Object.freeze({
+    'prestige-25m': Object.freeze({ key: 'prestige-25m', name: '25M Prestige Token', percent: 0, cost: 25_000_000, collectible: true }),
+    'prestige-30m': Object.freeze({ key: 'prestige-30m', name: '30M Prestige Token', percent: 0, cost: 30_000_000, collectible: true }),
+    'prestige-50m': Object.freeze({ key: 'prestige-50m', name: '50M Prestige Token', percent: 0, cost: 50_000_000, collectible: true }),
+    'prestige-100m': Object.freeze({ key: 'prestige-100m', name: '100M Prestige Token', percent: 0, cost: 100_000_000, collectible: true }),
+});
 const GLOBAL_LUCK_COST = 1000;
 const GLOBAL_LUCK_PERCENT = 0.75;
 const GLOBAL_LUCK_MAX_ACTIVE_PER_USER = 20;
@@ -356,6 +362,10 @@ discordEconomy.economyCommandData = function luckShopCommandData() {
             { name: 'Buy +1% personal luck — 5,000', value: 'luck-1' },
             { name: 'Buy +5% personal luck — 30,000', value: 'luck-5' },
             { name: 'Buy +10% personal luck — 250,000', value: 'luck-10' },
+            { name: 'Buy 25M Prestige Token — one time', value: 'prestige-25m' },
+            { name: 'Buy 30M Prestige Token — one time', value: 'prestige-30m' },
+            { name: 'Buy 50M Prestige Token — one time', value: 'prestige-50m' },
+            { name: 'Buy 100M Prestige Token — one time', value: 'prestige-100m' },
             { name: 'Add +0.75% global luck for 24h — 1,000 (max 20 active)', value: 'global' },
         )).toJSON());
     return commands;
@@ -375,15 +385,17 @@ discordEconomy.createEconomyIntegration = function createLuckShopIntegration(cli
             if (action === 'global') {
                 result = economy.contributeGlobalLuck(interaction.guild.id, interaction.user.id, interaction.id);
                 headline = '🍀 Community Luck Increased';
-            } else if (PERSONAL_LUCK_ITEMS[action]) {
+            } else if (PERSONAL_LUCK_ITEMS[action] || PRESTIGE_ITEMS[action]) {
                 result = economy.buyLuckItem(interaction.guild.id, interaction.user.id, action, interaction.id);
-                headline = `🍀 Purchased ${result.item.name}`;
+                headline = result.item.collectible ? `🏆 Purchased ${result.item.name}` : `🍀 Purchased ${result.item.name}`;
             } else result = economy.luckShopStatus(interaction.guild.id, interaction.user.id);
 
             const status = economy.luckShopStatus(interaction.guild.id, interaction.user.id);
             const owned = new Set(status.purchases.map(item => item.item_key));
             const itemLines = Object.values(PERSONAL_LUCK_ITEMS).map(item =>
                 `${owned.has(item.key) ? '✅' : '🛒'} **${item.name}** — +${item.percent}% personal luck — ${money(item.cost)} ${economy.config.currencyName}${owned.has(item.key) ? ' · owned' : ''}`);
+            const prestigeLines = Object.values(PRESTIGE_ITEMS).map(item =>
+                `${owned.has(item.key) ? '✅' : '🛒'} **${item.name}** — one-time collectible — ${money(item.cost)} ${economy.config.currencyName}${owned.has(item.key) ? ' · owned' : ''}`);
             const activeMine = Number(status.activeGlobalContributionsByUser || 0);
             const limit = Number(status.globalContributionLimit || GLOBAL_LUCK_MAX_ACTIVE_PER_USER);
             const globalLine = status.canContributeGlobal
@@ -393,10 +405,12 @@ discordEconomy.createEconomyIntegration = function createLuckShopIntegration(cli
                 ? `\n\nYou added **+${GLOBAL_LUCK_PERCENT}%** global luck until <t:${Math.floor(result.expiresAt / 1000)}:R>.`
                 : PERSONAL_LUCK_ITEMS[action]
                     ? `\n\nYour permanent personal luck increased by **+${result.item.percent}%**.`
-                    : '';
+                    : PRESTIGE_ITEMS[action]
+                        ? `\n\nYou unlocked **${result.item.name}**. It has no hidden luck or gambling modifier.`
+                        : '';
 
             await interaction.reply({ embeds: [new Discord.EmbedBuilder().setColor(0x2ea043).setTitle(headline)
-                .setDescription(`${itemLines.join('\n')}\n\n🌐 **Community Pot**\n${globalLine}${extra}`)
+                .setDescription(`${itemLines.join('\n')}\n\n🏆 **Prestige Collectibles**\n${prestigeLines.join('\n')}\n\n🌐 **Community Pot**\n${globalLine}${extra}`)
                 .addFields(
                     { name: 'Personal luck', value: `+${status.personalLuck}%`, inline: true },
                     { name: 'Global luck', value: `+${status.globalLuck}%`, inline: true },
@@ -417,6 +431,7 @@ discordEconomy.createEconomyIntegration = function createLuckShopIntegration(cli
 
 module.exports = {
     PERSONAL_LUCK_ITEMS,
+    PRESTIGE_ITEMS,
     GLOBAL_LUCK_COST,
     GLOBAL_LUCK_PERCENT,
     GLOBAL_LUCK_MAX_ACTIVE_PER_USER,
