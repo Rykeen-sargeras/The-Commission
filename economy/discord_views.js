@@ -151,7 +151,7 @@ function slotsPayload(result, guild, currencyName) {
             { name: 'Balance', value: `${money(result.balance)} ${currencyName}`, inline: true },
             { name: 'Random payout ranges · 3 / 4 / 5 matches', value: paytable },
             { name: '🃏 Wild', value: 'Substitutes for every symbol. Wins count matching symbols from the leftmost reel.' },
-        ).setFooter({ text: `${slots.PAYLINES.length} paylines · non-winning grids receive a heavily weighted 0.01×–1.00× low-tier return` }).setTimestamp()] };
+        ).setFooter({ text: `${slots.PAYLINES.length} paylines · normal 0× results are replaced by a weighted 0.01×–1.10× fallback; >1× is rare` }).setTimestamp()] };
 }
 
 function higherLowerPayload(game, userMention, currencyName, note = '') {
