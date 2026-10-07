@@ -104,7 +104,7 @@ function installLeaderboardGuard() {
         }
 
         integration.handleCommand = async interaction => {
-            if (interaction.isChatInputCommand?.() && interaction.commandName === 'balance') {
+            if (interaction.isChatInputCommand?.() && ['balance', 'daily'].includes(interaction.commandName)) {
                 const channel = await resolveBalanceCheckChannel(interaction.guild);
                 if (!channel) {
                     await interaction.reply({
@@ -115,7 +115,9 @@ function installLeaderboardGuard() {
                 }
                 if (interaction.channelId !== channel.id) {
                     await interaction.reply({
-                        content: `🩸 Balance checks are restricted to <#${channel.id}>.`,
+                        content: interaction.commandName === 'daily'
+                            ? `🩸 Daily claims are restricted to <#${channel.id}>.`
+                            : `🩸 Balance checks are restricted to <#${channel.id}>.`,
                         ephemeral: true,
                     }).catch(() => {});
                     return true;
