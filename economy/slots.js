@@ -7,14 +7,18 @@ const SLOT_WEIGHTS = Object.freeze([260, 210, 160, 125, 90, 65, 45, 25, 10]);
 const SLOT_FALLBACK = Object.freeze(['🍒','🍋','🍊','🍇','🔔','💎','🍀','👑','💰']);
 const WILD = Object.freeze({ key: 'wild', render: '🃏', name: 'Wild', multiplier: 25, weight: 45, wild: true });
 const SLOT_CONSOLATION_TABLE = Object.freeze([
+    // This table is used only when the normal payline result would have been 0×.
+    // Tiny partial returns dominate; break-even and profitable fallbacks are intentionally rare.
     Object.freeze({ multiplier: 0.01, weight: 500000 }),
     Object.freeze({ multiplier: 0.02, weight: 200000 }),
     Object.freeze({ multiplier: 0.05, weight: 120000 }),
     Object.freeze({ multiplier: 0.10, weight: 80000 }),
     Object.freeze({ multiplier: 0.25, weight: 50000 }),
     Object.freeze({ multiplier: 0.50, weight: 30000 }),
-    Object.freeze({ multiplier: 0.75, weight: 15000 }),
+    Object.freeze({ multiplier: 0.75, weight: 12000 }),
     Object.freeze({ multiplier: 1.00, weight: 5000 }),
+    Object.freeze({ multiplier: 1.05, weight: 2000 }),
+    Object.freeze({ multiplier: 1.10, weight: 1000 }),
 ]);
 const SLOT_CONSOLATION_WEIGHT_TOTAL = SLOT_CONSOLATION_TABLE.reduce((sum, row) => sum + row.weight, 0);
 
