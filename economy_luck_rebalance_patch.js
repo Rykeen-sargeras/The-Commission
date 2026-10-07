@@ -23,6 +23,35 @@ const DAILY_RARE_MIN = 50_001;
 const DAILY_RARE_MAX = 250_000;
 const DAILY_COMMON_CHANCE = 0.80;
 
+const BALANCE_CHANNEL_SETTING = 'balance_check_channel_id';
+
+function normalizedChannelName(channel) {
+    return String(channel?.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+
+function isBalanceCheckName(channel) {
+    const name = normalizedChannelName(channel);
+    return name === 'balance-check'
+        || name === 'balance-checks'
+        || name === 'check-balance'
+        || (name.includes('balance') && name.includes('check'));
+}
+
+async function resolveBalanceCheckChannel(economy, guild) {
+    const stored = economy.setting(guild.id, BALANCE_CHANNEL_SETTING);
+    if (stored) {
+        const channel = guild.channels.cache.get(stored) || await guild.channels.fetch(stored).catch(() => null);
+        if (channel?.isTextBased()) return channel;
+    }
+
+    const channels = guild.channels.cache.size
+        ? guild.channels.cache
+        : await guild.channels.fetch().catch(() => guild.channels.cache);
+    const match = [...channels.values()].find(channel => channel?.isTextBased?.() && isBalanceCheckName(channel));
+    if (match) economy.setSetting(guild.id, BALANCE_CHANNEL_SETTING, match.id);
+    return match || null;
+}
+
 function money(value) {
     return Number(value || 0).toLocaleString('en-US');
 }
@@ -256,6 +285,23 @@ function installLuckRebalancePatch() {
 
         integration.handleCommand = async interaction => {
             if (!interaction.isChatInputCommand?.() || interaction.commandName !== 'daily') return previousHandleCommand(interaction);
+
+            const balanceChannel = await resolveBalanceCheckChannel(economy, interaction.guild);
+            if (!balanceChannel) {
+                await interaction.reply({
+                    content: '❌ I could not find the **balance-check** channel. Ask an admin to create or rename that channel.',
+                    ephemeral: true,
+                }).catch(() => {});
+                return true;
+            }
+            if (interaction.channelId !== balanceChannel.id) {
+                await interaction.reply({
+                    content: `🩸 Daily claims are restricted to <#${balanceChannel.id}>.`,
+                    ephemeral: true,
+                }).catch(() => {});
+                return true;
+            }
+
             const result = economy.claimDaily(interaction.guild.id, interaction.user.id, interaction.id);
             if (result.cooldown) {
                 const hours = Math.floor(result.cooldown / 3_600_000);
