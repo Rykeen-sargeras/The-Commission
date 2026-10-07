@@ -6,6 +6,18 @@ const SLOT_MULTIPLIERS = Object.freeze([2, 3, 5, 8, 12, 18, 30, 50, 100]);
 const SLOT_WEIGHTS = Object.freeze([260, 210, 160, 125, 90, 65, 45, 25, 10]);
 const SLOT_FALLBACK = Object.freeze(['🍒','🍋','🍊','🍇','🔔','💎','🍀','👑','💰']);
 const WILD = Object.freeze({ key: 'wild', render: '🃏', name: 'Wild', multiplier: 25, weight: 45, wild: true });
+const SLOT_CONSOLATION_TABLE = Object.freeze([
+    Object.freeze({ multiplier: 0.01, weight: 500000 }),
+    Object.freeze({ multiplier: 0.02, weight: 200000 }),
+    Object.freeze({ multiplier: 0.05, weight: 120000 }),
+    Object.freeze({ multiplier: 0.10, weight: 80000 }),
+    Object.freeze({ multiplier: 0.25, weight: 50000 }),
+    Object.freeze({ multiplier: 0.50, weight: 30000 }),
+    Object.freeze({ multiplier: 0.75, weight: 15000 }),
+    Object.freeze({ multiplier: 1.00, weight: 5000 }),
+]);
+const SLOT_CONSOLATION_WEIGHT_TOTAL = SLOT_CONSOLATION_TABLE.reduce((sum, row) => sum + row.weight, 0);
+
 const MATCH_PAYOUT_FACTORS = Object.freeze({
     3: Object.freeze([0.15, 0.35]),
     4: Object.freeze([0.35, 0.65]),
@@ -79,6 +91,15 @@ function slotsExpectedReturn() {
     return expectedPerLine * PAYLINES.length;
 }
 
+function consolationMultiplier(random = Math.random) {
+    let pick = Math.floor(Math.min(0.999999999, Math.max(0, random())) * SLOT_CONSOLATION_WEIGHT_TOTAL);
+    for (const row of SLOT_CONSOLATION_TABLE) {
+        if (pick < row.weight) return row.multiplier;
+        pick -= row.weight;
+    }
+    return SLOT_CONSOLATION_TABLE[0].multiplier;
+}
+
 function randomizedPayout(symbol, count, random) {
     const [minimumFactor, maximumFactor] = MATCH_PAYOUT_FACTORS[count];
     const roll = Math.min(0.999999999, Math.max(0, random()));
@@ -139,7 +160,15 @@ EconomyService.prototype.slots = function slots(guildId, userId, wager, interact
             luckyRespins = true;
         }
 
-        const payout = Math.floor(reserved.amount * result.multiplier);
+        let consolation = false;
+        if (result.multiplier === 0) {
+            result = { ...result, multiplier: consolationMultiplier(this.random) };
+            consolation = true;
+        }
+
+        const payout = consolation
+            ? Math.max(1, Math.floor(reserved.amount * result.multiplier))
+            : Math.floor(reserved.amount * result.multiplier);
         let balance = reserved.balance;
         if (payout > 0) balance = this.applyDelta(guildId, userId, payout, 'slots-payout', `x${result.multiplier}`, null, now);
         const won = payout > reserved.amount;
@@ -155,6 +184,7 @@ EconomyService.prototype.slots = function slots(guildId, userId, wager, interact
             payout,
             balance,
             luckyRespins,
+            consolation,
         };
     });
 };
@@ -168,10 +198,13 @@ module.exports = {
     SLOT_FALLBACK,
     WILD,
     MATCH_PAYOUT_FACTORS,
+    SLOT_CONSOLATION_TABLE,
+    SLOT_CONSOLATION_WEIGHT_TOTAL,
     PAYLINES,
     serverSymbols,
     spinGrid,
     slotsExpectedReturn,
+    consolationMultiplier,
     evaluateGrid,
     installSlots,
 };

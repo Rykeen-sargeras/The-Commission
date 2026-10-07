@@ -16,7 +16,14 @@ const HEIST_ITEMS = Object.freeze({
     'hired-goon': Object.freeze({ key: 'hired-goon', name: 'Hired Goon', cost: 100000, description: 'Hire one goon for 24 hours. Up to 2 can be active. You receive 50% of each goon\'s cut and absorb 25% of its loss exposure on failed PvP battles.' }),
 });
 const GLOBAL_COST = 1000;
-const GLOBAL_PERCENT = 0.5;
+const GLOBAL_PERCENT = 0.75;
+const GLOBAL_MAX_PER_USER = 20;
+const PRESTIGE_ITEMS = Object.freeze({
+    'prestige-25m': Object.freeze({ key: 'prestige-25m', name: '25M Prestige Token', cost: 25_000_000 }),
+    'prestige-30m': Object.freeze({ key: 'prestige-30m', name: '30M Prestige Token', cost: 30_000_000 }),
+    'prestige-50m': Object.freeze({ key: 'prestige-50m', name: '50M Prestige Token', cost: 50_000_000 }),
+    'prestige-100m': Object.freeze({ key: 'prestige-100m', name: '100M Prestige Token', cost: 100_000_000 }),
+});
 
 function money(value) {
     return Number(value || 0).toLocaleString('en-US');
@@ -52,9 +59,11 @@ function panelPayload(economy, guildId, now = Date.now()) {
             `🤵 **Hired Goon** — **${money(100000)} ${economy.config.currencyName} each** · lasts **24 hours** · max **2 active**. ` +
             'Each goon counts toward heist strength. You receive **50% of each goon\'s cut**; on a failed PvP battle you absorb **25% of its loss exposure**.\n\n' +
             'PvP robbery itself remains capped at **10% of the selected target balance**.\n\n' +
+            '**Prestige Collectibles**\n' +
+            'One-time status purchases with no hidden gameplay modifier: **25M · 30M · 50M · 100M**.\n\n' +
             '**Community Luck Pot**\n' +
             `Spend **${money(GLOBAL_COST)} ${economy.config.currencyName}** to add **+${GLOBAL_PERCENT}% GLOBAL luck** for 24 hours. ` +
-            'Each member may contribute once per rolling 24 hours.'
+            `Each member may hold up to **${GLOBAL_MAX_PER_USER} active boosts** at once.`
         )
         .addFields(
             { name: '🌐 Current Global Modifier', value: `**+${fmtPercent(state.globalLuck)}% LUCK**`, inline: true },
@@ -73,12 +82,18 @@ function panelPayload(economy, guildId, now = Date.now()) {
         new Discord.ButtonBuilder().setCustomId('econ:luckpanel:heistbuy:hot-tip').setLabel('Hot Tip · 50K').setEmoji('🗺️').setStyle(Discord.ButtonStyle.Primary),
         new Discord.ButtonBuilder().setCustomId('econ:luckpanel:heistbuy:hired-goon').setLabel('Hire Goon · 100K').setEmoji('🤵').setStyle(Discord.ButtonStyle.Danger),
     );
+    const prestigeRow = new Discord.ActionRowBuilder().addComponents(
+        new Discord.ButtonBuilder().setCustomId('econ:luckpanel:buy:prestige-25m').setLabel('Prestige · 25M').setStyle(Discord.ButtonStyle.Secondary),
+        new Discord.ButtonBuilder().setCustomId('econ:luckpanel:buy:prestige-30m').setLabel('Prestige · 30M').setStyle(Discord.ButtonStyle.Primary),
+        new Discord.ButtonBuilder().setCustomId('econ:luckpanel:buy:prestige-50m').setLabel('Prestige · 50M').setStyle(Discord.ButtonStyle.Danger),
+        new Discord.ButtonBuilder().setCustomId('econ:luckpanel:buy:prestige-100m').setLabel('Prestige · 100M').setStyle(Discord.ButtonStyle.Success),
+    );
     const communityRow = new Discord.ActionRowBuilder().addComponents(
-        new Discord.ButtonBuilder().setCustomId('econ:luckpanel:global').setLabel('Add +0.5% Global · 1,000').setEmoji('🌐').setStyle(Discord.ButtonStyle.Success),
+        new Discord.ButtonBuilder().setCustomId('econ:luckpanel:global').setLabel('Add +0.75% Global · 1,000').setEmoji('🌐').setStyle(Discord.ButtonStyle.Success),
         new Discord.ButtonBuilder().setCustomId('econ:luckpanel:mine').setLabel('My Luck / Inventory').setEmoji('📊').setStyle(Discord.ButtonStyle.Secondary),
         new Discord.ButtonBuilder().setCustomId('econ:luckpanel:refresh').setLabel('Refresh').setEmoji('🔄').setStyle(Discord.ButtonStyle.Secondary),
     );
-    return { embeds: [embed], components: [personalRow, heistRow, communityRow] };
+    return { embeds: [embed], components: [personalRow, heistRow, prestigeRow, communityRow] };
 }
 
 function personalConfirmationPayload(economy, itemKey) {
@@ -111,16 +126,22 @@ function myLuckPayload(economy, guildId, userId) {
     const status = economy.luckShopStatus(guildId, userId);
     const owned = new Set(status.purchases.map(row => row.item_key));
     const lines = Object.values(PERSONAL_ITEMS).map(item => `${owned.has(item.key) ? '✅' : '❌'} ${item.name}: +${item.percent}%${owned.has(item.key) ? ' · owned' : ''}`);
+    const activeMine = Number(status.activeGlobalContributionsByUser || 0);
+    const limit = Number(status.globalContributionLimit || GLOBAL_MAX_PER_USER);
     const community = status.canContributeGlobal
-        ? `You can add **+${GLOBAL_PERCENT}% global luck** now for **${money(GLOBAL_COST)} ${economy.config.currencyName}**.`
-        : `Your community boost is active. You may contribute again <t:${Math.floor(status.nextGlobalAt / 1000)}:R>.`;
+        ? `You have **${activeMine}/${limit} active global boosts**. Add another **+${GLOBAL_PERCENT}%** for **${money(GLOBAL_COST)} ${economy.config.currencyName}**.`
+        : `You have **${activeMine}/${limit} active global boosts**. A slot opens <t:${Math.floor(status.nextGlobalAt / 1000)}:R>.`;
+    const prestigeOwned = new Set((status.purchases || []).map(row => row.item_key));
+    const prestigeLines = Object.values(PRESTIGE_ITEMS)
+        .map(item => `${prestigeOwned.has(item.key) ? '✅' : '❌'} ${item.name}`)
+        .join('\n');
     const heist = economy.heistStoreStatus?.(guildId, userId) || { inventory: {}, balance: status.balance, goons: [] };
     const goons = heist.goons || [];
     const goonLines = goons.length ? goons.map((row, index) => `🤵 Goon ${index + 1}: expires <t:${Math.floor(row.expires_at / 1000)}:R>`).join('\n') : '🤵 No active hired goons.';
     return {
         ephemeral: true,
         embeds: [new Discord.EmbedBuilder().setColor(0x2ea043).setTitle('🍀 Your Luck & Heist Inventory')
-            .setDescription(lines.join('\n') + `\n\n${community}\n\n**Heist Inventory**\n🗺️ Hot Tip uses: **${Number(heist.inventory['hot-tip'] || 0)}**\n🤵 Active Goons: **${goons.length}/2**\n${goonLines}`)
+            .setDescription(lines.join('\n') + `\n\n${community}\n\n**Prestige Collectibles**\n${prestigeLines}\n\n**Heist Inventory**\n🗺️ Hot Tip uses: **${Number(heist.inventory['hot-tip'] || 0)}**\n🤵 Active Goons: **${goons.length}/2**\n${goonLines}`)
             .addFields(
                 { name: 'Personal', value: `+${fmtPercent(status.personalLuck)}%`, inline: true },
                 { name: 'Global', value: `+${fmtPercent(status.globalLuck)}%`, inline: true },

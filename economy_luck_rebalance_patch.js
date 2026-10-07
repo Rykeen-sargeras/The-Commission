@@ -14,6 +14,10 @@ const LUCK_ITEMS = Object.freeze({
     'luck-5': Object.freeze({ key: 'luck-5', name: 'Made Luck', percent: 5, cost: 300_000 }),
     'luck-10': Object.freeze({ key: 'luck-10', name: 'Boss Luck', percent: 10, cost: 2_500_000 }),
     'luck-25': Object.freeze({ key: 'luck-25', name: 'Apex Luck', percent: 25, cost: 3_000_000 }),
+    'prestige-25m': Object.freeze({ key: 'prestige-25m', name: '25M Prestige Token', percent: 0, cost: 25_000_000, collectible: true }),
+    'prestige-30m': Object.freeze({ key: 'prestige-30m', name: '30M Prestige Token', percent: 0, cost: 30_000_000, collectible: true }),
+    'prestige-50m': Object.freeze({ key: 'prestige-50m', name: '50M Prestige Token', percent: 0, cost: 50_000_000, collectible: true }),
+    'prestige-100m': Object.freeze({ key: 'prestige-100m', name: '100M Prestige Token', percent: 0, cost: 100_000_000, collectible: true }),
 });
 const APEX_REQUIREMENTS = Object.freeze(['luck-1', 'luck-5', 'luck-10']);
 
@@ -105,7 +109,9 @@ function storePayload(economy, guildId) {
             '🤵 **Hired Goon** — **100,000 Blood Money each** · lasts **24 hours** · max **2 active**.\n\n' +
             '**Daily Claim**\n' +
             'Daily payouts are fully random from **1,000 to 250,000 Blood Money**. The lower 1K–50K band is drawn 80% of the time; the 50,001–250K band is drawn 20% of the time. Every amount inside its selected band is randomly rolled.\n\n' +
-            '**Community Luck Pot**\nSpend **1,000 Blood Money** to add **+0.5% GLOBAL luck** for 24 hours.'
+            '**Prestige Collectibles**\n' +
+            'One-time status purchases with no hidden gameplay modifier: **25M · 30M · 50M · 100M**.\n\n' +
+            '**Community Luck Pot**\nSpend **1,000 Blood Money** to add **+0.75% GLOBAL luck** for 24 hours. Each member may stack up to **20 active boosts**.'
         )
         .addFields(
             { name: '🌐 Current Global Modifier', value: `**+${globalLuck}% LUCK**`, inline: true },
@@ -128,7 +134,13 @@ function storePayload(economy, guildId) {
                 new Discord.ButtonBuilder().setCustomId('econ:luckpanel:heistbuy:hired-goon').setLabel('Hire Goon · 100K').setEmoji('🤵').setStyle(Discord.ButtonStyle.Danger),
             ),
             new Discord.ActionRowBuilder().addComponents(
-                new Discord.ButtonBuilder().setCustomId('econ:luckpanel:global').setLabel('Add +0.5% Global · 1,000').setEmoji('🌐').setStyle(Discord.ButtonStyle.Success),
+                new Discord.ButtonBuilder().setCustomId('econ:luckpanel:buy:prestige-25m').setLabel('Prestige · 25M').setStyle(Discord.ButtonStyle.Secondary),
+                new Discord.ButtonBuilder().setCustomId('econ:luckpanel:buy:prestige-30m').setLabel('Prestige · 30M').setStyle(Discord.ButtonStyle.Primary),
+                new Discord.ButtonBuilder().setCustomId('econ:luckpanel:buy:prestige-50m').setLabel('Prestige · 50M').setStyle(Discord.ButtonStyle.Danger),
+                new Discord.ButtonBuilder().setCustomId('econ:luckpanel:buy:prestige-100m').setLabel('Prestige · 100M').setStyle(Discord.ButtonStyle.Success),
+            ),
+            new Discord.ActionRowBuilder().addComponents(
+                new Discord.ButtonBuilder().setCustomId('econ:luckpanel:global').setLabel('Add +0.75% Global · 1,000').setEmoji('🌐').setStyle(Discord.ButtonStyle.Success),
                 new Discord.ButtonBuilder().setCustomId('econ:luckpanel:mine').setLabel('My Luck / Inventory').setEmoji('📊').setStyle(Discord.ButtonStyle.Secondary),
                 new Discord.ButtonBuilder().setCustomId('econ:luckpanel:refresh').setLabel('Refresh').setEmoji('🔄').setStyle(Discord.ButtonStyle.Secondary),
             ),
@@ -245,7 +257,7 @@ function installLuckRebalancePatch() {
         integration.handleButton = async interaction => {
             if (!interaction.isButton?.()) return previousHandleButton(interaction);
             const id = interaction.customId;
-            const match = /^econ:luckpanel:(buy|confirm):(luck-(?:1|5|10|25))$/.exec(id);
+            const match = /^econ:luckpanel:(buy|confirm):((?:luck-(?:1|5|10|25))|(?:prestige-(?:25|30|50|100)m))$/.exec(id);
             if (!match) return previousHandleButton(interaction);
             const [, action, itemKey] = match;
             const item = LUCK_ITEMS[itemKey];
@@ -254,10 +266,13 @@ function installLuckRebalancePatch() {
                 const requirement = itemKey === 'luck-25'
                     ? '\n\n**Requirement:** You must already own +1%, +5%, and +10%. Those three upgrades are permanently traded in when Apex Luck is purchased.'
                     : '';
+                const purchaseDescription = item.collectible
+                    ? `Buy the one-time **${item.name}** prestige collectible for **${money(item.cost)} ${economy.config.currencyName}**? It does not change luck or gambling odds.`
+                    : `Buy **+${item.percent}% permanent personal luck** for **${money(item.cost)} ${economy.config.currencyName}**?${requirement}`;
                 await interaction.reply({
                     ephemeral: true,
                     embeds: [new Discord.EmbedBuilder().setColor(0xd29922).setTitle(`Confirm ${item.name}`)
-                        .setDescription(`Buy **+${item.percent}% permanent personal luck** for **${money(item.cost)} ${economy.config.currencyName}**?${requirement}`)],
+                        .setDescription(purchaseDescription)],
                     components: [new Discord.ActionRowBuilder().addComponents(
                         new Discord.ButtonBuilder().setCustomId(`econ:luckpanel:confirm:${itemKey}`).setLabel(`Confirm ${money(item.cost)}`).setEmoji('✅').setStyle(Discord.ButtonStyle.Success),
                         new Discord.ButtonBuilder().setCustomId('econ:luckpanel:cancel').setLabel('Cancel').setStyle(Discord.ButtonStyle.Secondary),
@@ -272,8 +287,11 @@ function installLuckRebalancePatch() {
                     ? '\n🍀 Your +1%, +5%, and +10% upgrades were traded in and replaced by **Apex Luck +25%**.'
                     : '';
                 await interaction.update({
-                    embeds: [new Discord.EmbedBuilder().setColor(0x2ea043).setTitle('✅ Luck Upgrade Purchased')
-                        .setDescription(`You bought **${result.item.name}** for **${money(result.item.cost)} ${economy.config.currencyName}**.${tradeText}\nYour personal luck is now **+${result.personalLuck}%**.\nBalance: **${money(result.balance)}**.`)],
+                    embeds: [new Discord.EmbedBuilder().setColor(0x2ea043)
+                        .setTitle(result.item.collectible ? '✅ Prestige Collectible Purchased' : '✅ Luck Upgrade Purchased')
+                        .setDescription(result.item.collectible
+                            ? `You unlocked **${result.item.name}** for **${money(result.item.cost)} ${economy.config.currencyName}**. This is a one-time collectible with no luck/stat modifier.\nBalance: **${money(result.balance)}**.`
+                            : `You bought **${result.item.name}** for **${money(result.item.cost)} ${economy.config.currencyName}**.${tradeText}\nYour personal luck is now **+${result.personalLuck}%**.\nBalance: **${money(result.balance)}**.`)],
                     components: [],
                 });
                 await refreshStorePanel();

@@ -12,7 +12,8 @@ assert.strictEqual(luck.PERSONAL_LUCK_ITEMS['luck-1'].cost, 5000);
 assert.strictEqual(luck.PERSONAL_LUCK_ITEMS['luck-5'].percent, 5);
 assert.strictEqual(luck.PERSONAL_LUCK_ITEMS['luck-10'].cost, 250000);
 assert.strictEqual(luck.GLOBAL_LUCK_COST, 1000);
-assert.strictEqual(luck.GLOBAL_LUCK_PERCENT, 0.5);
+assert.strictEqual(luck.GLOBAL_LUCK_PERCENT, 0.75);
+assert.strictEqual(luck.GLOBAL_LUCK_MAX_ACTIVE_PER_USER, 20);
 assert.strictEqual(luck.GLOBAL_LUCK_DURATION_MS, 24 * 60 * 60 * 1000);
 assert.strictEqual(luck.DAILY_TIERS.reduce((sum, tier) => sum + tier.weight, 0), 1_000_000);
 
@@ -38,10 +39,17 @@ try {
     assert.throws(() => service.buyLuckItem('guild', 'user', 'luck-1', 'buy-1-again', 4000), /one-time purchase/i);
 
     const global = service.contributeGlobalLuck('guild', 'user', 'global-1', 5000);
-    assert.strictEqual(global.globalLuck, 0.5);
-    assert.strictEqual(global.totalLuck, 16.5);
+    assert.strictEqual(global.globalLuck, 0.75);
+    assert.strictEqual(global.totalLuck, 16.75);
     assert.strictEqual(global.expiresAt, 5000 + (24 * 60 * 60 * 1000));
-    assert.throws(() => service.contributeGlobalLuck('guild', 'user', 'global-again', 6000), /already added/i);
+    for (let index = 2; index <= 20; index += 1) {
+        service.contributeGlobalLuck('guild', 'user', `global-${index}`, 5000 + index);
+    }
+    const stacked = service.luckShopStatus('guild', 'user', 6000);
+    assert.strictEqual(stacked.activeGlobalContributionsByUser, 20);
+    assert.strictEqual(stacked.globalLuck, 15);
+    assert.strictEqual(stacked.totalLuck, 31);
+    assert.throws(() => service.contributeGlobalLuck('guild', 'user', 'global-21', 7000), /maximum 20 active/i);
 
     service.admin('guild', 'add', 'daily-user', 1, 'fund-daily');
     const daily = service.claimDaily('guild', 'daily-user', 'daily-1', 10_000);

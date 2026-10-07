@@ -7,8 +7,15 @@ const PERSONAL_LUCK_ITEMS = Object.freeze({
     'luck-5': Object.freeze({ key: 'luck-5', name: 'Made Luck', percent: 5, cost: 30000 }),
     'luck-10': Object.freeze({ key: 'luck-10', name: 'Boss Luck', percent: 10, cost: 250000 }),
 });
+const PRESTIGE_ITEMS = Object.freeze({
+    'prestige-25m': Object.freeze({ key: 'prestige-25m', name: '25M Prestige Token', percent: 0, cost: 25_000_000, collectible: true }),
+    'prestige-30m': Object.freeze({ key: 'prestige-30m', name: '30M Prestige Token', percent: 0, cost: 30_000_000, collectible: true }),
+    'prestige-50m': Object.freeze({ key: 'prestige-50m', name: '50M Prestige Token', percent: 0, cost: 50_000_000, collectible: true }),
+    'prestige-100m': Object.freeze({ key: 'prestige-100m', name: '100M Prestige Token', percent: 0, cost: 100_000_000, collectible: true }),
+});
 const GLOBAL_LUCK_COST = 1000;
-const GLOBAL_LUCK_PERCENT = 0.5;
+const GLOBAL_LUCK_PERCENT = 0.75;
+const GLOBAL_LUCK_MAX_ACTIVE_PER_USER = 20;
 const GLOBAL_LUCK_DURATION_MS = 24 * 60 * 60 * 1000;
 let economyApi = null;
 
@@ -128,7 +135,7 @@ EconomyService.prototype.luckShopStatus = function luckShopStatus(guildId, userI
         .all(guildId, userId);
     const global = this.db.prepare('SELECT contribution_id,user_id,luck_percent,created_at,expires_at FROM global_luck_contributions WHERE guild_id=? AND expires_at>? ORDER BY expires_at')
         .all(guildId, now);
-    const mine = global.find(row => row.user_id === userId) || null;
+    const mine = global.filter(row => row.user_id === userId);
     const personalLuck = purchases.reduce((sum, row) => sum + Number(row.luck_percent || 0), 0);
     const globalLuck = global.reduce((sum, row) => sum + Number(row.luck_percent || 0), 0);
     return {
@@ -137,8 +144,12 @@ EconomyService.prototype.luckShopStatus = function luckShopStatus(guildId, userI
         globalLuck,
         totalLuck: personalLuck + globalLuck,
         activeGlobalContributions: global.length,
-        canContributeGlobal: !mine,
-        nextGlobalAt: mine?.expires_at || 0,
+        activeGlobalContributionsByUser: mine.length,
+        globalContributionLimit: GLOBAL_LUCK_MAX_ACTIVE_PER_USER,
+        canContributeGlobal: mine.length < GLOBAL_LUCK_MAX_ACTIVE_PER_USER,
+        nextGlobalAt: mine.length >= GLOBAL_LUCK_MAX_ACTIVE_PER_USER
+            ? Math.min(...mine.map(row => Number(row.expires_at || 0)).filter(Boolean))
+            : 0,
         balance: this.member(guildId, userId).balance,
     };
 };
@@ -165,11 +176,14 @@ EconomyService.prototype.contributeGlobalLuck = function contributeGlobalLuck(gu
         const member = this.ensureMember(guildId, userId, now);
         this.assertUsable(member);
         this.cleanupExpiredLuck(now);
-        const active = this.db.prepare('SELECT expires_at FROM global_luck_contributions WHERE guild_id=? AND user_id=? AND expires_at>? ORDER BY expires_at DESC LIMIT 1')
-            .get(guildId, userId, now);
-        if (active) throw new Error(`You already added to the community luck pot. You can contribute again <t:${Math.floor(active.expires_at / 1000)}:R>.`);
+        const active = this.db.prepare('SELECT expires_at FROM global_luck_contributions WHERE guild_id=? AND user_id=? AND expires_at>? ORDER BY expires_at ASC')
+            .all(guildId, userId, now);
+        if (active.length >= GLOBAL_LUCK_MAX_ACTIVE_PER_USER) {
+            const nextExpiry = Number(active[0]?.expires_at || 0);
+            throw new Error(`You already have the maximum ${GLOBAL_LUCK_MAX_ACTIVE_PER_USER} active community boosts. A slot opens <t:${Math.floor(nextExpiry / 1000)}:R>.`);
+        }
         if (member.balance < GLOBAL_LUCK_COST) throw new Error(`You need ${money(GLOBAL_LUCK_COST)} ${this.config.currencyName} to boost global luck.`);
-        const balance = this.applyDelta(guildId, userId, -GLOBAL_LUCK_COST, 'global-luck-contribution', '+0.5%', interactionId, now);
+        const balance = this.applyDelta(guildId, userId, -GLOBAL_LUCK_COST, `global-luck-contribution`, `+${GLOBAL_LUCK_PERCENT}%`, interactionId, now);
         const expiresAt = now + GLOBAL_LUCK_DURATION_MS;
         this.db.prepare('INSERT INTO global_luck_contributions(contribution_id,guild_id,user_id,luck_percent,cost,created_at,expires_at) VALUES(?,?,?,?,?,?,?)')
             .run(crypto.randomUUID(), guildId, userId, GLOBAL_LUCK_PERCENT, GLOBAL_LUCK_COST, now, expiresAt);
@@ -348,7 +362,11 @@ discordEconomy.economyCommandData = function luckShopCommandData() {
             { name: 'Buy +1% personal luck — 5,000', value: 'luck-1' },
             { name: 'Buy +5% personal luck — 30,000', value: 'luck-5' },
             { name: 'Buy +10% personal luck — 250,000', value: 'luck-10' },
-            { name: 'Add +0.5% global luck for 24h — 1,000', value: 'global' },
+            { name: 'Buy 25M Prestige Token — one time', value: 'prestige-25m' },
+            { name: 'Buy 30M Prestige Token — one time', value: 'prestige-30m' },
+            { name: 'Buy 50M Prestige Token — one time', value: 'prestige-50m' },
+            { name: 'Buy 100M Prestige Token — one time', value: 'prestige-100m' },
+            { name: 'Add +0.75% global luck for 24h — 1,000 (max 20 active)', value: 'global' },
         )).toJSON());
     return commands;
 };
@@ -367,26 +385,32 @@ discordEconomy.createEconomyIntegration = function createLuckShopIntegration(cli
             if (action === 'global') {
                 result = economy.contributeGlobalLuck(interaction.guild.id, interaction.user.id, interaction.id);
                 headline = '🍀 Community Luck Increased';
-            } else if (PERSONAL_LUCK_ITEMS[action]) {
+            } else if (PERSONAL_LUCK_ITEMS[action] || PRESTIGE_ITEMS[action]) {
                 result = economy.buyLuckItem(interaction.guild.id, interaction.user.id, action, interaction.id);
-                headline = `🍀 Purchased ${result.item.name}`;
+                headline = result.item.collectible ? `🏆 Purchased ${result.item.name}` : `🍀 Purchased ${result.item.name}`;
             } else result = economy.luckShopStatus(interaction.guild.id, interaction.user.id);
 
             const status = economy.luckShopStatus(interaction.guild.id, interaction.user.id);
             const owned = new Set(status.purchases.map(item => item.item_key));
             const itemLines = Object.values(PERSONAL_LUCK_ITEMS).map(item =>
                 `${owned.has(item.key) ? '✅' : '🛒'} **${item.name}** — +${item.percent}% personal luck — ${money(item.cost)} ${economy.config.currencyName}${owned.has(item.key) ? ' · owned' : ''}`);
+            const prestigeLines = Object.values(PRESTIGE_ITEMS).map(item =>
+                `${owned.has(item.key) ? '✅' : '🛒'} **${item.name}** — one-time collectible — ${money(item.cost)} ${economy.config.currencyName}${owned.has(item.key) ? ' · owned' : ''}`);
+            const activeMine = Number(status.activeGlobalContributionsByUser || 0);
+            const limit = Number(status.globalContributionLimit || GLOBAL_LUCK_MAX_ACTIVE_PER_USER);
             const globalLine = status.canContributeGlobal
-                ? `Available now: spend **${money(GLOBAL_LUCK_COST)}** for **+${GLOBAL_LUCK_PERCENT}% global luck** for 24 hours.`
-                : `You already contributed. Your next contribution opens <t:${Math.floor(status.nextGlobalAt / 1000)}:R>.`;
+                ? `You have **${activeMine}/${limit} active boosts**. Spend **${money(GLOBAL_LUCK_COST)}** for another **+${GLOBAL_LUCK_PERCENT}% global luck** for 24 hours.`
+                : `You have **${activeMine}/${limit} active boosts**. Your next contribution slot opens <t:${Math.floor(status.nextGlobalAt / 1000)}:R>.`;
             const extra = action === 'global'
                 ? `\n\nYou added **+${GLOBAL_LUCK_PERCENT}%** global luck until <t:${Math.floor(result.expiresAt / 1000)}:R>.`
                 : PERSONAL_LUCK_ITEMS[action]
                     ? `\n\nYour permanent personal luck increased by **+${result.item.percent}%**.`
-                    : '';
+                    : PRESTIGE_ITEMS[action]
+                        ? `\n\nYou unlocked **${result.item.name}**. It has no hidden luck or gambling modifier.`
+                        : '';
 
             await interaction.reply({ embeds: [new Discord.EmbedBuilder().setColor(0x2ea043).setTitle(headline)
-                .setDescription(`${itemLines.join('\n')}\n\n🌐 **Community Pot**\n${globalLine}${extra}`)
+                .setDescription(`${itemLines.join('\n')}\n\n🏆 **Prestige Collectibles**\n${prestigeLines.join('\n')}\n\n🌐 **Community Pot**\n${globalLine}${extra}`)
                 .addFields(
                     { name: 'Personal luck', value: `+${status.personalLuck}%`, inline: true },
                     { name: 'Global luck', value: `+${status.globalLuck}%`, inline: true },
@@ -407,8 +431,10 @@ discordEconomy.createEconomyIntegration = function createLuckShopIntegration(cli
 
 module.exports = {
     PERSONAL_LUCK_ITEMS,
+    PRESTIGE_ITEMS,
     GLOBAL_LUCK_COST,
     GLOBAL_LUCK_PERCENT,
+    GLOBAL_LUCK_MAX_ACTIVE_PER_USER,
     GLOBAL_LUCK_DURATION_MS,
     DAILY_TIERS,
     dailyRoll,
