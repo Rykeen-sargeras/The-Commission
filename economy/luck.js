@@ -356,7 +356,7 @@ discordEconomy.economyCommandData = function luckShopCommandData() {
             { name: 'Buy +1% personal luck — 5,000', value: 'luck-1' },
             { name: 'Buy +5% personal luck — 30,000', value: 'luck-5' },
             { name: 'Buy +10% personal luck — 250,000', value: 'luck-10' },
-            { name: 'Add +0.5% global luck for 24h — 1,000', value: 'global' },
+            { name: 'Add +0.75% global luck for 24h — 1,000 (max 20 active)', value: 'global' },
         )).toJSON());
     return commands;
 };
@@ -384,9 +384,11 @@ discordEconomy.createEconomyIntegration = function createLuckShopIntegration(cli
             const owned = new Set(status.purchases.map(item => item.item_key));
             const itemLines = Object.values(PERSONAL_LUCK_ITEMS).map(item =>
                 `${owned.has(item.key) ? '✅' : '🛒'} **${item.name}** — +${item.percent}% personal luck — ${money(item.cost)} ${economy.config.currencyName}${owned.has(item.key) ? ' · owned' : ''}`);
+            const activeMine = Number(status.activeGlobalContributionsByUser || 0);
+            const limit = Number(status.globalContributionLimit || GLOBAL_LUCK_MAX_ACTIVE_PER_USER);
             const globalLine = status.canContributeGlobal
-                ? `Available now: spend **${money(GLOBAL_LUCK_COST)}** for **+${GLOBAL_LUCK_PERCENT}% global luck** for 24 hours.`
-                : `You already contributed. Your next contribution opens <t:${Math.floor(status.nextGlobalAt / 1000)}:R>.`;
+                ? `You have **${activeMine}/${limit} active boosts**. Spend **${money(GLOBAL_LUCK_COST)}** for another **+${GLOBAL_LUCK_PERCENT}% global luck** for 24 hours.`
+                : `You have **${activeMine}/${limit} active boosts**. Your next contribution slot opens <t:${Math.floor(status.nextGlobalAt / 1000)}:R>.`;
             const extra = action === 'global'
                 ? `\n\nYou added **+${GLOBAL_LUCK_PERCENT}%** global luck until <t:${Math.floor(result.expiresAt / 1000)}:R>.`
                 : PERSONAL_LUCK_ITEMS[action]
