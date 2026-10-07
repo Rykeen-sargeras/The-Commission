@@ -140,7 +140,9 @@ function slotsPayload(result, guild, currencyName) {
     }).join('\n');
     const wins = result.wins.length
         ? result.wins.map(win => `Line ${win.line}: ${win.symbol.render} × ${win.count}${win.wilds ? ` (${win.wilds} wild)` : ''} → **${win.multiplier}×**`).join('\n')
-        : 'No matching payline this spin.';
+        : result.consolation
+            ? `No matching payline. Low-tier return triggered → **${result.multiplier}×**.`
+            : 'No matching payline this spin.';
     return { embeds: [new Discord.EmbedBuilder().setColor(result.payout > 0 ? 0x2ea043 : 0x9b1c31)
         .setTitle('🎰 The Commission — 5×4 Wild Slots').setDescription(`${board}\n\n${wins}`).addFields(
             { name: 'Wager', value: `${money(result.wager)} ${currencyName}`, inline: true },
@@ -149,7 +151,7 @@ function slotsPayload(result, guild, currencyName) {
             { name: 'Balance', value: `${money(result.balance)} ${currencyName}`, inline: true },
             { name: 'Random payout ranges · 3 / 4 / 5 matches', value: paytable },
             { name: '🃏 Wild', value: 'Substitutes for every symbol. Wins count matching symbols from the leftmost reel.' },
-        ).setFooter({ text: `${slots.PAYLINES.length} paylines · winning lines stack and roll independently` }).setTimestamp()] };
+        ).setFooter({ text: `${slots.PAYLINES.length} paylines · non-winning grids receive a heavily weighted 0.01×–1.00× low-tier return` }).setTimestamp()] };
 }
 
 function higherLowerPayload(game, userMention, currencyName, note = '') {
