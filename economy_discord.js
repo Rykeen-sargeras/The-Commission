@@ -503,6 +503,16 @@ function createEconomyIntegration(client, economy, options = {}) {
             economy.setting(guild.id, 'heist_panel_message'),
         ].map(value => String(value || '').trim()).filter(Boolean));
 
+        function isProtectedPersistentPanel(message) {
+            if (protectedIds.has(message.id)) return true;
+            const titles = (message.embeds || []).map(embed => String(embed?.data?.title || embed?.title || ''));
+            if (titles.includes('🍀 The Commission · Luck & Heist Shop')) return true;
+            const customIds = (message.components || []).flatMap(row =>
+                (row.components || []).map(component => String(component?.customId || component?.data?.custom_id || '')));
+            if (customIds.some(id => id.startsWith('econ:luckpanel:'))) return true;
+            return false;
+        }
+
         let deleted = 0;
         for (const channelId of channelIds) {
             const channel = guild.channels.cache.get(channelId)
@@ -518,7 +528,7 @@ function createEconomyIntegration(client, economy, options = {}) {
                 if (!batch?.size) break;
 
                 const botMessages = [...batch.values()].filter(message =>
-                    message.author?.id === client.user?.id && !protectedIds.has(message.id));
+                    message.author?.id === client.user?.id && !isProtectedPersistentPanel(message));
                 for (let index = 0; index < botMessages.length; index += 10) {
                     const chunk = botMessages.slice(index, index + 10);
                     const results = await Promise.allSettled(chunk.map(message => message.delete()));
