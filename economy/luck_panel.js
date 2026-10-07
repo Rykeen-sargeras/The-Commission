@@ -59,9 +59,11 @@ function panelPayload(economy, guildId, now = Date.now()) {
             `🤵 **Hired Goon** — **${money(100000)} ${economy.config.currencyName} each** · lasts **24 hours** · max **2 active**. ` +
             'Each goon counts toward heist strength. You receive **50% of each goon\'s cut**; on a failed PvP battle you absorb **25% of its loss exposure**.\n\n' +
             'PvP robbery itself remains capped at **10% of the selected target balance**.\n\n' +
+            '**Prestige Collectibles**\n' +
+            'One-time status purchases with no hidden gameplay modifier: **25M · 30M · 50M · 100M**.\n\n' +
             '**Community Luck Pot**\n' +
             `Spend **${money(GLOBAL_COST)} ${economy.config.currencyName}** to add **+${GLOBAL_PERCENT}% GLOBAL luck** for 24 hours. ` +
-            'Each member may contribute once per rolling 24 hours.'
+            `Each member may hold up to **${GLOBAL_MAX_PER_USER} active boosts** at once.`
         )
         .addFields(
             { name: '🌐 Current Global Modifier', value: `**+${fmtPercent(state.globalLuck)}% LUCK**`, inline: true },
