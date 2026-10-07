@@ -109,7 +109,9 @@ function storePayload(economy, guildId) {
             '🤵 **Hired Goon** — **100,000 Blood Money each** · lasts **24 hours** · max **2 active**.\n\n' +
             '**Daily Claim**\n' +
             'Daily payouts are fully random from **1,000 to 250,000 Blood Money**. The lower 1K–50K band is drawn 80% of the time; the 50,001–250K band is drawn 20% of the time. Every amount inside its selected band is randomly rolled.\n\n' +
-            '**Community Luck Pot**\nSpend **1,000 Blood Money** to add **+0.5% GLOBAL luck** for 24 hours.'
+            '**Prestige Collectibles**\n' +
+            'One-time status purchases with no hidden gameplay modifier: **25M · 30M · 50M · 100M**.\n\n' +
+            '**Community Luck Pot**\nSpend **1,000 Blood Money** to add **+0.75% GLOBAL luck** for 24 hours. Each member may stack up to **20 active boosts**.'
         )
         .addFields(
             { name: '🌐 Current Global Modifier', value: `**+${globalLuck}% LUCK**`, inline: true },
