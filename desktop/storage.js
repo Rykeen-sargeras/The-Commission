@@ -10,9 +10,9 @@ const DISCORD_ID = /^\d{17,20}$/;
 const SERVER_PROFILE_VERSION = 8;
 const HEIST_SCHEDULE_VERSION = 1;
 const ECONOMY_REWARD_VERSION = 1;
-const HEIST_CHANNEL_ROUTING_VERSION = 1;
-const LEGACY_STORE_AS_HEIST_CHANNEL_ID = '1532787416098672750';
-const DEFAULT_HEIST_CHANNEL_ID = '1547079010637578301';
+const HEIST_CHANNEL_ROUTING_VERSION = 2;
+const LEGACY_SEPARATE_HEIST_CHANNEL_ID = '1547079010637578301';
+const DEFAULT_HEIST_CHANNEL_ID = '1532787416098672750';
 const DESTINATION_SERVER_PROFILE = {
     modChannelId: '1532529016479682774',
     altAccountAgeDays: 14,
@@ -218,7 +218,7 @@ function loadConfig() {
             settings.economyHeistCooldownMinutes = 2;
         }
         if ((parsed.heistChannelRoutingVersion || 0) < HEIST_CHANNEL_ROUTING_VERSION
-            && settings.economyHeistChannelId === LEGACY_STORE_AS_HEIST_CHANNEL_ID) {
+            && settings.economyHeistChannelId === LEGACY_SEPARATE_HEIST_CHANNEL_ID) {
             settings.economyHeistChannelId = DEFAULT_HEIST_CHANNEL_ID;
         }
         if ((parsed.economyRewardVersion || 0) < ECONOMY_REWARD_VERSION

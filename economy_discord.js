@@ -31,6 +31,8 @@ const {
     duelResultPayload,
 } = require('./economy/discord_views');
 
+const STORE_CHANNEL_ID = '1532787416098672750';
+
 function createEconomyIntegration(client, economy, options = {}) {
     let voiceTimer = null;
     let repVoiceTimer = null;
@@ -145,6 +147,12 @@ function createEconomyIntegration(client, economy, options = {}) {
         await upsertPanel(guild, economy.config.leaderboardChannelId, 'rep_panel_message', { embeds: [embed], components });
     }
 
+    async function updateGamblePanel(guild, force = false) {
+        if (!economy.config.gamblingChannelId || !economy.config.gamblingEnabled) return null;
+        const { ephemeral: _ephemeral, ...payload } = gambleMenuPayload(economy.config.currencyName);
+        return upsertPanel(guild, economy.config.gamblingChannelId, 'gamble_panel_message', payload, force);
+    }
+
     function heistPanelPayload(state) {
         const round = state.round;
         const signup = state.phase === 'signup';
@@ -207,13 +215,14 @@ function createEconomyIntegration(client, economy, options = {}) {
         return message;
     }
 
-    async function updatePersistentPanels() {
+    async function updatePersistentPanels(force = false) {
         if (panelsRefreshing) return;
         panelsRefreshing = true;
         try {
             for (const guild of client.guilds.cache.values()) {
                 await updateLeaderboardPanel(guild).catch(error => console.error(`Leaderboard panel error in ${guild.name}:`, error.message));
                 await updateRepLeaderboardPanel(guild).catch(error => console.error(`REP panel error in ${guild.name}:`, error.message));
+                await updateGamblePanel(guild, force).catch(error => console.error(`Gamble panel error in ${guild.name}:`, error.message));
                 await updateHeistPanel(guild).catch(error => console.error(`Heist panel error in ${guild.name}:`, error.message));
             }
         } finally {
@@ -496,10 +505,11 @@ function createEconomyIntegration(client, economy, options = {}) {
         const channelIds = [...new Set([
             economy.config.gamblingChannelId,
             economy.config.heistChannelId,
-        ].map(value => String(value || '').trim()).filter(Boolean))];
+        ].map(value => String(value || '').trim()).filter(value => value && value !== STORE_CHANNEL_ID))];
 
         const protectedIds = new Set([
             economy.setting(guild.id, 'luck_shop_panel_message'),
+            economy.setting(guild.id, 'gamble_panel_message'),
             economy.setting(guild.id, 'heist_panel_message'),
         ].map(value => String(value || '').trim()).filter(Boolean));
 
@@ -564,7 +574,7 @@ function createEconomyIntegration(client, economy, options = {}) {
         await runWeeklyRollover().catch(error => console.error('Economy weekly rollover error:', error));
         await runMonthlyRollover().catch(error => console.error('Economy monthly rollover error:', error));
         await runRepRollover().catch(error => console.error('REP monthly rollover error:', error));
-        await updatePersistentPanels().catch(error => console.error('Economy panel startup error:', error));
+        await updatePersistentPanels(true).catch(error => console.error('Economy panel startup error:', error));
         await runDailyChannelCleanup().catch(error => console.error('Daily game cleanup startup error:', error));
         dailyChannelCleanupTimer = setInterval(() => runDailyChannelCleanup().catch(error => console.error('Daily game cleanup error:', error)), 60 * 1000);
         dailyChannelCleanupTimer.unref?.();
@@ -1141,7 +1151,7 @@ function createEconomyIntegration(client, economy, options = {}) {
         return { ...result, userIds: undefined, guildId: guild.id };
     }
 
-    return { handleButton, handleCommand, audit, rewardVoice, updateHeistPanel, pushHeistPanel, previewReset, executeReset, previewBulkGrant, executeBulkGrant, stop };
+    return { handleButton, handleCommand, audit, rewardVoice, updateGamblePanel, updateHeistPanel, pushHeistPanel, previewReset, executeReset, previewBulkGrant, executeBulkGrant, stop };
 }
 
 module.exports = { economyCommandData, createEconomyIntegration, pokerComponents, canAdministerEconomy, gambleMenuPayload, wagerModal };

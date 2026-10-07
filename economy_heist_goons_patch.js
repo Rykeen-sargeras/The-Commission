@@ -281,12 +281,12 @@ function installHeistGoonsPatch() {
                         { name: 'Encounter', value: 'Boss Battle or PvP Battle', inline: true },
                         { name: 'Join Anytime', value: signup ? 'Joins the current heist.' : 'Reserves the next heist and charges the 100K entry now.', inline: false },
                     )
-                    .setFooter({ text: 'Heist role reminders: 9 AM and 9 PM Eastern' })
+                    .setFooter({ text: 'Persistent heist controls · results update on this card without channel spam' })
                     .setTimestamp()],
                 components: [new Discord.ActionRowBuilder().addComponents(
                     new Discord.ButtonBuilder().setCustomId(`econ:heist:join:${joinRoundId}`).setLabel(signup ? 'Join Heist · 100K' : 'Enter Next Heist · 100K').setEmoji('🎭').setStyle(Discord.ButtonStyle.Danger),
                     new Discord.ButtonBuilder().setCustomId(`econ:heist:status:${joinRoundId}`).setLabel('My Entry').setStyle(Discord.ButtonStyle.Secondary),
-                    new Discord.ButtonBuilder().setCustomId('econ:heist:notify').setLabel('Ping Me for Heists').setEmoji('🔔').setStyle(Discord.ButtonStyle.Secondary),
+                    new Discord.ButtonBuilder().setCustomId('econ:heist:solo').setLabel('Solo Heist · 1M').setEmoji('🥷').setStyle(Discord.ButtonStyle.Primary),
                 )],
             };
         }

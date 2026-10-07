@@ -181,9 +181,17 @@ function installLuckPanel(discordEconomy) {
                 console.warn(`Luck Shop bot permission setup failed; channel was not locked: ${error.message}`);
                 return;
             }
-            await channel.permissionOverwrites.edit(guild.roles.everyone, {
+            const blockedPermissions = {
                 SendMessages: false, AddReactions: false, CreatePublicThreads: false,
                 CreatePrivateThreads: false, SendMessagesInThreads: false,
+            };
+            for (const overwrite of channel.permissionOverwrites.cache?.values?.() || []) {
+                if (overwrite.id === botUserId || overwrite.id === guild.roles.everyone.id) continue;
+                await channel.permissionOverwrites.edit(overwrite.id, blockedPermissions)
+                    .catch(error => console.warn(`Luck Shop overwrite lock failed for ${overwrite.id}: ${error.message}`));
+            }
+            await channel.permissionOverwrites.edit(guild.roles.everyone, {
+                ...blockedPermissions,
             }).catch(error => console.warn(`Luck Shop channel permission lock failed: ${error.message}`));
         }
         async function refreshPanel() {
@@ -193,13 +201,23 @@ function installLuckPanel(discordEconomy) {
             const payload = panelPayload(economy, guild.id);
             const storedId = economy.setting(guild.id, PANEL_SETTING_KEY);
             let message = null;
+            let storedLookupError = null;
             if (storedId) {
                 try {
                     message = channel.messages.cache.get(storedId) || await channel.messages.fetch(storedId);
                 } catch (error) {
-                    // Recreate only if Discord confirms the message no longer exists.
-                    if (Number(error?.code) !== 10008) {
-                        console.warn(`Luck Shop panel fetch failed; keeping stored ID ${storedId}: ${error.message}`);
+                    storedLookupError = error;
+                }
+            }
+            if (!message) {
+                try {
+                    const recent = await channel.messages.fetch({ limit: 50 });
+                    message = [...recent.values()].find(candidate =>
+                        candidate.embeds?.some(embed => (embed.data?.title || embed.title) === '🍀 The Commission · Luck & Heist Shop')) || null;
+                    if (message) economy.setSetting(guild.id, PANEL_SETTING_KEY, message.id);
+                } catch (error) {
+                    if (storedLookupError && Number(storedLookupError?.code) !== 10008) {
+                        console.warn(`Luck Shop panel verification failed; keeping stored ID ${storedId}: ${error.message}`);
                         return null;
                     }
                 }
@@ -278,7 +296,7 @@ function installLuckPanel(discordEconomy) {
         });
 
         const start = async () => {
-            await lockChannel().catch(() => {});
+            await lockChannel().catch(error => console.error(`Luck Shop channel setup failed: ${error.message}`));
             await refreshPanel().catch(error => console.error(`Luck Shop panel startup failed: ${error.message}`));
         };
         if (client.isReady?.()) start(); else client.once('ready', start);

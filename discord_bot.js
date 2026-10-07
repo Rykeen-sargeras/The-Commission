@@ -126,6 +126,17 @@ try {
 } catch (error) {
     console.error('Invalid economy configuration; using safe defaults:', error.message);
 }
+const STORE_CHANNEL_ID = '1532787416098672750';
+const LEGACY_SEPARATE_HEIST_CHANNEL_ID = '1547079010637578301';
+const DEFAULT_GAMBLING_CHANNEL_ID = '1532786549773832255';
+if (!String(economyConfig.heistChannelId || '').trim()
+    || String(economyConfig.heistChannelId) === LEGACY_SEPARATE_HEIST_CHANNEL_ID) {
+    console.warn(`Using shared store/heist channel ${STORE_CHANNEL_ID}.`);
+    economyConfig.heistChannelId = STORE_CHANNEL_ID;
+}
+if (!String(economyConfig.gamblingChannelId || '').trim()) {
+    economyConfig.gamblingChannelId = DEFAULT_GAMBLING_CHANNEL_ID;
+}
 const economy = new EconomyService({ dataDir: DATA_DIR, config: economyConfig });
 const economyIntegration = createEconomyIntegration(client, economy, {
     auditChannelId: economyConfig.auditChannelId,

@@ -9,7 +9,7 @@ const special = require('../economy_special_events');
 special.installSpecialEconomyEvents();
 const { EconomyService } = require('../economy');
 
-assert.strictEqual(special.HEIST_CHANNEL_ID, '1547079010637578301');
+assert.strictEqual(special.HEIST_CHANNEL_ID, '1532787416098672750');
 assert.strictEqual(special.HEIST_ENTRY_FEE, 10_000);
 assert.strictEqual(special.HEIST_INTERVAL_MS, 30 * 60 * 1000);
 assert.strictEqual(special.HEIST_SIGNUP_MS, (9 * 60 + 30) * 1000);
@@ -80,3 +80,37 @@ try {
     service.close();
     fs.rmSync(temp, { recursive: true, force: true });
 }
+
+(async () => {
+    const deleted = [];
+    const makeMessage = (id, extra = {}) => ({
+        id,
+        createdTimestamp: Number(id.replace(/\D/g, '')) || 0,
+        embeds: [],
+        components: [],
+        delete: async () => { deleted.push(id); },
+        ...extra,
+    });
+    const heist = makeMessage('heist-2', { components: [{ components: [{ customId: 'econ:heist:join:round' }] }] });
+    const store = makeMessage('store-3', { embeds: [{ title: '🍀 The Commission · Luck & Heist Shop' }] });
+    const roleplay = makeMessage('roleplay-4', { content: '🎭 **Heist type revealed:** Boss' });
+    const chatter = makeMessage('chatter-5');
+    const messages = new Map([[heist.id, heist], [store.id, store], [roleplay.id, roleplay], [chatter.id, chatter]]);
+    const settings = new Map([
+        ['heist_panel_message', 'stale-heist'],
+        ['luck_shop_panel_message', 'stale-store'],
+        ['special_heist_roleplay_message', roleplay.id],
+    ]);
+    await special.cleanHeistChannel({ messages: { fetch: async () => messages } }, {
+        setting: (_guildId, key) => settings.get(key) || '',
+        setSetting: (_guildId, key, value) => settings.set(key, value),
+    }, 'guild', '');
+    assert.deepStrictEqual(deleted.sort(), ['chatter-5', 'roleplay-4']);
+    assert.strictEqual(settings.get('heist_panel_message'), heist.id);
+    assert.strictEqual(settings.get('luck_shop_panel_message'), store.id);
+    assert.strictEqual(settings.get('special_heist_roleplay_message'), '');
+    console.log('Shared store/heist channel cleanup tests passed.');
+})().catch(error => {
+    console.error(error);
+    process.exitCode = 1;
+});

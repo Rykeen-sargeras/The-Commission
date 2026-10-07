@@ -8,6 +8,7 @@ const { HEIST_CHANNEL_ID, HEIST_TYPES } = require('./economy_special_events');
 const HEIST_ENTRY_FEE = 100_000;
 const HEIST_BASE_REWARD = 150_000;
 const HEIST_MAX_REWARD = 1_000_000;
+const PANEL_ONLY_HEIST_CHANNEL_ID = '1532787416098672750';
 const HEIST_BASE_SUCCESS = 66;
 const HEIST_SUCCESS_PER_PLAYER = 1.5;
 const HEIST_SIGNUP_MS = 15 * 60 * 1000;
@@ -459,6 +460,10 @@ function installFourDailyHeists() {
             if (!role) return;
 
             const channelId = economy.config.heistChannelId || HEIST_CHANNEL_ID;
+            if (channelId === PANEL_ONLY_HEIST_CHANNEL_ID) {
+                economy.setSetting(guild.id, REMINDER_SLOT_SETTING, slot);
+                return;
+            }
             const channel = guild.channels.cache.get(channelId) || await guild.channels.fetch(channelId).catch(() => null);
             if (!channel?.isTextBased()) return;
             const message = await channel.send({

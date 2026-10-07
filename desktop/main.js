@@ -236,7 +236,9 @@ async function startBot() {
         POSITIONSTACK_API_KEY: decryptSecret(config.secrets.positionstackApiKey),
     };
 
-    const worker = path.join(app.getAppPath(), 'discord_bot.js');
+    // Use the same bootstrap as Railway so economy/store/heist patches are active
+    // in the desktop-hosted bot as well.
+    const worker = path.join(app.getAppPath(), 'discord_bootstrap.js');
     botProcess = fork(worker, [], {
         cwd: dataPath(),
         execPath: process.execPath,

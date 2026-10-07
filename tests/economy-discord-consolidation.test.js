@@ -59,6 +59,29 @@ function baseClient() {
     assert.strictEqual(commandReply.ephemeral, true);
     assert.strictEqual(commandReply.components[0].components[0].data.custom_id, 'econ:gamble:choose:slots');
 
+    let gamblePanelPayload = null;
+    let gamblePanelSetting = null;
+    const gambleChannel = {
+        isTextBased: () => true,
+        messages: { cache: new Map(), fetch: async () => null },
+        send: async payload => {
+            gamblePanelPayload = payload;
+            return { id: 'gamble-panel', edit: async () => null };
+        },
+    };
+    const gambleEconomy = baseEconomy({
+        config: { currencyName: 'Blood Money', gamblingChannelId: 'gambling', gamblingEnabled: true, auditChannelId: '' },
+        setting: () => '',
+        setSetting: (_guildId, key, value) => { gamblePanelSetting = [key, value]; },
+    });
+    const gambleIntegration = createEconomyIntegration(baseClient(), gambleEconomy);
+    await gambleIntegration.updateGamblePanel({
+        id: 'guild', channels: { cache: new Map([['gambling', gambleChannel]]), fetch: async () => null },
+    }, true);
+    assert.deepStrictEqual(gamblePanelSetting, ['gamble_panel_message', 'gamble-panel']);
+    assert.strictEqual(Object.hasOwn(gamblePanelPayload, 'ephemeral'), false);
+    assert.strictEqual(gamblePanelPayload.components[0].components[0].data.custom_id, 'econ:gamble:choose:slots');
+
     let attachedDuel = null;
     const duelIntegration = createEconomyIntegration(baseClient(), baseEconomy({
         createDuel: (_guildId, challengerId, challengedId, wager) => ({
@@ -193,6 +216,7 @@ function baseClient() {
     const bootstrap = fs.readFileSync(path.join(root, 'discord_bootstrap.js'), 'utf8');
     const railway = fs.readFileSync(path.join(root, 'railway_start.js'), 'utf8');
     const botSource = fs.readFileSync(path.join(root, 'discord_bot.js'), 'utf8');
+    const desktopMain = fs.readFileSync(path.join(root, 'desktop', 'main.js'), 'utf8');
     const specialHeistSource = fs.readFileSync(path.join(root, 'economy_special_events.js'), 'utf8');
     const fourDailySource = fs.readFileSync(path.join(root, 'economy_heist_four_daily_patch.js'), 'utf8');
     const goonsSource = fs.readFileSync(path.join(root, 'economy_heist_goons_patch.js'), 'utf8');
@@ -200,6 +224,8 @@ function baseClient() {
     assert.match(railway, /fork\(path\.join\(__dirname,'discord_bootstrap\.js'/);
     assert.doesNotMatch(railway, /fork\(path\.join\(__dirname,'discord_bot\.js'/);
     assert.doesNotMatch(botSource, /isDoxWord|Dox Word Removed|knock it off/);
+    assert.match(botSource, /Using shared store\/heist channel/);
+    assert.match(desktopMain, /path\.join\(app\.getAppPath\(\), 'discord_bootstrap\.js'\)/);
     assert.match(goonsSource, /heistPanelOwner: 'goons'/);
     assert.match(goonsSource, /createPanelUpserter\(economy\)/);
     assert.match(specialHeistSource, /ownsPersistentPanel/);

@@ -4,7 +4,7 @@ const Discord = require('discord.js');
 const economyModule = require('./economy');
 const discordEconomy = require('./economy_discord');
 
-const HEIST_CHANNEL_ID = process.env.HEIST_CHANNEL_ID || '1547079010637578301';
+const HEIST_CHANNEL_ID = process.env.HEIST_CHANNEL_ID || '1532787416098672750';
 const PERSISTENT_PANEL_REFRESH_MS = 3 * 60 * 1000;
 const HEIST_ENTRY_FEE = 10_000;
 const HEIST_INTERVAL_MS = 30 * 60 * 1000;
@@ -104,18 +104,26 @@ async function cleanHeistChannel(channel, economy, guildId, panelId) {
         if (batch.size < 100 || !before) break;
     }
 
-    let rolePlayId = economy.setting(guildId, 'special_heist_roleplay_message') || '';
-    if (!rolePlayId || !messages.some(message => message.id === rolePlayId)) {
-        rolePlayId = messages.filter(isRolePlayMessage)
-            .sort((left, right) => Number(right.createdTimestamp || 0) - Number(left.createdTimestamp || 0))[0]?.id || '';
-        economy.setSetting(guildId, 'special_heist_roleplay_message', rolePlayId);
-    }
+    const savedHeistId = panelId || economy.setting(guildId, 'heist_panel_message') || '';
+    const heistPanels = messages.filter(message => message.components?.some(row => row.components?.some(component =>
+        String(component.customId || component.data?.custom_id || '').startsWith('econ:heist:'))))
+        .sort((left, right) => Number(right.createdTimestamp || 0) - Number(left.createdTimestamp || 0));
+    const heistId = heistPanels.some(message => message.id === savedHeistId) ? savedHeistId : (heistPanels[0]?.id || '');
+    if (heistId && heistId !== savedHeistId) economy.setSetting(guildId, 'heist_panel_message', heistId);
 
-    const keep = new Set([panelId, rolePlayId].filter(Boolean));
+    const savedStoreId = economy.setting(guildId, 'luck_shop_panel_message') || '';
+    const storePanels = messages.filter(message => message.embeds?.some(embed =>
+        (embed.data?.title || embed.title) === '🍀 The Commission · Luck & Heist Shop'))
+        .sort((left, right) => Number(right.createdTimestamp || 0) - Number(left.createdTimestamp || 0));
+    const storeId = storePanels.some(message => message.id === savedStoreId) ? savedStoreId : (storePanels[0]?.id || '');
+    if (storeId && storeId !== savedStoreId) economy.setSetting(guildId, 'luck_shop_panel_message', storeId);
+
+    economy.setSetting(guildId, 'special_heist_roleplay_message', '');
+    const keep = new Set([heistId, storeId].filter(Boolean));
     for (const message of messages) {
         if (!keep.has(message.id)) await message.delete().catch(() => {});
     }
-    return rolePlayId;
+    return '';
 }
 
 function installSpecialEconomyEvents() {
@@ -368,21 +376,13 @@ function installSpecialEconomyEvents() {
                 }
             }
 
-            let rolePlayId = await cleanHeistChannel(channel, economy, guild.id, panel?.id || '');
+            await cleanHeistChannel(channel, economy, guild.id, panel?.id || '');
             if (state.round.status === 'cancelled') {
                 economy.setSetting(guild.id, 'special_heist_last_story', state.round.round_id);
                 return panel;
             }
 
             if (state.phase !== 'signup' && economy.setting(guild.id, 'special_heist_last_story') !== state.round.round_id) {
-                if (shouldAnnounceHeistResult(state)) {
-                    const previousRolePlay = rolePlayId ? await channel.messages.fetch(rolePlayId).catch(() => null) : null;
-                    if (previousRolePlay) await previousRolePlay.delete().catch(() => {});
-                    const payload = resultPayload(state);
-                    const rolePlay = await channel.send({ content: `🎭 **Heist type revealed:** ${payload.embeds[0].data.title}`, embeds: [new Discord.EmbedBuilder().setColor(0x6f42c1).setTitle('The Role-Play').setDescription(state.round.story.join('\n\n')).setTimestamp()], allowedMentions: { users: state.round.victimId ? [state.round.victimId] : [] } });
-                    rolePlayId = rolePlay.id;
-                    economy.setSetting(guild.id, 'special_heist_roleplay_message', rolePlayId);
-                }
                 economy.setSetting(guild.id, 'special_heist_last_story', state.round.round_id);
             }
             await cleanHeistChannel(channel, economy, guild.id, panel?.id || '');

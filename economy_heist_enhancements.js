@@ -14,6 +14,7 @@ const {
 
 const HEIST_ALERT_ROLE_NAME = 'heist';
 const HEIST_ALERT_COOLDOWN_MS = 60 * 60 * 1000;
+const PANEL_ONLY_HEIST_CHANNEL_ID = '1532787416098672750';
 const LATE_JOIN_WINDOW_MS = 3 * 60 * 1000;
 const BOSS_EXTRA_SIGNUP_MS = 5 * 60 * 1000;
 const PERSONAL_LOOT_MULTIPLIER = 1.25;
@@ -317,6 +318,7 @@ function installHeistEnhancements() {
         }
 
         async function addAlertButton(guild) {
+            if (economy.config.heistChannelId === PANEL_ONLY_HEIST_CHANNEL_ID) return;
             const channel = await guild.channels.fetch(economy.config.heistChannelId).catch(() => null);
             if (!channel?.isTextBased()) return;
             const panelId = economy.setting(guild.id, 'heist_panel_message');
@@ -335,6 +337,7 @@ function installHeistEnhancements() {
         }
 
         async function maybePingHeistRole(guild, state) {
+            if (economy.config.heistChannelId === PANEL_ONLY_HEIST_CHANNEL_ID) return;
             if (state.phase !== 'signup') return;
             if (economy.setting(guild.id, 'special_heist_last_ping_round') === state.round.round_id) return;
             const lastPingAt = Number(economy.setting(guild.id, 'special_heist_last_ping_at') || 0);
