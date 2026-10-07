@@ -21,7 +21,9 @@ assert.strictEqual(slots.spinGrid(slotSymbols, () => 0.5).length, 20);
 assert.strictEqual(Number(slots.slotsExpectedReturn().toFixed(3)), 0.954);
 assert.strictEqual(slots.SLOT_CONSOLATION_WEIGHT_TOTAL, 1_000_000);
 assert.strictEqual(slots.consolationMultiplier(() => 0), 0.01);
-assert.strictEqual(slots.consolationMultiplier(() => 0.999999), 1);
+assert.strictEqual(slots.consolationMultiplier(() => 0.9965), 1);
+assert.strictEqual(slots.consolationMultiplier(() => 0.9985), 1.05);
+assert.strictEqual(slots.consolationMultiplier(() => 0.999999), 1.10);
 
 const uniqueGrid = Array.from({ length: 20 }, (_, index) => ({
     key: `unique-${index}`, render: String(index), multiplier: 2, weight: 1, wild: false,
