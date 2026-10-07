@@ -2,6 +2,7 @@
 
 const SLOT_COLUMNS = 5;
 const SLOT_ROWS = 4;
+const SLOT_MAX_WIN_MULTIPLIER = 115;
 const SLOT_CHANCES = Object.freeze([24, 20, 15.5, 12, 9, 7, 5, 3, 1]);
 const SLOT_PAYOUTS = Object.freeze([
     Object.freeze({ 3: 0.5, 4: 2, 5: 6 }),
@@ -66,6 +67,25 @@ function spinGrid(symbols, random) {
     return Array.from({ length: SLOT_COLUMNS * SLOT_ROWS }, () => weightedSymbol(symbols, random));
 }
 
+function maxWinGrid(symbols) {
+    const regular = symbols.filter(symbol => !symbol.wild);
+    if (regular.length < 9) throw new Error('The slot machine needs nine regular symbols for a max-win spin.');
+    const grid = [
+        regular[7], regular[7], regular[7], regular[7], regular[7],
+        regular[3], regular[3], regular[3], regular[3], regular[3],
+        regular[0], regular[1], regular[2], regular[4], regular[5],
+        regular[6], regular[8], regular[0], regular[1], regular[2],
+    ];
+    if (evaluateGrid(grid).multiplier !== SLOT_MAX_WIN_MULTIPLIER) {
+        throw new Error('The configured max-win grid does not total 115×.');
+    }
+    return grid;
+}
+
+function maxWinSettingKey(userId) {
+    return `slots_next_max_win:${String(userId)}`;
+}
+
 function roundedMultiplier(value) {
     return Math.round((Number(value) + Number.EPSILON) * 100) / 100;
 }
@@ -124,16 +144,27 @@ function evaluateGrid(grid) {
 }
 
 function installSlots(EconomyService) {
+EconomyService.prototype.armSlotsMaxWin = function armSlotsMaxWin(guildId, userId, now = Date.now()) {
+    if (!String(guildId || '').trim() || !String(userId || '').trim()) throw new Error('A guild and member are required.');
+    return this.transaction(() => {
+        this.ensureMember(guildId, userId, now);
+        this.setSetting(guildId, maxWinSettingKey(userId), SLOT_MAX_WIN_MULTIPLIER);
+        return { guildId, userId, multiplier: SLOT_MAX_WIN_MULTIPLIER };
+    });
+};
+
 EconomyService.prototype.slots = function slots(guildId, userId, wager, interactionId, symbols, now = Date.now()) {
     return this.transaction(() => {
         if (this.hasInteraction(guildId, interactionId)) throw new Error('This spin was already processed.');
         const amount = Math.max(1, Number.parseInt(wager, 10) || 0);
         const reserved = this.reserveWager(guildId, userId, amount, interactionId, `slots:${interactionId}`, now);
 
-        let grid = spinGrid(symbols, this.random);
+        const maxWinKey = maxWinSettingKey(userId);
+        const forcedMaxWin = this.setting(guildId, maxWinKey) === String(SLOT_MAX_WIN_MULTIPLIER);
+        let grid = forcedMaxWin ? maxWinGrid(symbols) : spinGrid(symbols, this.random);
         let result = evaluateGrid(grid);
         let luckyRespins = false;
-        if (result.multiplier === 0 && typeof this.luckProc === 'function' && this.luckProc(guildId, userId, now)) {
+        if (!forcedMaxWin && result.multiplier === 0 && typeof this.luckProc === 'function' && this.luckProc(guildId, userId, now)) {
             const secondGrid = spinGrid(symbols, this.random);
             const secondResult = evaluateGrid(secondGrid);
             if (secondResult.multiplier > result.multiplier) {
@@ -141,6 +172,9 @@ EconomyService.prototype.slots = function slots(guildId, userId, wager, interact
                 result = secondResult;
             }
             luckyRespins = true;
+        }
+        if (forcedMaxWin) {
+            this.db.prepare('DELETE FROM economy_settings WHERE guild_id=? AND setting_key=?').run(guildId, maxWinKey);
         }
 
         const payout = Math.floor(reserved.amount * result.multiplier);
@@ -159,6 +193,7 @@ EconomyService.prototype.slots = function slots(guildId, userId, wager, interact
             payout,
             balance,
             luckyRespins,
+            forcedMaxWin,
         };
     });
 };
@@ -167,6 +202,7 @@ EconomyService.prototype.slots = function slots(guildId, userId, wager, interact
 module.exports = {
     SLOT_COLUMNS,
     SLOT_ROWS,
+    SLOT_MAX_WIN_MULTIPLIER,
     SLOT_CHANCES,
     SLOT_PAYOUTS,
     SLOT_FALLBACK,
@@ -175,6 +211,8 @@ module.exports = {
     serverSymbols,
     symbolChanceTotal,
     spinGrid,
+    maxWinGrid,
+    maxWinSettingKey,
     slotsExpectedReturn,
     evaluateGrid,
     installSlots,

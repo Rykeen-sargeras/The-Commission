@@ -46,6 +46,9 @@ function economyCommandData() {
             .addUserOption(option => option.setName('user').setDescription('Member to pay').setRequired(true))
             .addIntegerOption(option => option.setName('amount').setDescription('Amount to transfer').setMinValue(1).setRequired(true)),
         new Discord.SlashCommandBuilder().setName('gamble').setDescription('Open the Blood Money game menu'),
+        new Discord.SlashCommandBuilder().setName('ecomaxwin').setDescription("Make a member's next slot spin pay exactly 115×")
+            .setDefaultMemberPermissions(Discord.PermissionFlagsBits.Administrator)
+            .addUserOption(option => option.setName('user').setDescription('Member to receive the next-spin win (defaults to you)').setRequired(false)),
         new Discord.SlashCommandBuilder().setName('duel').setDescription('Challenge another member to a 50/50 Blood Money duel')
             .addUserOption(option => option.setName('user').setDescription('Member to challenge').setRequired(true))
             .addIntegerOption(option => option.setName('amount').setDescription('Blood Money wager per player').setMinValue(1).setRequired(true)),
@@ -137,8 +140,9 @@ function slotsPayload(result, guild, currencyName) {
     const wins = result.wins.length
         ? result.wins.map(win => `Line ${win.line}: ${win.symbol.render} × ${win.count}${win.wilds ? ` (${win.wilds} wild)` : ''} → **${win.multiplier}×**`).join('\n')
         : 'No matching payline this spin.';
+    const maxWinNotice = result.forcedMaxWin ? '\n\n🔥 **MAX WIN activated — this one spin paid exactly 115×.**' : '';
     return { embeds: [new Discord.EmbedBuilder().setColor(result.payout > 0 ? 0x2ea043 : 0x9b1c31)
-        .setTitle('🎰 The Commission — 5×4 Wild Slots').setDescription(`${board}\n\n${wins}`).addFields(
+        .setTitle('🎰 The Commission — 5×4 Wild Slots').setDescription(`${board}\n\n${wins}${maxWinNotice}`).addFields(
             { name: 'Wager', value: `${money(result.wager)} ${currencyName}`, inline: true },
             { name: 'Total multiplier', value: `${result.multiplier}×`, inline: true },
             { name: 'Payout', value: `${money(result.payout)} ${currencyName}`, inline: true },

@@ -946,13 +946,22 @@ function createEconomyIntegration(client, economy, options = {}) {
     async function handleCommand(interaction) {
         if (!interaction.isChatInputCommand()) return false;
         const name = interaction.commandName;
-        if (!['balance','leaderboard','daily','economy-stats','pay','gamble','duel','eco'].includes(name)) return false;
+        if (!['balance','leaderboard','daily','economy-stats','pay','gamble','duel','eco','ecomaxwin'].includes(name)) return false;
         try {
             if (name === 'gamble') {
                 if (economy.config.gamblingChannelId && interaction.channelId !== economy.config.gamblingChannelId) {
                     throw new Error(`Play gambling games in <#${economy.config.gamblingChannelId}>.`);
                 }
                 await interaction.reply(gambleMenuPayload(economy.config.currencyName));
+            } else if (name === 'ecomaxwin') {
+                if (!canAdministerEconomy(interaction.member, 'max-win', options.staffRoleIds || [])) {
+                    throw new Error('Administrator permission is required to arm a max-win spin.');
+                }
+                const user = interaction.options.getUser('user') || interaction.user;
+                if (user.bot) throw new Error('Bots cannot receive a max-win spin.');
+                const armed = economy.armSlotsMaxWin(interaction.guild.id, user.id);
+                await interaction.reply({ content: `🔥 ${user}'s next slot spin will pay exactly **${armed.multiplier}×**. This is a one-spin override and does not stack.`, ephemeral: true });
+                await audit(interaction.guild, 'Slots max win armed', `${interaction.user} armed a one-spin **${armed.multiplier}×** slots win for ${user}.`);
             } else if (name === 'eco') {
                 await handleAdmin(interaction);
             } else if (name === 'balance') {

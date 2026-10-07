@@ -21,6 +21,7 @@ assert.strictEqual(slots.spinGrid(slotSymbols, () => 0.5).length, 20);
 assert.deepStrictEqual(slotSymbols.map(symbol => symbol.chance), [24, 20, 15.5, 12, 9, 7, 5, 3, 1, 3.5]);
 assert.strictEqual(slots.symbolChanceTotal(slotSymbols), 100);
 assert.strictEqual(Number(slots.slotsExpectedReturn().toFixed(3)), 1.028);
+assert.strictEqual(slots.evaluateGrid(slots.maxWinGrid(slotSymbols)).multiplier, 115);
 
 const uniqueGrid = Array.from({ length: 20 }, (_, index) => ({
     key: `unique-${index}`, render: String(index), payouts: { 3: 0.5, 4: 2, 5: 6 }, chance: 1, wild: false,
@@ -74,6 +75,19 @@ const service = new EconomyService({
 });
 
 try {
+    service.admin('guild', 'add', 'max-win-user', 1000, 'fund-max-win');
+    assert.deepStrictEqual(service.armSlotsMaxWin('guild', 'max-win-user'), {
+        guildId: 'guild', userId: 'max-win-user', multiplier: 115,
+    });
+    const maxWin = service.slots('guild', 'max-win-user', 10, 'forced-max-win', slotSymbols);
+    assert.strictEqual(maxWin.forcedMaxWin, true);
+    assert.strictEqual(maxWin.multiplier, 115);
+    assert.strictEqual(maxWin.payout, 1150);
+    assert.strictEqual(service.setting('guild', slots.maxWinSettingKey('max-win-user')), '');
+    const followingSpin = service.slots('guild', 'max-win-user', 10, 'ordinary-follow-up', slotSymbols);
+    assert.strictEqual(followingSpin.forcedMaxWin, false);
+    assert.notStrictEqual(followingSpin.multiplier, 115);
+
     assert.strictEqual(service.createDeck().length, 52);
     assert.strictEqual(service.createDeck(2).length, 104);
     assert.strictEqual(service.createDeck(3).length, 156);

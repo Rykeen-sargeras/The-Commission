@@ -14,6 +14,10 @@ assert.strictEqual(commands.filter(command => retiredStandaloneGames.has(command
 assert.strictEqual(commands.filter(command => command.name === 'duel').length, 1);
 assert.deepStrictEqual(commands.find(command => command.name === 'duel').options.map(option => option.name), ['user', 'amount']);
 assert.strictEqual(commands.filter(command => command.name === 'eco').length, 1);
+const maxWinCommand = commands.find(command => command.name === 'ecomaxwin');
+assert(maxWinCommand);
+assert.strictEqual(maxWinCommand.default_member_permissions, Discord.PermissionFlagsBits.Administrator.toString());
+assert.deepStrictEqual(maxWinCommand.options.map(option => option.name), ['user']);
 const manage = commands.find(command => command.name === 'eco').options.find(option => option.name === 'manage');
 assert.deepStrictEqual(manage.options.map(option => option.name), [
     'add', 'remove', 'set', 'give-all', 'reset-user', 'reset-daily', 'freeze', 'unfreeze', 'audit',
@@ -58,6 +62,27 @@ function baseClient() {
     }), true);
     assert.strictEqual(commandReply.ephemeral, true);
     assert.strictEqual(commandReply.components[0].components[0].data.custom_id, 'econ:gamble:choose:slots');
+
+    let armedMaxWin = null;
+    let maxWinReply = null;
+    const maxWinIntegration = createEconomyIntegration(baseClient(), baseEconomy({
+        armSlotsMaxWin: (guildId, userId) => {
+            armedMaxWin = [guildId, userId];
+            return { guildId, userId, multiplier: 115 };
+        },
+    }));
+    assert.strictEqual(await maxWinIntegration.handleCommand({
+        commandName: 'ecomaxwin',
+        isChatInputCommand: () => true,
+        member: { permissions: { has: permission => permission === Discord.PermissionFlagsBits.Administrator } },
+        guild: { id: 'guild', channels: { fetch: async () => null } },
+        user: { id: 'admin', bot: false, toString: () => '<@admin>' },
+        options: { getUser: () => ({ id: 'target', bot: false, toString: () => '<@target>' }) },
+        reply: async payload => { maxWinReply = payload; },
+    }), true);
+    assert.deepStrictEqual(armedMaxWin, ['guild', 'target']);
+    assert.strictEqual(maxWinReply.ephemeral, true);
+    assert.match(maxWinReply.content, /115×/);
 
     let gamblePanelPayload = null;
     let gamblePanelSetting = null;
