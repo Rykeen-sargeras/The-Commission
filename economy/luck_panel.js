@@ -7,9 +7,10 @@ const LUCK_SHOP_CHANNEL_ID = '1532787416098672750';
 const PANEL_SETTING_KEY = 'luck_shop_panel_message';
 
 const PERSONAL_ITEMS = Object.freeze({
-    'luck-1': Object.freeze({ key: 'luck-1', name: 'Lucky Break', percent: 1, cost: 5000 }),
-    'luck-5': Object.freeze({ key: 'luck-5', name: 'Made Luck', percent: 5, cost: 30000 }),
-    'luck-10': Object.freeze({ key: 'luck-10', name: 'Boss Luck', percent: 10, cost: 250000 }),
+    'luck-1': Object.freeze({ key: 'luck-1', name: 'Lucky Break', percent: 1, cost: 50_000 }),
+    'luck-5': Object.freeze({ key: 'luck-5', name: 'Made Luck', percent: 5, cost: 300_000 }),
+    'luck-10': Object.freeze({ key: 'luck-10', name: 'Boss Luck', percent: 10, cost: 2_500_000 }),
+    'luck-25': Object.freeze({ key: 'luck-25', name: 'Apex Luck', percent: 25, cost: 3_000_000 }),
 });
 const HEIST_ITEMS = Object.freeze({
     'hot-tip': Object.freeze({ key: 'hot-tip', name: 'Hot Tip', cost: 50000, description: '+25% personal payout for your next 2 winning heists.' }),
@@ -19,10 +20,10 @@ const GLOBAL_COST = 1000;
 const GLOBAL_PERCENT = 0.75;
 const GLOBAL_MAX_PER_USER = 20;
 const PRESTIGE_ITEMS = Object.freeze({
-    'prestige-25m': Object.freeze({ key: 'prestige-25m', name: '25M Prestige Token', cost: 25_000_000 }),
-    'prestige-30m': Object.freeze({ key: 'prestige-30m', name: '30M Prestige Token', cost: 30_000_000 }),
-    'prestige-50m': Object.freeze({ key: 'prestige-50m', name: '50M Prestige Token', cost: 50_000_000 }),
-    'prestige-100m': Object.freeze({ key: 'prestige-100m', name: '100M Prestige Token', cost: 100_000_000 }),
+    'prestige-25m': Object.freeze({ key: 'prestige-25m', name: '25M Prestige Token', modifier: 2.5, cost: 25_000_000 }),
+    'prestige-30m': Object.freeze({ key: 'prestige-30m', name: '30M Prestige Token', modifier: 3, cost: 30_000_000 }),
+    'prestige-50m': Object.freeze({ key: 'prestige-50m', name: '50M Prestige Token', modifier: 5, cost: 50_000_000 }),
+    'prestige-100m': Object.freeze({ key: 'prestige-100m', name: '100M Prestige Token', modifier: 10, cost: 100_000_000 }),
 });
 
 function money(value) {
@@ -51,16 +52,18 @@ function panelPayload(economy, guildId, now = Date.now()) {
         .setTitle('🍀 The Commission · Luck & Heist Shop')
         .setDescription(
             '**Permanent Personal Luck**\n' +
-            `🍀 **Lucky Break** — +1% luck — **${money(5000)} ${economy.config.currencyName}**\n` +
-            `🎩 **Made Luck** — +5% luck — **${money(30000)} ${economy.config.currencyName}**\n` +
-            `👑 **Boss Luck** — +10% luck — **${money(250000)} ${economy.config.currencyName}**\n\n` +
+            `🍀 **Lucky Break** — +1% luck — **${money(PERSONAL_ITEMS['luck-1'].cost)} ${economy.config.currencyName}**\n` +
+            `🎩 **Made Luck** — +5% luck — **${money(PERSONAL_ITEMS['luck-5'].cost)} ${economy.config.currencyName}**\n` +
+            `👑 **Boss Luck** — +10% luck — **${money(PERSONAL_ITEMS['luck-10'].cost)} ${economy.config.currencyName}**\n` +
+            `💠 **Apex Luck** — +25% luck — **${money(PERSONAL_ITEMS['luck-25'].cost)} ${economy.config.currencyName}**\n` +
+            'Apex requires the 1%, 5%, and 10% upgrades. Each Prestige banks the current 5%, 10%, and 25% cycle and lets you buy those three again.\n\n' +
             '**Heist Items**\n' +
             `🗺️ **Hot Tip** — +25% personal payout on your next **2 winning heists** — **${money(50000)} ${economy.config.currencyName}**\n` +
             `🤵 **Hired Goon** — **${money(100000)} ${economy.config.currencyName} each** · lasts **24 hours** · max **2 active**. ` +
             'Each goon counts toward heist strength. You receive **50% of each goon\'s cut**; on a failed PvP battle you absorb **25% of its loss exposure**.\n\n' +
             'PvP robbery itself remains capped at **10% of the selected target balance**.\n\n' +
             '**Prestige Collectibles**\n' +
-            'One-time status purchases with no hidden gameplay modifier: **25M · 30M · 50M · 100M**.\n\n' +
+            '**25M: +2.5% · 30M: +3% · 50M: +5% · 100M: +10%** duel/heist chance. Owned tiers stack.\n\n' +
             '**Community Luck Pot**\n' +
             `Spend **${money(GLOBAL_COST)} ${economy.config.currencyName}** to add **+${GLOBAL_PERCENT}% GLOBAL luck** for 24 hours. ` +
             `Each member may hold up to **${GLOBAL_MAX_PER_USER} active boosts** at once.`
@@ -74,19 +77,20 @@ function panelPayload(economy, guildId, now = Date.now()) {
         .setTimestamp();
 
     const personalRow = new Discord.ActionRowBuilder().addComponents(
-        new Discord.ButtonBuilder().setCustomId('econ:luckpanel:buy:luck-1').setLabel('+1% · 5,000').setEmoji('🍀').setStyle(Discord.ButtonStyle.Secondary),
-        new Discord.ButtonBuilder().setCustomId('econ:luckpanel:buy:luck-5').setLabel('+5% · 30,000').setEmoji('🎩').setStyle(Discord.ButtonStyle.Primary),
-        new Discord.ButtonBuilder().setCustomId('econ:luckpanel:buy:luck-10').setLabel('+10% · 250,000').setEmoji('👑').setStyle(Discord.ButtonStyle.Danger),
+        new Discord.ButtonBuilder().setCustomId('econ:luckpanel:buy:luck-1').setLabel('+1% · 50K').setEmoji('🍀').setStyle(Discord.ButtonStyle.Secondary),
+        new Discord.ButtonBuilder().setCustomId('econ:luckpanel:buy:luck-5').setLabel('+5% · 300K').setEmoji('🎩').setStyle(Discord.ButtonStyle.Primary),
+        new Discord.ButtonBuilder().setCustomId('econ:luckpanel:buy:luck-10').setLabel('+10% · 2.5M').setEmoji('👑').setStyle(Discord.ButtonStyle.Danger),
+        new Discord.ButtonBuilder().setCustomId('econ:luckpanel:buy:luck-25').setLabel('+25% · 3M').setEmoji('💠').setStyle(Discord.ButtonStyle.Success),
     );
     const heistRow = new Discord.ActionRowBuilder().addComponents(
         new Discord.ButtonBuilder().setCustomId('econ:luckpanel:heistbuy:hot-tip').setLabel('Hot Tip · 50K').setEmoji('🗺️').setStyle(Discord.ButtonStyle.Primary),
         new Discord.ButtonBuilder().setCustomId('econ:luckpanel:heistbuy:hired-goon').setLabel('Hire Goon · 100K').setEmoji('🤵').setStyle(Discord.ButtonStyle.Danger),
     );
     const prestigeRow = new Discord.ActionRowBuilder().addComponents(
-        new Discord.ButtonBuilder().setCustomId('econ:luckpanel:buy:prestige-25m').setLabel('Prestige · 25M').setStyle(Discord.ButtonStyle.Secondary),
-        new Discord.ButtonBuilder().setCustomId('econ:luckpanel:buy:prestige-30m').setLabel('Prestige · 30M').setStyle(Discord.ButtonStyle.Primary),
-        new Discord.ButtonBuilder().setCustomId('econ:luckpanel:buy:prestige-50m').setLabel('Prestige · 50M').setStyle(Discord.ButtonStyle.Danger),
-        new Discord.ButtonBuilder().setCustomId('econ:luckpanel:buy:prestige-100m').setLabel('Prestige · 100M').setStyle(Discord.ButtonStyle.Success),
+        new Discord.ButtonBuilder().setCustomId('econ:luckpanel:buy:prestige-25m').setLabel('+2.5% · 25M').setStyle(Discord.ButtonStyle.Secondary),
+        new Discord.ButtonBuilder().setCustomId('econ:luckpanel:buy:prestige-30m').setLabel('+3% · 30M').setStyle(Discord.ButtonStyle.Primary),
+        new Discord.ButtonBuilder().setCustomId('econ:luckpanel:buy:prestige-50m').setLabel('+5% · 50M').setStyle(Discord.ButtonStyle.Danger),
+        new Discord.ButtonBuilder().setCustomId('econ:luckpanel:buy:prestige-100m').setLabel('+10% · 100M').setStyle(Discord.ButtonStyle.Success),
     );
     const communityRow = new Discord.ActionRowBuilder().addComponents(
         new Discord.ButtonBuilder().setCustomId('econ:luckpanel:global').setLabel('Add +0.75% Global · 1,000').setEmoji('🌐').setStyle(Discord.ButtonStyle.Success),
@@ -133,8 +137,10 @@ function myLuckPayload(economy, guildId, userId) {
         : `You have **${activeMine}/${limit} active global boosts**. A slot opens <t:${Math.floor(status.nextGlobalAt / 1000)}:R>.`;
     const prestigeOwned = new Set((status.purchases || []).map(row => row.item_key));
     const prestigeLines = Object.values(PRESTIGE_ITEMS)
-        .map(item => `${prestigeOwned.has(item.key) ? '✅' : '❌'} ${item.name}`)
+        .map(item => `${prestigeOwned.has(item.key) ? '✅' : '❌'} ${item.name}: +${item.modifier}% duel/heist`)
         .join('\n');
+    const masterUnlocked = Object.keys(PRESTIGE_ITEMS).every(key => prestigeOwned.has(key));
+    const masterClaimed = prestigeOwned.has('prestige-master');
     const heist = economy.heistStoreStatus?.(guildId, userId) || { inventory: {}, balance: status.balance, goons: [] };
     const goons = heist.goons || [];
     const goonLines = goons.length ? goons.map((row, index) => `🤵 Goon ${index + 1}: expires <t:${Math.floor(row.expires_at / 1000)}:R>`).join('\n') : '🤵 No active hired goons.';
@@ -146,8 +152,15 @@ function myLuckPayload(economy, guildId, userId) {
                 { name: 'Personal', value: `+${fmtPercent(status.personalLuck)}%`, inline: true },
                 { name: 'Global', value: `+${fmtPercent(status.globalLuck)}%`, inline: true },
                 { name: 'Total', value: `+${fmtPercent(status.totalLuck)}%`, inline: true },
+                { name: 'Prestige duel/heist', value: `+${fmtPercent(status.prestigeModifier)}%`, inline: true },
                 { name: 'Balance', value: `${money(heist.balance)} ${economy.config.currencyName}`, inline: true },
             )],
+        components: masterUnlocked ? [new Discord.ActionRowBuilder().addComponents(
+            new Discord.ButtonBuilder().setCustomId('econ:luckpanel:prestige-master')
+                .setLabel('Prestige Master')
+                .setEmoji('🏆')
+                .setStyle(Discord.ButtonStyle.Success),
+        )] : [],
     };
 }
 
@@ -315,6 +328,7 @@ module.exports = {
     LUCK_SHOP_CHANNEL_ID,
     PANEL_SETTING_KEY,
     panelPayload,
+    myLuckPayload,
     publicLuckState,
     installLuckPanel,
 };

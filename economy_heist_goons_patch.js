@@ -48,8 +48,10 @@ function scaledReward(playerCount) {
     return Math.min(HEIST_MAX_REWARD, HEIST_BASE_REWARD * Math.max(1, Number(playerCount) || 1));
 }
 
-function successChance(playerCount) {
-    return Math.min(100, HEIST_BASE_SUCCESS + (Math.max(0, Number(playerCount) || 0) * HEIST_SUCCESS_PER_PLAYER));
+function successChance(playerCount, prestigeModifier = 0) {
+    return Math.min(100, HEIST_BASE_SUCCESS
+        + (Math.max(0, Number(playerCount) || 0) * HEIST_SUCCESS_PER_PLAYER)
+        + Math.max(0, Number(prestigeModifier) || 0));
 }
 
 function installHeistGoonsPatch() {
@@ -137,6 +139,13 @@ function installHeistGoonsPatch() {
             return roster;
         }
 
+        crewPrestigeModifier(round, entries = round?.entries || []) {
+            return entries.reduce(
+                (total, entry) => total + Number(this.prestigeModifierPercent?.(round.guild_id, entry.user_id) || 0),
+                0,
+            );
+        }
+
         applyGoonShares(entries, goons, rewardPool) {
             const totalGoons = goons.reduce((sum, row) => sum + row.count, 0);
             const effectivePlayers = entries.length + totalGoons;
@@ -163,13 +172,14 @@ function installHeistGoonsPatch() {
             const goons = this.goonRoster(round, entries, now);
             const totalGoons = goons.reduce((sum, row) => sum + row.count, 0);
             const effectivePlayers = entries.length + totalGoons;
-            const chance = successChance(effectivePlayers);
+            const prestigeModifier = this.crewPrestigeModifier(round, entries);
+            const chance = successChance(effectivePlayers, prestigeModifier);
             const success = this.random() * 100 < chance;
             const rewardPool = success ? scaledReward(effectivePlayers) : 0;
             const shares = this.applyGoonShares(entries, goons, rewardPool);
             const story = [
                 `${type.emoji || '👑'} **${type.name || 'Boss'}** hits the crew head-on.`,
-                `Success chance: **${chance.toFixed(1)}%** using **${entries.length} player${entries.length === 1 ? '' : 's'} + ${totalGoons} hired goon${totalGoons === 1 ? '' : 's'}**.`,
+                `Success chance: **${chance.toFixed(1)}%** using **${entries.length} player${entries.length === 1 ? '' : 's'} + ${totalGoons} hired goon${totalGoons === 1 ? '' : 's'}** and **+${prestigeModifier}% crew Prestige**.`,
             ];
             if (success) {
                 story.push(`The crew secures **${money(rewardPool)} Blood Money** before goon commissions.`);
@@ -178,7 +188,7 @@ function installHeistGoonsPatch() {
                 story.push(`${type.name || 'The boss'} wins the fight and the crew loses the entry pot.`);
             }
             return {
-                eventType: type.id || 'boss', variant: 'boss', success, chance,
+                eventType: type.id || 'boss', variant: 'boss', success, chance, prestigeModifier,
                 rewardPool, payouts: success ? shares.payouts : new Map(), story,
             };
         }
@@ -193,11 +203,12 @@ function installHeistGoonsPatch() {
             if (!victims.length) return this.bossOutcome(round, entries, { id: 'fallback-boss', name: 'Fallback Boss', emoji: '👑' });
 
             const victim = victims[Math.floor(this.random() * victims.length)];
-            const chance = successChance(effectivePlayers);
+            const prestigeModifier = this.crewPrestigeModifier(round, entries);
+            const chance = successChance(effectivePlayers, prestigeModifier);
             const success = this.random() * 100 < chance;
             const story = [
                 `⚔️ **PvP Battle:** the crew targets <@${victim.user_id}>.`,
-                `Success chance: **${chance.toFixed(1)}%** using **${entries.length} player${entries.length === 1 ? '' : 's'} + ${totalGoons} hired goon${totalGoons === 1 ? '' : 's'}**.`,
+                `Success chance: **${chance.toFixed(1)}%** using **${entries.length} player${entries.length === 1 ? '' : 's'} + ${totalGoons} hired goon${totalGoons === 1 ? '' : 's'}** and **+${prestigeModifier}% crew Prestige**.`,
             ];
 
             if (success) {
@@ -210,7 +221,7 @@ function installHeistGoonsPatch() {
                 story.push(`<@${victim.user_id}> is robbed for **${money(stolenAmount)} Blood Money**. The 10% balance cap is enforced.`);
                 if (totalGoons) story.push(`🤵 Bosses collect **50% of each hired goon's cut**.`);
                 return {
-                    eventType: 'pvp', variant: 'robbery', success: true, chance,
+                    eventType: 'pvp', variant: 'robbery', success: true, chance, prestigeModifier,
                     victimId: victim.user_id, stolenAmount, rewardPool,
                     payouts: shares.payouts, story,
                 };
@@ -229,7 +240,7 @@ function installHeistGoonsPatch() {
             story.push(`<@${victim.user_id}> wins the PvP defense. No target balance is taken.`);
             if (totalGoons) story.push(`🤕 Hired goons lost the fight; their bosses absorbed **25% of the goons' 100K entry exposure** (**${money(bossLossTotal)} Blood Money total**).`);
             return {
-                eventType: 'pvp', variant: 'defended-robbery', success: false, chance,
+                eventType: 'pvp', variant: 'defended-robbery', success: false, chance, prestigeModifier,
                 victimId: victim.user_id, stolenAmount: 0, defenseAmount: bossLossTotal,
                 rewardPool: 0, payouts: new Map(), story,
             };
@@ -264,7 +275,8 @@ function installHeistGoonsPatch() {
             const signup = state.phase === 'signup';
             const nextAt = signup ? round.signup_ends_at : state.nextAt;
             const participants = Number(round?.participantCount || round?.entries?.length || 0);
-            const chance = successChance(participants);
+            const prestigeModifier = economy.crewPrestigeModifier?.(round, round?.entries || []) || 0;
+            const chance = successChance(participants, prestigeModifier);
             const joinRoundId = round?.round_id || 'next';
             return {
                 embeds: [new Discord.EmbedBuilder()
@@ -277,7 +289,7 @@ function installHeistGoonsPatch() {
                         { name: 'Entry', value: `100,000 ${economy.config.currencyName}`, inline: true },
                         { name: 'Schedule', value: '3 AM · 9 AM · 3 PM · 9 PM ET', inline: true },
                         { name: 'Base Reward', value: '150,000 per participant · 1,000,000 max', inline: true },
-                        { name: 'Success', value: `66% + 1.5% per participant`, inline: true },
+                        { name: 'Current success', value: `${chance.toFixed(1)}% · includes +${prestigeModifier}% crew Prestige`, inline: true },
                         { name: 'Encounter', value: 'Boss Battle or PvP Battle', inline: true },
                         { name: 'Join Anytime', value: signup ? 'Joins the current heist.' : 'Reserves the next heist and charges the 100K entry now.', inline: false },
                     )
@@ -399,5 +411,6 @@ module.exports = {
     HEIST_STORE_ITEMS,
     HOT_TIP_COST,
     HOT_TIP_USES,
+    successChance,
     installHeistGoonsPatch,
 };

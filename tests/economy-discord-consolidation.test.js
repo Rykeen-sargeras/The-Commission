@@ -144,7 +144,7 @@ function baseClient() {
         reply: async payload => { duelReply = payload; },
         fetchReply: async () => ({ id: 'duel-message' }),
     });
-    assert.match(duelReply.embeds[0].data.description, /50\/50 duel/);
+    assert.match(duelReply.embeds[0].data.fields.find(field => field.name === 'Prestige-adjusted odds').value, /50%/);
     assert.deepStrictEqual(attachedDuel, ['duel-id', 'gambling', 'duel-message']);
 
     const selectIntegration = createEconomyIntegration(baseClient(), baseEconomy());

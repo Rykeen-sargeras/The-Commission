@@ -6,11 +6,14 @@ const os = require('os');
 const path = require('path');
 
 const luck = require('../economy/luck');
+const { myLuckPayload } = require('../economy/luck_panel');
 const { EconomyService } = require('../economy');
 
 assert.strictEqual(luck.PERSONAL_LUCK_ITEMS['luck-1'].cost, 5000);
 assert.strictEqual(luck.PERSONAL_LUCK_ITEMS['luck-5'].percent, 5);
 assert.strictEqual(luck.PERSONAL_LUCK_ITEMS['luck-10'].cost, 250000);
+assert.strictEqual(luck.PRESTIGE_ITEMS['prestige-25m'].modifier, 2.5);
+assert.strictEqual(luck.PRESTIGE_ITEMS['prestige-100m'].modifier, 10);
 assert.strictEqual(luck.GLOBAL_LUCK_COST, 1000);
 assert.strictEqual(luck.GLOBAL_LUCK_PERCENT, 0.75);
 assert.strictEqual(luck.GLOBAL_LUCK_MAX_ACTIVE_PER_USER, 20);
@@ -37,6 +40,23 @@ try {
     const ten = service.buyLuckItem('guild', 'user', 'luck-10', 'buy-10', 3000);
     assert.strictEqual(ten.personalLuck, 16);
     assert.throws(() => service.buyLuckItem('guild', 'user', 'luck-1', 'buy-1-again', 4000), /one-time purchase/i);
+
+    service.admin('guild', 'add', 'prestige-user', 220_000_000, 'fund-prestige');
+    service.buyLuckItem('guild', 'prestige-user', 'luck-1', 'prestige-buy-luck-1', 4400);
+    for (const prestigeKey of ['prestige-25m', 'prestige-30m', 'prestige-50m', 'prestige-100m']) {
+        for (const luckKey of ['luck-5', 'luck-10', 'luck-25']) {
+            service.buyLuckItem('guild', 'prestige-user', luckKey, `${prestigeKey}-${luckKey}`, 4500);
+        }
+        service.buyLuckItem('guild', 'prestige-user', prestigeKey, `buy-${prestigeKey}`, 4500);
+    }
+    const prestige = service.luckShopStatus('guild', 'prestige-user', 4600);
+    assert.strictEqual(prestige.prestigeModifier, 20.5);
+    assert.strictEqual(prestige.personalLuck, 161, 'Each Prestige cycle should permanently bank 5% + 10% + 25%, while 1% remains owned.');
+    const masterPayload = myLuckPayload(service, 'guild', 'prestige-user');
+    assert.strictEqual(masterPayload.components.length, 1);
+    assert.strictEqual(masterPayload.components[0].components[0].data.label, 'Prestige Master');
+    assert.strictEqual(service.claimPrestigeMaster('guild', 'prestige-user', 4700).alreadyClaimed, false);
+    assert.strictEqual(service.claimPrestigeMaster('guild', 'prestige-user', 4800).alreadyClaimed, true);
 
     const global = service.contributeGlobalLuck('guild', 'user', 'global-1', 5000);
     assert.strictEqual(global.globalLuck, 0.75);

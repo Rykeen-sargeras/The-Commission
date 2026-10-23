@@ -162,9 +162,10 @@ function createEconomyIntegration(client, economy, options = {}) {
     function heistPanelPayload(state) {
         const round = state.round;
         const signup = state.phase === 'signup';
-        const chance = Math.min(
+        const prestigeModifier = Number(economy.heistPrestigeModifierPercent?.(round) || 0);
+        const chance = economy.heistSuccessChance?.(round) ?? Math.min(
             economy.config.heistMaximumSuccessChance,
-            economy.config.heistBaseSuccessChance + (Math.max(0, round.participantCount - 1) * economy.config.heistChancePerExtraPlayer),
+            economy.config.heistBaseSuccessChance + (Math.max(0, round.participantCount - 1) * economy.config.heistChancePerExtraPlayer) + prestigeModifier,
         );
         let title = signup ? '🔫 The Commission Heist · Entry Open' : '🚬 The Commission Heist · Crew Cooling Down';
         let description;
@@ -180,7 +181,7 @@ function createEconomyIntegration(client, economy, options = {}) {
                     .addFields(
                         { name: 'Entry fee', value: freeEntry ? 'FREE' : `${money(round.entry_fee)} ${economy.config.currencyName}`, inline: true },
                         { name: 'Crew entered', value: `${round.participantCount} / ${economy.config.heistMinimumPlayers} minimum`, inline: true },
-                        { name: 'Current success chance', value: `${chance}%`, inline: true },
+                        { name: 'Current success chance', value: `${chance}% · +${prestigeModifier}% crew Prestige`, inline: true },
                         { name: 'Current crew pot', value: money(round.pot), inline: true },
                         { name: 'Projected total payout', value: money(projectedPayout), inline: true },
                         { name: 'Reward per member on success', value: money(projectedShare), inline: true },

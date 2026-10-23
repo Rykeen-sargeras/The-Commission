@@ -332,15 +332,18 @@ function blackjackPayload(game, userMention, currencyName, note = '') {
 }
 
 function duelChallengePayload(duel, currencyName) {
+    const challengerChance = Number(duel.challengerChance ?? 50);
+    const challengedChance = Number(duel.challengedChance ?? 50);
     return {
         content: `<@${duel.challenged_id}>`,
         embeds: [new Discord.EmbedBuilder().setColor(0x9b1c31).setTitle('⚔️ Blood Money Duel Challenge')
-            .setDescription(`<@${duel.challenger_id}> challenged <@${duel.challenged_id}> to a **50/50 duel**.`)
+            .setDescription(`<@${duel.challenger_id}> challenged <@${duel.challenged_id}> to a Blood Money duel.`)
             .addFields(
                 { name: 'Wager per player', value: `${money(duel.wager)} ${currencyName}`, inline: true },
                 { name: 'Winner receives', value: `${money(duel.wager * 2)} ${currencyName}`, inline: true },
+                { name: 'Prestige-adjusted odds', value: `<@${duel.challenger_id}> **${challengerChance}%** · <@${duel.challenged_id}> **${challengedChance}%**`, inline: false },
                 { name: 'Respond', value: `Only <@${duel.challenged_id}> may type **!accept** or **!deny** in this channel.`, inline: false },
-            ).setFooter({ text: 'Fair 50/50 result · No house fee · Expires in 5 minutes' }).setTimestamp()],
+            ).setFooter({ text: 'Prestige modifiers oppose each other · No house fee · Expires in 5 minutes' }).setTimestamp()],
         allowedMentions: { users: [duel.challenged_id] },
     };
 }
@@ -353,7 +356,12 @@ function duelResultPayload(duel, currencyName) {
     return {
         content: '',
         embeds: [new Discord.EmbedBuilder().setColor(duel.status === 'complete' ? 0x2ea043 : 0xd29922)
-            .setTitle(title).setDescription(description).setFooter({ text: 'The Commission · Player duel' }).setTimestamp()],
+            .setTitle(title).setDescription(description)
+            .addFields(...(duel.status === 'complete' && duel.challengerChance !== undefined ? [{
+                name: 'Final odds',
+                value: `<@${duel.challenger_id}> **${duel.challengerChance}%** · <@${duel.challenged_id}> **${duel.challengedChance}%**`,
+            }] : []))
+            .setFooter({ text: 'The Commission · Player duel' }).setTimestamp()],
         components: [],
     };
 }

@@ -682,6 +682,18 @@ class EconomyGames {
         this.db.prepare('UPDATE duels SET channel_id=?,message_id=? WHERE duel_id=?').run(channelId, messageId, duelId);
     }
 
+    duelOdds(guildId, challengerId, challengedId) {
+        const challengerModifier = Number(this.prestigeModifierPercent?.(guildId, challengerId) || 0);
+        const challengedModifier = Number(this.prestigeModifierPercent?.(guildId, challengedId) || 0);
+        const challengerChance = Math.max(0, Math.min(100, 50 + challengerModifier - challengedModifier));
+        return {
+            challengerModifier,
+            challengedModifier,
+            challengerChance,
+            challengedChance: 100 - challengerChance,
+        };
+    }
+
     createDuel(guildId, challengerId, challengedId, wager, interactionId, now = Date.now()) {
         if (challengerId === challengedId) throw new Error('You cannot duel yourself.');
         return this.transaction(() => {
@@ -698,7 +710,7 @@ class EconomyGames {
                 (duel_id,guild_id,challenger_id,challenged_id,wager,status,interaction_id,created_at,expires_at)
                 VALUES(?,?,?,?,?,'pending',?,?,?)`)
                 .run(duelId, guildId, challengerId, challengedId, reserved.amount, interactionId, now, expiresAt);
-            return { ...this.duel(duelId), challengerBalance: reserved.balance };
+            return { ...this.duel(duelId), ...this.duelOdds(guildId, challengerId, challengedId), challengerBalance: reserved.balance };
         });
     }
 
@@ -720,7 +732,8 @@ class EconomyGames {
             if (response === 'deny') return this.refundDuel(duel, 'denied', now);
             if (response !== 'accept') throw new Error('Use !accept or !deny.');
             this.reserveWager(guildId, challengedId, duel.wager, interactionId, `duel:${duel.duel_id}`, now);
-            const winnerId = this.random() < 0.5 ? duel.challenger_id : duel.challenged_id;
+            const odds = this.duelOdds(guildId, duel.challenger_id, duel.challenged_id);
+            const winnerId = (this.random() * 100) < odds.challengerChance ? duel.challenger_id : duel.challenged_id;
             const loserId = winnerId === duel.challenger_id ? duel.challenged_id : duel.challenger_id;
             const payout = duel.wager * 2;
             const winnerBalance = this.applyDelta(guildId, winnerId, payout, 'duel-payout', duel.duel_id, null, now);
@@ -730,7 +743,7 @@ class EconomyGames {
                 WHERE guild_id=? AND user_id=?`).run(duel.wager, guildId, loserId);
             this.db.prepare(`UPDATE duels SET status='complete',winner_id=?,completed_at=? WHERE duel_id=? AND status='pending'`)
                 .run(winnerId, now, duel.duel_id);
-            return { ...this.duel(duel.duel_id), payout, winnerBalance };
+            return { ...this.duel(duel.duel_id), ...odds, payout, winnerBalance };
         });
     }
 
@@ -826,6 +839,18 @@ class EconomyGames {
         return { entered: Boolean(entry), entry, round };
     }
 
+    heistPrestigeModifierPercent(round) {
+        return (round?.entries || []).reduce(
+            (total, entry) => total + Number(this.prestigeModifierPercent?.(round.guild_id, entry.user_id) || 0),
+            0,
+        );
+    }
+
+    heistSuccessChance(round) {
+        const playerChance = Math.max(0, round.participantCount - 1) * this.config.heistChancePerExtraPlayer;
+        return Math.min(this.config.heistMaximumSuccessChance, this.config.heistBaseSuccessChance + playerChance + this.heistPrestigeModifierPercent(round));
+    }
+
     resolveHeist(roundId, now = Date.now()) {
         return this.transaction(() => {
             const round = this.heistRound(roundId);
@@ -841,10 +866,7 @@ class EconomyGames {
                     .run(round.pot, now, roundId);
                 return this.heistRound(roundId);
             }
-            const chance = Math.min(
-                this.config.heistMaximumSuccessChance,
-                this.config.heistBaseSuccessChance + ((entries.length - 1) * this.config.heistChancePerExtraPlayer),
-            );
+            const chance = this.heistSuccessChance(round);
             const success = (this.random() * 100) < chance;
             const share = success
                 ? (round.entry_fee === 0

@@ -6,13 +6,17 @@ const PERSONAL_LUCK_ITEMS = Object.freeze({
     'luck-1': Object.freeze({ key: 'luck-1', name: 'Lucky Break', percent: 1, cost: 5000 }),
     'luck-5': Object.freeze({ key: 'luck-5', name: 'Made Luck', percent: 5, cost: 30000 }),
     'luck-10': Object.freeze({ key: 'luck-10', name: 'Boss Luck', percent: 10, cost: 250000 }),
+    'luck-25': Object.freeze({ key: 'luck-25', name: 'Apex Luck', percent: 25, cost: 3_000_000 }),
 });
 const PRESTIGE_ITEMS = Object.freeze({
-    'prestige-25m': Object.freeze({ key: 'prestige-25m', name: '25M Prestige Token', percent: 0, cost: 25_000_000, collectible: true }),
-    'prestige-30m': Object.freeze({ key: 'prestige-30m', name: '30M Prestige Token', percent: 0, cost: 30_000_000, collectible: true }),
-    'prestige-50m': Object.freeze({ key: 'prestige-50m', name: '50M Prestige Token', percent: 0, cost: 50_000_000, collectible: true }),
-    'prestige-100m': Object.freeze({ key: 'prestige-100m', name: '100M Prestige Token', percent: 0, cost: 100_000_000, collectible: true }),
+    'prestige-25m': Object.freeze({ key: 'prestige-25m', name: '25M Prestige Token', percent: 0, modifier: 2.5, cost: 25_000_000, collectible: true }),
+    'prestige-30m': Object.freeze({ key: 'prestige-30m', name: '30M Prestige Token', percent: 0, modifier: 3, cost: 30_000_000, collectible: true }),
+    'prestige-50m': Object.freeze({ key: 'prestige-50m', name: '50M Prestige Token', percent: 0, modifier: 5, cost: 50_000_000, collectible: true }),
+    'prestige-100m': Object.freeze({ key: 'prestige-100m', name: '100M Prestige Token', percent: 0, modifier: 10, cost: 100_000_000, collectible: true }),
 });
+const PRESTIGE_ORDER = Object.freeze(['prestige-25m', 'prestige-30m', 'prestige-50m', 'prestige-100m']);
+const PRESTIGE_RESET_ITEMS = Object.freeze(['luck-5', 'luck-10', 'luck-25']);
+const PRESTIGE_MASTER_KEY = 'prestige-master';
 const GLOBAL_LUCK_COST = 1000;
 const GLOBAL_LUCK_PERCENT = 0.75;
 const GLOBAL_LUCK_MAX_ACTIVE_PER_USER = 20;
@@ -121,6 +125,12 @@ EconomyService.prototype.totalLuckPercent = function totalLuckPercent(guildId, u
     return this.personalLuckPercent(guildId, userId) + this.globalLuckPercent(guildId, now);
 };
 
+EconomyService.prototype.prestigeModifierPercent = function prestigeModifierPercent(guildId, userId) {
+    const owned = this.db.prepare('SELECT item_key FROM luck_purchases WHERE guild_id=? AND user_id=?')
+        .all(guildId, userId);
+    return owned.reduce((total, row) => total + Number(PRESTIGE_ITEMS[row.item_key]?.modifier || 0), 0);
+};
+
 EconomyService.prototype.luckProc = function luckProc(guildId, userId, now = Date.now()) {
     const percent = this.totalLuckPercent(guildId, userId, now);
     if (percent <= 0) return false;
@@ -141,6 +151,7 @@ EconomyService.prototype.luckShopStatus = function luckShopStatus(guildId, userI
     return {
         purchases,
         personalLuck,
+        prestigeModifier: this.prestigeModifierPercent(guildId, userId),
         globalLuck,
         totalLuck: personalLuck + globalLuck,
         activeGlobalContributions: global.length,
@@ -155,19 +166,52 @@ EconomyService.prototype.luckShopStatus = function luckShopStatus(guildId, userI
 };
 
 EconomyService.prototype.buyLuckItem = function buyLuckItem(guildId, userId, itemKey, interactionId, now = Date.now()) {
-    const item = PERSONAL_LUCK_ITEMS[itemKey];
+    const item = PERSONAL_LUCK_ITEMS[itemKey] || PRESTIGE_ITEMS[itemKey];
     if (!item) throw new Error('Unknown luck-shop item.');
     return this.transaction(() => {
         const member = this.ensureMember(guildId, userId, now);
         this.assertUsable(member);
-        if (this.db.prepare('SELECT 1 FROM luck_purchases WHERE guild_id=? AND user_id=? AND item_key=?').get(guildId, userId, item.key)) {
+        const owned = new Set(this.db.prepare('SELECT item_key FROM luck_purchases WHERE guild_id=? AND user_id=?')
+            .all(guildId, userId).map(row => row.item_key));
+        if (owned.has(item.key)) {
             throw new Error(`${item.name} is a one-time purchase and you already own it.`);
+        }
+        if (itemKey === 'luck-25') {
+            const missing = ['luck-1', 'luck-5', 'luck-10'].filter(key => !owned.has(key));
+            if (missing.length) throw new Error('Apex Luck requires the 1%, 5%, and 10% upgrades first.');
+        }
+        if (item.collectible) {
+            const tierIndex = PRESTIGE_ORDER.indexOf(itemKey);
+            const missingTier = PRESTIGE_ORDER.slice(0, tierIndex).find(key => !owned.has(key));
+            if (missingTier) throw new Error(`Buy ${PRESTIGE_ITEMS[missingTier].name} before this Prestige tier.`);
+            if (!owned.has('luck-25')) throw new Error('Complete the current Apex Luck +25% cycle before buying this Prestige tier.');
         }
         if (member.balance < item.cost) throw new Error(`You need ${money(item.cost)} ${this.config.currencyName} for ${item.name}.`);
         const balance = this.applyDelta(guildId, userId, -item.cost, 'luck-shop-purchase', item.key, interactionId, now);
         this.db.prepare('INSERT INTO luck_purchases(guild_id,user_id,item_key,luck_percent,cost,purchased_at) VALUES(?,?,?,?,?,?)')
             .run(guildId, userId, item.key, item.percent, item.cost, now);
-        return { item, balance, ...this.luckShopStatus(guildId, userId, now) };
+        if (item.collectible) {
+            for (const resetKey of PRESTIGE_RESET_ITEMS) {
+                this.db.prepare('UPDATE luck_purchases SET item_key=? WHERE guild_id=? AND user_id=? AND item_key=?')
+                    .run(`banked:${item.key}:${resetKey}`, guildId, userId, resetKey);
+            }
+        }
+        return { item, balance, prestigeReset: item.collectible ? [...PRESTIGE_RESET_ITEMS] : [], ...this.luckShopStatus(guildId, userId, now) };
+    });
+};
+
+EconomyService.prototype.claimPrestigeMaster = function claimPrestigeMaster(guildId, userId, now = Date.now()) {
+    return this.transaction(() => {
+        this.ensureMember(guildId, userId, now);
+        const owned = new Set(this.db.prepare('SELECT item_key FROM luck_purchases WHERE guild_id=? AND user_id=?')
+            .all(guildId, userId).map(row => row.item_key));
+        const missing = PRESTIGE_ORDER.filter(key => !owned.has(key));
+        if (missing.length) throw new Error(`Prestige Master requires all four Prestige tiers. Missing: ${missing.map(key => PRESTIGE_ITEMS[key].name).join(', ')}.`);
+        if (!owned.has(PRESTIGE_MASTER_KEY)) {
+            this.db.prepare('INSERT INTO luck_purchases(guild_id,user_id,item_key,luck_percent,cost,purchased_at) VALUES(?,?,?,?,?,?)')
+                .run(guildId, userId, PRESTIGE_MASTER_KEY, 0, 0, now);
+        }
+        return { guildId, userId, itemKey: PRESTIGE_MASTER_KEY, alreadyClaimed: owned.has(PRESTIGE_MASTER_KEY) };
     });
 };
 
@@ -362,10 +406,10 @@ discordEconomy.economyCommandData = function luckShopCommandData() {
             { name: 'Buy +1% personal luck — 5,000', value: 'luck-1' },
             { name: 'Buy +5% personal luck — 30,000', value: 'luck-5' },
             { name: 'Buy +10% personal luck — 250,000', value: 'luck-10' },
-            { name: 'Buy 25M Prestige Token — one time', value: 'prestige-25m' },
-            { name: 'Buy 30M Prestige Token — one time', value: 'prestige-30m' },
-            { name: 'Buy 50M Prestige Token — one time', value: 'prestige-50m' },
-            { name: 'Buy 100M Prestige Token — one time', value: 'prestige-100m' },
+            { name: 'Buy 25M Prestige — +2.5% duel/heist', value: 'prestige-25m' },
+            { name: 'Buy 30M Prestige — +3% duel/heist', value: 'prestige-30m' },
+            { name: 'Buy 50M Prestige — +5% duel/heist', value: 'prestige-50m' },
+            { name: 'Buy 100M Prestige — +10% duel/heist', value: 'prestige-100m' },
             { name: 'Add +0.75% global luck for 24h — 1,000 (max 20 active)', value: 'global' },
         )).toJSON());
     return commands;
@@ -395,7 +439,7 @@ discordEconomy.createEconomyIntegration = function createLuckShopIntegration(cli
             const itemLines = Object.values(PERSONAL_LUCK_ITEMS).map(item =>
                 `${owned.has(item.key) ? '✅' : '🛒'} **${item.name}** — +${item.percent}% personal luck — ${money(item.cost)} ${economy.config.currencyName}${owned.has(item.key) ? ' · owned' : ''}`);
             const prestigeLines = Object.values(PRESTIGE_ITEMS).map(item =>
-                `${owned.has(item.key) ? '✅' : '🛒'} **${item.name}** — one-time collectible — ${money(item.cost)} ${economy.config.currencyName}${owned.has(item.key) ? ' · owned' : ''}`);
+                `${owned.has(item.key) ? '✅' : '🛒'} **${item.name}** — +${item.modifier}% duel/heist — ${money(item.cost)} ${economy.config.currencyName}${owned.has(item.key) ? ' · owned' : ''}`);
             const activeMine = Number(status.activeGlobalContributionsByUser || 0);
             const limit = Number(status.globalContributionLimit || GLOBAL_LUCK_MAX_ACTIVE_PER_USER);
             const globalLine = status.canContributeGlobal
@@ -406,7 +450,7 @@ discordEconomy.createEconomyIntegration = function createLuckShopIntegration(cli
                 : PERSONAL_LUCK_ITEMS[action]
                     ? `\n\nYour permanent personal luck increased by **+${result.item.percent}%**.`
                     : PRESTIGE_ITEMS[action]
-                        ? `\n\nYou unlocked **${result.item.name}**. It has no hidden luck or gambling modifier.`
+                        ? `\n\nYou unlocked **${result.item.name}** and gained **+${result.item.modifier}%** permanent duel/heist chance.`
                         : '';
 
             await interaction.reply({ embeds: [new Discord.EmbedBuilder().setColor(0x2ea043).setTitle(headline)
@@ -432,6 +476,8 @@ discordEconomy.createEconomyIntegration = function createLuckShopIntegration(cli
 module.exports = {
     PERSONAL_LUCK_ITEMS,
     PRESTIGE_ITEMS,
+    PRESTIGE_ORDER,
+    PRESTIGE_MASTER_KEY,
     GLOBAL_LUCK_COST,
     GLOBAL_LUCK_PERCENT,
     GLOBAL_LUCK_MAX_ACTIVE_PER_USER,

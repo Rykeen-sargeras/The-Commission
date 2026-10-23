@@ -14,12 +14,15 @@ const LUCK_ITEMS = Object.freeze({
     'luck-5': Object.freeze({ key: 'luck-5', name: 'Made Luck', percent: 5, cost: 300_000 }),
     'luck-10': Object.freeze({ key: 'luck-10', name: 'Boss Luck', percent: 10, cost: 2_500_000 }),
     'luck-25': Object.freeze({ key: 'luck-25', name: 'Apex Luck', percent: 25, cost: 3_000_000 }),
-    'prestige-25m': Object.freeze({ key: 'prestige-25m', name: '25M Prestige Token', percent: 0, cost: 25_000_000, collectible: true }),
-    'prestige-30m': Object.freeze({ key: 'prestige-30m', name: '30M Prestige Token', percent: 0, cost: 30_000_000, collectible: true }),
-    'prestige-50m': Object.freeze({ key: 'prestige-50m', name: '50M Prestige Token', percent: 0, cost: 50_000_000, collectible: true }),
-    'prestige-100m': Object.freeze({ key: 'prestige-100m', name: '100M Prestige Token', percent: 0, cost: 100_000_000, collectible: true }),
+    'prestige-25m': Object.freeze({ key: 'prestige-25m', name: '25M Prestige Token', percent: 0, modifier: 2.5, cost: 25_000_000, collectible: true }),
+    'prestige-30m': Object.freeze({ key: 'prestige-30m', name: '30M Prestige Token', percent: 0, modifier: 3, cost: 30_000_000, collectible: true }),
+    'prestige-50m': Object.freeze({ key: 'prestige-50m', name: '50M Prestige Token', percent: 0, modifier: 5, cost: 50_000_000, collectible: true }),
+    'prestige-100m': Object.freeze({ key: 'prestige-100m', name: '100M Prestige Token', percent: 0, modifier: 10, cost: 100_000_000, collectible: true }),
 });
 const APEX_REQUIREMENTS = Object.freeze(['luck-1', 'luck-5', 'luck-10']);
+const PRESTIGE_ORDER = Object.freeze(['prestige-25m', 'prestige-30m', 'prestige-50m', 'prestige-100m']);
+const PRESTIGE_RESET_ITEMS = Object.freeze(['luck-5', 'luck-10', 'luck-25']);
+const PRESTIGE_MASTER_ROLE_NAME = 'Prestige Master';
 
 const DAILY_COMMON_MIN = 1_000;
 const DAILY_COMMON_MAX = 50_000;
@@ -103,14 +106,14 @@ function storePayload(economy, guildId) {
             `🎩 **Made Luck** — +5% luck — **${money(LUCK_ITEMS['luck-5'].cost)} ${economy.config.currencyName}**\n` +
             `👑 **Boss Luck** — +10% luck — **${money(LUCK_ITEMS['luck-10'].cost)} ${economy.config.currencyName}**\n` +
             `💠 **Apex Luck** — +25% luck — **${money(LUCK_ITEMS['luck-25'].cost)} ${economy.config.currencyName}**\n` +
-            'Requires you to own **1% + 5% + 10%** first. Buying Apex Luck **trades those three upgrades in** and replaces them with one permanent **25% modifier**.\n\n' +
+            'Requires **1% + 5% + 10%** first. Apex stacks on top of them. Each completed Prestige tier permanently banks that cycle and reopens the **5%, 10%, and 25%** purchases.\n\n' +
             '**Heist Items**\n' +
             '🗺️ **Hot Tip** — +25% personal payout on your next **2 winning heists** — **50,000 Blood Money**\n' +
             '🤵 **Hired Goon** — **100,000 Blood Money each** · lasts **24 hours** · max **2 active**.\n\n' +
             '**Daily Claim**\n' +
             'Daily payouts are fully random from **1,000 to 250,000 Blood Money**. The lower 1K–50K band is drawn 80% of the time; the 50,001–250K band is drawn 20% of the time. Every amount inside its selected band is randomly rolled.\n\n' +
             '**Prestige Collectibles**\n' +
-            'One-time status purchases with no hidden gameplay modifier: **25M · 30M · 50M · 100M**.\n\n' +
+            '**25M: +2.5% · 30M: +3% · 50M: +5% · 100M: +10%** to duels and heists. Tiers unlock in order and each requires Apex Luck. Complete all four to claim the cosmetic **Prestige Master** role.\n\n' +
             '**Community Luck Pot**\nSpend **1,000 Blood Money** to add **+0.75% GLOBAL luck** for 24 hours. Each member may stack up to **20 active boosts**.'
         )
         .addFields(
@@ -118,7 +121,7 @@ function storePayload(economy, guildId) {
             { name: '🍀 Active Community Boosts', value: String(boosts), inline: true },
             { name: '⏳ Next Modifier Drop', value: nextExpiry ? `<t:${Math.floor(nextExpiry / 1000)}:R>` : 'No active community boosts', inline: true },
         )
-        .setFooter({ text: 'Apex Luck consumes the 1%, 5%, and 10% upgrades when purchased' });
+        .setFooter({ text: 'Each Prestige banks the current 5%, 10%, and 25% cycle and reopens those upgrades' });
 
     return {
         embeds: [embed],
@@ -134,10 +137,10 @@ function storePayload(economy, guildId) {
                 new Discord.ButtonBuilder().setCustomId('econ:luckpanel:heistbuy:hired-goon').setLabel('Hire Goon · 100K').setEmoji('🤵').setStyle(Discord.ButtonStyle.Danger),
             ),
             new Discord.ActionRowBuilder().addComponents(
-                new Discord.ButtonBuilder().setCustomId('econ:luckpanel:buy:prestige-25m').setLabel('Prestige · 25M').setStyle(Discord.ButtonStyle.Secondary),
-                new Discord.ButtonBuilder().setCustomId('econ:luckpanel:buy:prestige-30m').setLabel('Prestige · 30M').setStyle(Discord.ButtonStyle.Primary),
-                new Discord.ButtonBuilder().setCustomId('econ:luckpanel:buy:prestige-50m').setLabel('Prestige · 50M').setStyle(Discord.ButtonStyle.Danger),
-                new Discord.ButtonBuilder().setCustomId('econ:luckpanel:buy:prestige-100m').setLabel('Prestige · 100M').setStyle(Discord.ButtonStyle.Success),
+                new Discord.ButtonBuilder().setCustomId('econ:luckpanel:buy:prestige-25m').setLabel('+2.5% · 25M').setStyle(Discord.ButtonStyle.Secondary),
+                new Discord.ButtonBuilder().setCustomId('econ:luckpanel:buy:prestige-30m').setLabel('+3% · 30M').setStyle(Discord.ButtonStyle.Primary),
+                new Discord.ButtonBuilder().setCustomId('econ:luckpanel:buy:prestige-50m').setLabel('+5% · 50M').setStyle(Discord.ButtonStyle.Danger),
+                new Discord.ButtonBuilder().setCustomId('econ:luckpanel:buy:prestige-100m').setLabel('+10% · 100M').setStyle(Discord.ButtonStyle.Success),
             ),
             new Discord.ActionRowBuilder().addComponents(
                 new Discord.ButtonBuilder().setCustomId('econ:luckpanel:global').setLabel('Add +0.75% Global · 1,000').setEmoji('🌐').setStyle(Discord.ButtonStyle.Success),
@@ -167,16 +170,24 @@ function installLuckRebalancePatch() {
                     const missing = APEX_REQUIREMENTS.filter(key => !owned.has(key));
                     if (missing.length) throw new Error('Apex Luck requires you to own the 1%, 5%, and 10% luck upgrades first.');
                 }
+                if (item.collectible) {
+                    const tierIndex = PRESTIGE_ORDER.indexOf(itemKey);
+                    const missingTier = PRESTIGE_ORDER.slice(0, tierIndex).find(key => !owned.has(key));
+                    if (missingTier) throw new Error(`Buy ${LUCK_ITEMS[missingTier].name} before this Prestige tier.`);
+                    if (!owned.has('luck-25')) throw new Error('Complete the current Apex Luck +25% cycle before buying this Prestige tier.');
+                }
                 if (member.balance < item.cost) throw new Error(`You need ${money(item.cost)} ${this.config.currencyName} for ${item.name}.`);
 
                 const balance = this.applyDelta(guildId, userId, -item.cost, 'luck-shop-purchase', item.key, interactionId, now);
-                if (itemKey === 'luck-25') {
-                    this.db.prepare(`DELETE FROM luck_purchases WHERE guild_id=? AND user_id=? AND item_key IN ('luck-1','luck-5','luck-10')`)
-                        .run(guildId, userId);
-                }
                 this.db.prepare('INSERT INTO luck_purchases(guild_id,user_id,item_key,luck_percent,cost,purchased_at) VALUES(?,?,?,?,?,?)')
                     .run(guildId, userId, item.key, item.percent, item.cost, now);
-                return { item, balance, tradedIn: itemKey === 'luck-25' ? [...APEX_REQUIREMENTS] : [], ...this.luckShopStatus(guildId, userId, now) };
+                if (item.collectible) {
+                    for (const resetKey of PRESTIGE_RESET_ITEMS) {
+                        this.db.prepare('UPDATE luck_purchases SET item_key=? WHERE guild_id=? AND user_id=? AND item_key=?')
+                            .run(`banked:${item.key}:${resetKey}`, guildId, userId, resetKey);
+                    }
+                }
+                return { item, balance, prestigeReset: item.collectible ? [...PRESTIGE_RESET_ITEMS] : [], ...this.luckShopStatus(guildId, userId, now) };
             });
         }
 
@@ -257,6 +268,36 @@ function installLuckRebalancePatch() {
         integration.handleButton = async interaction => {
             if (!interaction.isButton?.()) return previousHandleButton(interaction);
             const id = interaction.customId;
+            if (id === 'econ:luckpanel:prestige-master') {
+                try {
+                    const claim = economy.claimPrestigeMaster(interaction.guild.id, interaction.user.id);
+                    let role = interaction.guild.roles.cache.find(candidate =>
+                        candidate.name === PRESTIGE_MASTER_ROLE_NAME
+                        && !candidate.managed
+                        && candidate.permissions.bitfield === 0n);
+                    if (!role) {
+                        role = await interaction.guild.roles.create({
+                            name: PRESTIGE_MASTER_ROLE_NAME,
+                            color: 0xf1c40f,
+                            hoist: true,
+                            mentionable: false,
+                            permissions: [],
+                            reason: 'Cosmetic reward for completing all four economy Prestige tiers',
+                        });
+                    }
+                    const member = interaction.member?.roles?.add
+                        ? interaction.member
+                        : await interaction.guild.members.fetch(interaction.user.id);
+                    await member.roles.add(role, 'Completed all four economy Prestige tiers');
+                    await interaction.reply({
+                        content: `🏆 You are now a **${PRESTIGE_MASTER_ROLE_NAME}**. The role is cosmetic and grants no permissions.${claim.alreadyClaimed ? ' Your role was restored.' : ''}`,
+                        ephemeral: true,
+                    });
+                } catch (error) {
+                    await interaction.reply({ content: `❌ ${error.message}`, ephemeral: true }).catch(() => {});
+                }
+                return true;
+            }
             const match = /^econ:luckpanel:(buy|confirm):((?:luck-(?:1|5|10|25))|(?:prestige-(?:25|30|50|100)m))$/.exec(id);
             if (!match) return previousHandleButton(interaction);
             const [, action, itemKey] = match;
@@ -264,10 +305,10 @@ function installLuckRebalancePatch() {
 
             if (action === 'buy') {
                 const requirement = itemKey === 'luck-25'
-                    ? '\n\n**Requirement:** You must already own +1%, +5%, and +10%. Those three upgrades are permanently traded in when Apex Luck is purchased.'
+                    ? '\n\n**Requirement:** You must already own +1%, +5%, and +10%. Apex Luck stacks on top of them.'
                     : '';
                 const purchaseDescription = item.collectible
-                    ? `Buy the one-time **${item.name}** prestige collectible for **${money(item.cost)} ${economy.config.currencyName}**? It does not change luck or gambling odds.`
+                    ? `Buy the one-time **${item.name}** for **${money(item.cost)} ${economy.config.currencyName}**? It permanently adds **+${item.modifier}%** to duel and heist success, banks this luck cycle, and reopens the +5%, +10%, and +25% purchases. Prestige tiers must be completed in order and require Apex Luck.`
                     : `Buy **+${item.percent}% permanent personal luck** for **${money(item.cost)} ${economy.config.currencyName}**?${requirement}`;
                 await interaction.reply({
                     ephemeral: true,
@@ -283,15 +324,12 @@ function installLuckRebalancePatch() {
 
             try {
                 const result = economy.buyLuckItem(interaction.guild.id, interaction.user.id, itemKey, interaction.id);
-                const tradeText = itemKey === 'luck-25'
-                    ? '\n🍀 Your +1%, +5%, and +10% upgrades were traded in and replaced by **Apex Luck +25%**.'
-                    : '';
                 await interaction.update({
                     embeds: [new Discord.EmbedBuilder().setColor(0x2ea043)
                         .setTitle(result.item.collectible ? '✅ Prestige Collectible Purchased' : '✅ Luck Upgrade Purchased')
                         .setDescription(result.item.collectible
-                            ? `You unlocked **${result.item.name}** for **${money(result.item.cost)} ${economy.config.currencyName}**. This is a one-time collectible with no luck/stat modifier.\nBalance: **${money(result.balance)}**.`
-                            : `You bought **${result.item.name}** for **${money(result.item.cost)} ${economy.config.currencyName}**.${tradeText}\nYour personal luck is now **+${result.personalLuck}%**.\nBalance: **${money(result.balance)}**.`)],
+                            ? `You unlocked **${result.item.name}** for **${money(result.item.cost)} ${economy.config.currencyName}** and gained **+${result.item.modifier}%** permanent duel/heist chance. Your +5%, +10%, and +25% purchases are open again.\nYour stacked Prestige modifier is now **+${economy.prestigeModifierPercent(interaction.guild.id, interaction.user.id)}%**.\nBalance: **${money(result.balance)}**.`
+                            : `You bought **${result.item.name}** for **${money(result.item.cost)} ${economy.config.currencyName}**.\nYour personal luck is now **+${result.personalLuck}%**.\nBalance: **${money(result.balance)}**.`)],
                     components: [],
                 });
                 await refreshStorePanel();

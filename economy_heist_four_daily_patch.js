@@ -168,7 +168,9 @@ function installFourDailyHeists() {
                     `solo-heist:${interactionId}`,
                     now,
                 );
-                const success = (this.random() * 100) < SOLO_HEIST_SUCCESS_CHANCE;
+                const prestigeModifier = Number(this.prestigeModifierPercent?.(guildId, userId) || 0);
+                const chance = Math.min(100, SOLO_HEIST_SUCCESS_CHANCE + prestigeModifier);
+                const success = (this.random() * 100) < chance;
                 const payout = success ? Math.floor(SOLO_HEIST_ENTRY_FEE * SOLO_HEIST_PAYOUT_MULTIPLIER) : 0;
                 let balance = reserved.balance;
                 if (payout > 0) {
@@ -180,7 +182,8 @@ function installFourDailyHeists() {
                     wager: SOLO_HEIST_ENTRY_FEE,
                     payout,
                     multiplier: SOLO_HEIST_PAYOUT_MULTIPLIER,
-                    chance: SOLO_HEIST_SUCCESS_CHANCE,
+                    chance,
+                    prestigeModifier,
                     balance,
                     nextAt: now + SOLO_HEIST_COOLDOWN_MS,
                 };

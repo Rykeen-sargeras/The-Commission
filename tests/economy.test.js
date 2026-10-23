@@ -311,6 +311,23 @@ try {
     const denied = service.respondToDuel('duel-guild', 'duelist-two', 'deny', 'duel-deny', 2_000_000_011_000);
     assert.strictEqual(denied.status, 'denied');
     assert.strictEqual(service.publicMember('duel-guild', 'duelist-one').balance, balanceBeforeDeny + deniedDuel.wager);
+
+    service.admin('prestige-duel', 'add', 'prestige-challenger', 30_000_000, 'fund-prestige-challenger');
+    service.admin('prestige-duel', 'add', 'plain-challenger', 1_000_000, 'fund-plain-challenger');
+    service.buyLuckItem('prestige-duel', 'prestige-challenger', 'luck-1', 'prestige-duel-luck-1');
+    service.buyLuckItem('prestige-duel', 'prestige-challenger', 'luck-5', 'prestige-duel-luck-5');
+    service.buyLuckItem('prestige-duel', 'prestige-challenger', 'luck-10', 'prestige-duel-luck-10');
+    service.buyLuckItem('prestige-duel', 'prestige-challenger', 'luck-25', 'prestige-duel-luck-25');
+    service.buyLuckItem('prestige-duel', 'prestige-challenger', 'prestige-25m', 'buy-prestige-duel');
+    const prestigeDuel = service.createDuel('prestige-duel', 'prestige-challenger', 'plain-challenger', 1_000_000, 'prestige-duel-create', 2_000_000_015_000);
+    assert.strictEqual(prestigeDuel.challengerChance, 52.5);
+    assert.strictEqual(prestigeDuel.challengedChance, 47.5);
+    const previousRandom = service.random;
+    service.random = () => 0.51;
+    const prestigeDuelResult = service.respondToDuel('prestige-duel', 'plain-challenger', 'accept', 'prestige-duel-accept', 2_000_000_016_000);
+    service.random = previousRandom;
+    assert.strictEqual(prestigeDuelResult.winner_id, 'prestige-challenger');
+    assert.strictEqual(prestigeDuelResult.challengerChance, 52.5);
     const expiringDuel = service.createDuel('duel-guild', 'duelist-one', 'duelist-two', 500, 'duel-expire-create', 2_000_000_020_000);
     const expiredDuels = service.expireDuels(expiringDuel.expires_at);
     assert.strictEqual(expiredDuels[0].status, 'expired');
