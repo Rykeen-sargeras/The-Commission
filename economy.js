@@ -793,29 +793,35 @@ class EconomyService {
         const activity = this.periodStats(guildId, 'monthly', 'activity', now, lastMonth);
         const gambling = this.periodStats(guildId, 'monthly', 'gambling', now, lastMonth);
         return this.transaction(() => {
+            // Recheck inside the write transaction so two bot instances cannot tax
+            // the same month twice after both observed the old month concurrently.
+            if (this.setting(guildId, 'active_month') === currentMonth) {
+                return this.pendingMonthlyArchive(guildId);
+            }
             const members = this.db.prepare('SELECT user_id,balance FROM economy_members WHERE guild_id=? AND balance>0').all(guildId);
             const periods = periodKeys(now, this.config);
+            const taxedMembers = members.map(member => {
+                const balanceAfter = Math.floor(member.balance / 2);
+                return { ...member, balanceAfter, tax: member.balance - balanceAfter };
+            });
             const result = {
                 archivedMonth: lastMonth, currentMonth, leaders, activity, gambling,
-                resetMembers: members.length,
-                resetTotal: members.reduce((sum, member) => sum + member.balance, 0),
+                taxedMembers: taxedMembers.length,
+                taxTotal: taxedMembers.reduce((sum, member) => sum + member.tax, 0),
+                taxRate: 50,
                 archivedAt: now,
             };
-            // Persist the final snapshot before changing balances. Discord delivery may be retried safely.
+            // Persist the final snapshot before taxing balances. Discord delivery may be retried safely.
             this.setSetting(guildId, 'pending_monthly_archive', JSON.stringify(result));
             const insert = this.db.prepare(`INSERT INTO economy_transactions
                 (id,guild_id,user_id,amount,balance_before,balance_after,type,related,interaction_id,period_day,period_week,period_month,created_at)
-                VALUES(?,?,?,?,?,0,'monthly-reset',?,NULL,?,?,?,?)`);
-            for (const member of members) {
-                insert.run(crypto.randomUUID(), guildId, member.user_id, -member.balance, member.balance, lastMonth, periods.day, periods.week, periods.month, now);
+                VALUES(?,?,?,?,?,?,'monthly-wealth-tax',?,NULL,?,?,?,?)`);
+            const update = this.db.prepare('UPDATE economy_members SET balance=?,updated_at=? WHERE guild_id=? AND user_id=?');
+            for (const member of taxedMembers) {
+                insert.run(crypto.randomUUID(), guildId, member.user_id, -member.tax, member.balance, member.balanceAfter,
+                    `rate:50%;period:${lastMonth}`, periods.day, periods.week, periods.month, now);
+                update.run(member.balanceAfter, now, guildId, member.user_id);
             }
-            this.db.prepare('UPDATE economy_members SET balance=0,updated_at=? WHERE guild_id=?').run(now, guildId);
-            this.db.prepare("UPDATE poker_games SET status='cancelled',completed_at=? WHERE guild_id=? AND status='active'").run(now, guildId);
-            this.db.prepare("UPDATE blackjack_games SET status='cancelled',completed_at=? WHERE guild_id=? AND status='active'").run(now, guildId);
-            this.db.prepare("UPDATE higher_lower_games SET status='cancelled',completed_at=? WHERE guild_id=? AND status='active'").run(now, guildId);
-            this.db.prepare("UPDATE dragon_tower_games SET status='cancelled',completed_at=? WHERE guild_id=? AND status='active'").run(now, guildId);
-            this.db.prepare("UPDATE duels SET status='cancelled',completed_at=? WHERE guild_id=? AND status='pending'").run(now, guildId);
-            this.db.prepare("UPDATE heist_rounds SET status='cancelled',completed_at=? WHERE guild_id=? AND status='signup'").run(now, guildId);
             this.setSetting(guildId, 'active_month', currentMonth);
             return result;
         });

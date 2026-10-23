@@ -76,7 +76,7 @@ The **Blood Money** page controls text, media, voice, daily, transfer, gambling,
 
 Member commands include `/balance`, `/daily`, `/leaderboard`, `/economy-stats`, `/pay`, `/gamble`, and `/luck-shop`. Administrators use `/eco` for balance adjustments, account freezes, daily resets, channel exclusions, audits, and the gambling switch.
 
-Daily, weekly, monthly, balance, lifetime, gambling, and voice leaderboards are available. Completed weekly and monthly leaderboards are saved in durable local snapshots and uploaded as text archives. At monthly rollover, every current balance resets to zero while lifetime statistics and the transaction ledger remain intact. Missed rollovers run after the bot starts again, and failed Discord uploads remain queued for retry.
+Daily, weekly, monthly, balance, lifetime, gambling, and voice leaderboards are available. Completed weekly and monthly leaderboards are saved in durable local snapshots and uploaded as text archives. On the first of each month, every positive current balance is reduced by 50% (odd balances round down) while lifetime statistics, active games, and the transaction ledger remain intact. Missed rollovers run after the bot starts again, and failed Discord uploads remain queued for retry without charging the tax twice.
 
 The desktop reset console supports weekly/monthly rankings, activity statistics, gambling statistics, every current balance, one member's current balance, and daily blackjack/poker allowances. Every operation requires a five-minute preview followed by confirmation and writes to the economy audit channel. Period resets use cutoffs rather than deleting history. Final weekly/monthly ranking previews are uploaded before a manual ranking reset is applied.
 

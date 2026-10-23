@@ -365,14 +365,16 @@ function createEconomyIntegration(client, economy, options = {}) {
             const excluded = await prizeExcludedIds(guild);
             const eligible = rollover.leaders.filter(row => row.score > 0 && !excluded.has(row.user_id));
             const prizeEnabled = prizeEnabledFor(rollover.archivedMonth);
+            const taxedMembers = Number(rollover.taxedMembers ?? rollover.resetMembers ?? 0);
+            const taxTotal = Number(rollover.taxTotal ?? rollover.resetTotal ?? 0);
             const lines = [
                 `BLOOD MONEY MONTHLY LEADERBOARD — ${rollover.archivedMonth}`,
                 '============================================================',
                 '',
                 ...rollover.leaders.map((row, index) => `${index + 1}. ${row.user_id} — ${money(row.score)} earned — ending balance ${money(row.balance)} — ${row.rank}`),
                 '',
-                `Members reset: ${rollover.resetMembers}`,
-                `Blood Money removed from circulation: ${money(rollover.resetTotal)}`,
+                `Members taxed: ${taxedMembers}`,
+                `Monthly wealth tax: ${money(taxTotal)} Blood Money (50%)`,
                 `Archived: ${new Date().toISOString()}`,
             ];
             lines.push('', `Activity earned: ${money(rollover.activity?.earned)}`, `Gambling wagered: ${money(rollover.gambling?.wagered)}`, `Gambling payouts: ${money(rollover.gambling?.payouts)}`);
@@ -386,9 +388,9 @@ function createEconomyIntegration(client, economy, options = {}) {
                 await channel.send({
                     embeds: [new Discord.EmbedBuilder().setColor(0x9b1c31).setTitle(`🩸 Blood Money Archive · ${rollover.archivedMonth}`)
                         .setDescription(top).addFields(
-                            { name: 'Accounts reset', value: money(rollover.resetMembers), inline: true },
-                            { name: 'Removed from circulation', value: money(rollover.resetTotal), inline: true },
-                        ).setFooter({ text: 'Lifetime statistics and transaction history were preserved.' }).setTimestamp()],
+                            { name: 'Accounts taxed', value: money(taxedMembers), inline: true },
+                            { name: '50% wealth tax collected', value: money(taxTotal), inline: true },
+                        ).setFooter({ text: 'Balances were halved; lifetime statistics, active games, and transaction history were preserved.' }).setTimestamp()],
                     files: [attachment],
                 });
                 if (prizeEnabled) {
@@ -397,7 +399,7 @@ function createEconomyIntegration(client, economy, options = {}) {
                         : '🎁 Prize month result: no eligible member recorded earnings.' });
                 }
                 economy.completeMonthlyArchive(guild.id);
-                console.log(`🩸 Archived ${rollover.archivedMonth} Blood Money leaderboard and reset ${rollover.resetMembers} account(s).`);
+                console.log(`🩸 Archived ${rollover.archivedMonth} Blood Money leaderboard and collected ${money(taxTotal)} in monthly wealth tax from ${taxedMembers} account(s).`);
             } catch (error) {
                 console.error(`Blood Money monthly archive failed and remains queued: ${error.message}`);
             }

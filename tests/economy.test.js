@@ -337,14 +337,28 @@ try {
     const stats = service.stats('guild');
     assert(stats.transactions >= 5);
     assert(stats.circulation >= 0);
+    const aliceBeforeTax = service.publicMember('guild', 'alice').balance;
     service.setSetting('guild', 'active_month', '2024-01');
     const rollover = service.rolloverMonth('guild', Date.UTC(2024, 1, 1, 18));
     assert.strictEqual(rollover.archivedMonth, '2024-01');
-    assert(rollover.resetMembers >= 1);
-    assert.strictEqual(service.publicMember('guild', 'alice').balance, 0);
+    assert(rollover.taxedMembers >= 1);
+    assert.strictEqual(rollover.taxRate, 50);
+    assert.strictEqual(service.publicMember('guild', 'alice').balance, Math.floor(aliceBeforeTax / 2));
+    assert(service.audit('guild', 'alice').some(row => row.type === 'monthly-wealth-tax'));
+    const aliceAfterTax = service.publicMember('guild', 'alice').balance;
+    service.rolloverMonth('guild', Date.UTC(2024, 1, 1, 18, 1));
+    assert.strictEqual(service.publicMember('guild', 'alice').balance, aliceAfterTax, 'A pending archive must not apply the monthly tax twice.');
     assert(service.pendingMonthlyArchive('guild'));
     service.completeMonthlyArchive('guild');
     assert.strictEqual(service.pendingMonthlyArchive('guild'), null);
+    assert.strictEqual(service.rolloverMonth('guild', Date.UTC(2024, 1, 2, 18)), null);
+    assert.strictEqual(service.publicMember('guild', 'alice').balance, aliceAfterTax, 'The same month must remain idempotent after archive delivery.');
+
+    service.admin('tax-rounding-guild', 'add', 'odd-balance', 101, 'fund-odd-balance');
+    service.setSetting('tax-rounding-guild', 'active_month', '2024-01');
+    const roundedTax = service.rolloverMonth('tax-rounding-guild', Date.UTC(2024, 1, 1, 18));
+    assert.strictEqual(roundedTax.taxTotal, 51);
+    assert.strictEqual(service.publicMember('tax-rounding-guild', 'odd-balance').balance, 50);
 
     const resetNow = Date.UTC(2026, 6, 7, 16);
     service.claimDaily('reset-guild', 'member-one', 'reset-daily', resetNow);
