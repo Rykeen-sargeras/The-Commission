@@ -58,6 +58,20 @@ try {
     assert.strictEqual(service.claimPrestigeMaster('guild', 'prestige-user', 4700).alreadyClaimed, false);
     assert.strictEqual(service.claimPrestigeMaster('guild', 'prestige-user', 4800).alreadyClaimed, true);
 
+    const gifted = service.applyOneTimePrestigeGrant('gift-guild', 'gift-user', 'all-upgrades-test', 4900);
+    assert.strictEqual(gifted.applied, true);
+    assert.deepStrictEqual(new Set(gifted.grantedKeys), new Set([
+        'luck-1', 'luck-5', 'luck-10', 'luck-25',
+        'prestige-25m', 'prestige-30m', 'prestige-50m', 'prestige-100m',
+    ]));
+    assert.strictEqual(gifted.personalLuck, 41);
+    assert.strictEqual(gifted.prestigeModifier, 20.5);
+    assert.strictEqual(myLuckPayload(service, 'gift-guild', 'gift-user').components[0].components[0].data.label, 'Prestige Master');
+    const duplicateGift = service.applyOneTimePrestigeGrant('gift-guild', 'gift-user', 'all-upgrades-test', 5000);
+    assert.strictEqual(duplicateGift.applied, false);
+    assert.deepStrictEqual(duplicateGift.grantedKeys, []);
+    assert.strictEqual(service.luckShopStatus('gift-guild', 'gift-user').purchases.length, 8);
+
     const global = service.contributeGlobalLuck('guild', 'user', 'global-1', 5000);
     assert.strictEqual(global.globalLuck, 0.75);
     assert.strictEqual(global.totalLuck, 16.75);

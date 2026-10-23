@@ -100,6 +100,16 @@ function baseClient() {
     await oneTimeGrantIntegration.applyOneTimeDragonGrant();
     assert.deepStrictEqual(oneTimeGrantArgs.slice(0, 3), [grantGuild.id, '1262823372270735466', 2_320_775_568]);
 
+    let oneTimePrestigeArgs = null;
+    const oneTimePrestigeIntegration = createEconomyIntegration(grantClient, baseEconomy({
+        applyOneTimePrestigeGrant: (...args) => {
+            oneTimePrestigeArgs = args;
+            return { applied: true, grantedKeys: Array(8), personalLuck: 41, prestigeModifier: 20.5 };
+        },
+    }));
+    await oneTimePrestigeIntegration.applyOneTimePrestigeGrant();
+    assert.deepStrictEqual(oneTimePrestigeArgs.slice(0, 2), [grantGuild.id, '1262823372270735466']);
+
     let gamblePanelPayload = null;
     let gamblePanelSetting = null;
     const gambleChannel = {

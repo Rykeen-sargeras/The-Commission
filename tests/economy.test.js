@@ -416,6 +416,7 @@ try {
     service.setSetting('guild', 'leaderboard_panel_message', 'keep-leaderboard-panel');
     service.setSetting('guild', 'heist_panel_message', 'keep-heist-panel');
     service.setSetting('guild', 'rep_panel_message', 'keep-rep-panel');
+    service.setSetting('guild', 'one_time_test_grant', 'applied');
     service.rewardRepMessage('guild', 'rep-only-member', Date.now());
     const protectedRep = service.repMember('guild', 'rep-only-member').points;
     service.setSetting('guild', 'rep_active_month', 'protected-rep-month');
@@ -429,6 +430,7 @@ try {
     assert.strictEqual(service.setting('guild', 'heist_panel_message'), 'keep-heist-panel');
     assert.strictEqual(service.setting('guild', 'rep_panel_message'), 'keep-rep-panel');
     assert.strictEqual(service.setting('guild', 'rep_active_month'), 'protected-rep-month');
+    assert.strictEqual(service.setting('guild', 'one_time_test_grant'), 'applied');
     assert.strictEqual(service.repMember('guild', 'rep-only-member').points, protectedRep);
     console.log('Economy tests passed.');
 } finally {

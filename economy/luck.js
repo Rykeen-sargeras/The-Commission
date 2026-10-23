@@ -215,6 +215,39 @@ EconomyService.prototype.claimPrestigeMaster = function claimPrestigeMaster(guil
     });
 };
 
+EconomyService.prototype.applyOneTimePrestigeGrant = function applyOneTimePrestigeGrant(guildId, userId, grantId, now = Date.now()) {
+    const normalizedGrantId = String(grantId || '').trim();
+    const markerKey = `one_time_prestige_grant:${normalizedGrantId}`;
+    if (!String(guildId || '').trim() || !String(userId || '').trim() || !normalizedGrantId) {
+        throw new Error('A guild, member, and grant ID are required.');
+    }
+    return this.transaction(() => {
+        this.ensureMember(guildId, userId, now);
+        if (this.setting(guildId, markerKey)) {
+            return {
+                guildId, userId, applied: false, grantedKeys: [],
+                personalLuck: this.personalLuckPercent(guildId, userId),
+                prestigeModifier: this.prestigeModifierPercent(guildId, userId),
+            };
+        }
+
+        const items = [...Object.values(PERSONAL_LUCK_ITEMS), ...Object.values(PRESTIGE_ITEMS)];
+        const insert = this.db.prepare(`INSERT OR IGNORE INTO luck_purchases
+            (guild_id,user_id,item_key,luck_percent,cost,purchased_at) VALUES(?,?,?,?,0,?)`);
+        const grantedKeys = [];
+        items.forEach((item, index) => {
+            const result = insert.run(guildId, userId, item.key, item.percent, now + index);
+            if (Number(result.changes || 0) > 0) grantedKeys.push(item.key);
+        });
+        this.setSetting(guildId, markerKey, now);
+        return {
+            guildId, userId, applied: true, grantedKeys,
+            personalLuck: this.personalLuckPercent(guildId, userId),
+            prestigeModifier: this.prestigeModifierPercent(guildId, userId),
+        };
+    });
+};
+
 EconomyService.prototype.contributeGlobalLuck = function contributeGlobalLuck(guildId, userId, interactionId, now = Date.now()) {
     return this.transaction(() => {
         const member = this.ensureMember(guildId, userId, now);

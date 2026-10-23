@@ -857,7 +857,8 @@ class EconomyService {
             this.db.prepare('DELETE FROM economy_members WHERE guild_id=?').run(guildId);
             this.db.prepare(`DELETE FROM economy_settings WHERE guild_id=?
                 AND setting_key NOT IN ('leaderboard_panel_message','heist_panel_message')
-                AND setting_key NOT LIKE 'rep_%'`).run(guildId);
+                AND setting_key NOT LIKE 'rep_%'
+                AND setting_key NOT LIKE 'one_time_%'`).run(guildId);
             this.setSetting(guildId, 'active_month', periodKeys(now, this.config).month);
             return {
                 membersCleared: before.members,
