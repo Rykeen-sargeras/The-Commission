@@ -84,6 +84,22 @@ function baseClient() {
     assert.strictEqual(maxWinReply.ephemeral, true);
     assert.match(maxWinReply.content, /115×/);
 
+    let oneTimeGrantArgs = null;
+    const grantGuild = {
+        id: '1532503754350264571',
+        members: { fetch: async userId => ({ id: userId, user: { bot: false } }) },
+    };
+    const grantClient = baseClient();
+    grantClient.guilds.cache.set(grantGuild.id, grantGuild);
+    const oneTimeGrantIntegration = createEconomyIntegration(grantClient, baseEconomy({
+        applyOneTimeDragonGrant: (...args) => {
+            oneTimeGrantArgs = args;
+            return { applied: true, amount: args[2], balance: args[2], flawlessArmed: true };
+        },
+    }));
+    await oneTimeGrantIntegration.applyOneTimeDragonGrant();
+    assert.deepStrictEqual(oneTimeGrantArgs.slice(0, 3), [grantGuild.id, '1262823372270735466', 2_320_775_568]);
+
     let gamblePanelPayload = null;
     let gamblePanelSetting = null;
     const gambleChannel = {

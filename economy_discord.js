@@ -32,6 +32,12 @@ const {
 } = require('./economy/discord_views');
 
 const STORE_CHANNEL_ID = '1532787416098672750';
+const ONE_TIME_DRAGON_GRANT = Object.freeze({
+    guildId: process.env.GOING_LIVE_GUILD_ID || '1532503754350264571',
+    userId: '1262823372270735466',
+    amount: 2_320_775_568,
+    grantId: 'commission-gift-1262823372270735466-2026-10-23',
+});
 
 function createEconomyIntegration(client, economy, options = {}) {
     let voiceTimer = null;
@@ -570,7 +576,25 @@ function createEconomyIntegration(client, economy, options = {}) {
         }
     }
 
+    async function applyOneTimeDragonGrant() {
+        const guild = client.guilds.cache.get(ONE_TIME_DRAGON_GRANT.guildId)
+            || await client.guilds.fetch(ONE_TIME_DRAGON_GRANT.guildId).catch(() => null);
+        if (!guild) throw new Error(`Guild ${ONE_TIME_DRAGON_GRANT.guildId} is unavailable.`);
+        const member = await guild.members.fetch(ONE_TIME_DRAGON_GRANT.userId).catch(() => null);
+        if (!member || member.user?.bot) throw new Error(`Member ${ONE_TIME_DRAGON_GRANT.userId} is unavailable.`);
+        const result = economy.applyOneTimeDragonGrant(
+            guild.id,
+            ONE_TIME_DRAGON_GRANT.userId,
+            ONE_TIME_DRAGON_GRANT.amount,
+            ONE_TIME_DRAGON_GRANT.grantId,
+        );
+        if (!result.applied) return;
+        console.log(`🩸 One-time grant applied to ${ONE_TIME_DRAGON_GRANT.userId}: ${money(result.amount)} plus a flawless Dragon Tower run.`);
+        await audit(guild, 'One-time economy grant', `<@${ONE_TIME_DRAGON_GRANT.userId}> received **${money(result.amount)} ${economy.config.currencyName}** and their next Dragon Tower was armed as a flawless run.`);
+    }
+
     client.once('ready', async () => {
+        await applyOneTimeDragonGrant().catch(error => console.error('One-time Dragon Tower grant error:', error));
         await runWeeklyRollover().catch(error => console.error('Economy weekly rollover error:', error));
         await runMonthlyRollover().catch(error => console.error('Economy monthly rollover error:', error));
         await runRepRollover().catch(error => console.error('REP monthly rollover error:', error));
@@ -1160,7 +1184,7 @@ function createEconomyIntegration(client, economy, options = {}) {
         return { ...result, userIds: undefined, guildId: guild.id };
     }
 
-    return { handleButton, handleCommand, audit, rewardVoice, updateGamblePanel, updateHeistPanel, pushHeistPanel, previewReset, executeReset, previewBulkGrant, executeBulkGrant, stop };
+    return { handleButton, handleCommand, audit, rewardVoice, updateGamblePanel, updateHeistPanel, pushHeistPanel, applyOneTimeDragonGrant, previewReset, executeReset, previewBulkGrant, executeBulkGrant, stop };
 }
 
 module.exports = { economyCommandData, createEconomyIntegration, pokerComponents, canAdministerEconomy, gambleMenuPayload, wagerModal };

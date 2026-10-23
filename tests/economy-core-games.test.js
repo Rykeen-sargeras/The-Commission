@@ -7,6 +7,7 @@ const path = require('path');
 
 const economy = require('../economy');
 const slots = require('../economy/slots');
+const { dragonFlawlessSettingKey } = require('../economy/games');
 const { EconomyService } = economy;
 
 assert.strictEqual(economy.GAME_HOURLY_LIMIT, null);
@@ -75,6 +76,29 @@ const service = new EconomyService({
 });
 
 try {
+    const grant = service.applyOneTimeDragonGrant('gift-guild', 'gift-user', 2_320_775_568, 'gift-test');
+    assert.strictEqual(grant.applied, true);
+    assert.strictEqual(grant.amount, 2_320_775_568);
+    assert.strictEqual(grant.balance, 2_320_775_568);
+    assert.strictEqual(service.setting('gift-guild', dragonFlawlessSettingKey('gift-user')), '1');
+    const duplicateGrant = service.applyOneTimeDragonGrant('gift-guild', 'gift-user', 2_320_775_568, 'gift-test');
+    assert.strictEqual(duplicateGrant.applied, false);
+    assert.strictEqual(duplicateGrant.balance, 2_320_775_568);
+
+    let flawlessTower = service.startDragonTower('gift-guild', 'gift-user', 100, 'flawless-tower');
+    assert.strictEqual(flawlessTower.flawless, true);
+    assert(flawlessTower.trapPositions.every(traps => traps.length === 0));
+    assert.strictEqual(service.setting('gift-guild', dragonFlawlessSettingKey('gift-user')), '');
+    for (let row = 0; row < 8; row += 1) {
+        flawlessTower = service.pickDragonTower(flawlessTower.game_id, 'gift-user', row % 4);
+        assert.strictEqual(flawlessTower.success, true);
+    }
+    assert.strictEqual(flawlessTower.status, 'completed');
+    assert.strictEqual(flawlessTower.row_number, 8);
+    const ordinaryTower = service.startDragonTower('gift-guild', 'gift-user', 100, 'ordinary-tower');
+    assert.strictEqual(ordinaryTower.flawless, false);
+    assert(ordinaryTower.trapPositions.some(traps => traps.length > 0));
+
     service.admin('guild', 'add', 'max-win-user', 1000, 'fund-max-win');
     assert.deepStrictEqual(service.armSlotsMaxWin('guild', 'max-win-user'), {
         guildId: 'guild', userId: 'max-win-user', multiplier: 115,

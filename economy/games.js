@@ -23,6 +23,12 @@ const {
     blackjackPayout,
 } = require('./core');
 
+const DRAGON_FLAWLESS_SETTING_PREFIX = 'dragon_next_flawless:';
+
+function dragonFlawlessSettingKey(userId) {
+    return `${DRAGON_FLAWLESS_SETTING_PREFIX}${String(userId)}`;
+}
+
 class EconomyGames {
 
     reserveWager(guildId, userId, wager, interactionId, related, now = Date.now()) {
@@ -194,17 +200,56 @@ class EconomyGames {
 
     dragonTowerGame(gameId) {
         const row = this.db.prepare('SELECT * FROM dragon_tower_games WHERE game_id=?').get(gameId);
-        return row ? {
+        if (!row) return null;
+        const trapPositions = JSON.parse(row.trap_positions);
+        return {
             ...row,
-            trapPositions: JSON.parse(row.trap_positions),
+            trapPositions,
             history: JSON.parse(row.history || '[]'),
+            flawless: trapPositions.length === DRAGON_TOWER_ROWS
+                && trapPositions.every(traps => Array.isArray(traps) && traps.length === 0),
             multiplier: row.row_number > 0 ? DRAGON_TOWER_MULTIPLIERS[row.row_number - 1] : 0,
             nextMultiplier: row.row_number < DRAGON_TOWER_ROWS ? DRAGON_TOWER_MULTIPLIERS[row.row_number] : null,
-        } : null;
+        };
     }
 
     attachDragonTowerMessage(gameId, channelId, messageId) {
         this.db.prepare('UPDATE dragon_tower_games SET channel_id=?,message_id=? WHERE game_id=?').run(channelId, messageId, gameId);
+    }
+
+    armDragonTowerFlawless(guildId, userId, now = Date.now()) {
+        if (!String(guildId || '').trim() || !String(userId || '').trim()) throw new Error('A guild and member are required.');
+        return this.transaction(() => {
+            this.ensureMember(guildId, userId, now);
+            this.setSetting(guildId, dragonFlawlessSettingKey(userId), 1);
+            return { guildId, userId, armed: true };
+        });
+    }
+
+    applyOneTimeDragonGrant(guildId, userId, amount, grantId, now = Date.now()) {
+        const reward = boundedInt(amount, 0, 1);
+        const markerKey = `one_time_dragon_grant:${String(grantId || '').trim()}`;
+        if (!String(guildId || '').trim() || !String(userId || '').trim() || markerKey.endsWith(':')) {
+            throw new Error('A guild, member, and grant ID are required.');
+        }
+        return this.transaction(() => {
+            const existing = this.ensureMember(guildId, userId, now);
+            if (this.setting(guildId, markerKey)) {
+                return { guildId, userId, amount: 0, balance: existing.balance, applied: false, flawlessArmed: false };
+            }
+            const balance = this.applyDelta(
+                guildId,
+                userId,
+                reward,
+                'admin-add',
+                `one-time:${grantId}`,
+                `one-time:${grantId}`,
+                now,
+            );
+            this.setSetting(guildId, dragonFlawlessSettingKey(userId), 1);
+            this.setSetting(guildId, markerKey, now);
+            return { guildId, userId, amount: reward, balance, applied: true, flawlessArmed: true };
+        });
     }
 
     startDragonTower(guildId, userId, wager, interactionId, now = Date.now()) {
@@ -214,7 +259,9 @@ class EconomyGames {
             }
             const gameId = crypto.randomUUID();
             const reserved = this.startProgressiveWager(guildId, userId, wager, interactionId, `dragon-tower:${gameId}`, now);
-            const traps = DRAGON_TOWER_EGGS_PER_ROW.map(eggs => {
+            const flawlessKey = dragonFlawlessSettingKey(userId);
+            const flawless = this.setting(guildId, flawlessKey) === '1';
+            const traps = flawless ? Array.from({ length: DRAGON_TOWER_ROWS }, () => []) : DRAGON_TOWER_EGGS_PER_ROW.map(eggs => {
                 const columns = Array.from({ length: DRAGON_TOWER_COLUMNS }, (_, column) => column);
                 for (let index = columns.length - 1; index > 0; index -= 1) {
                     const other = randomInt(0, index, this.random);
@@ -226,6 +273,9 @@ class EconomyGames {
                 (game_id,guild_id,user_id,wager,trap_positions,status,interaction_id,created_at,updated_at)
                 VALUES(?,?,?,?,?,'active',?,?,?)`)
                 .run(gameId, guildId, userId, reserved.amount, JSON.stringify(traps), interactionId, now, now);
+            if (flawless) {
+                this.db.prepare('DELETE FROM economy_settings WHERE guild_id=? AND setting_key=?').run(guildId, flawlessKey);
+            }
             return { ...this.dragonTowerGame(gameId), balance: reserved.balance, maximumWager: reserved.maximumWager };
         });
     }
@@ -826,5 +876,5 @@ function installEconomyGames(EconomyService) {
     }
 }
 
-module.exports = { installEconomyGames };
+module.exports = { installEconomyGames, dragonFlawlessSettingKey };
 

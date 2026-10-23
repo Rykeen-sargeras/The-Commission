@@ -212,7 +212,7 @@ function dragonTowerPayload(game, userMention, currencyName, note = '') {
         : active
             ? `${userMention}, choose one of four tiles on row **${game.row_number + 1}**. Find an egg, then climb again or cash out.`
             : `${userMention} ${game.status === 'completed' ? 'conquered all eight rows' : 'cashed out safely'}.`;
-    const eggs = active ? DRAGON_TOWER_EGGS_PER_ROW[game.row_number] : 0;
+    const eggs = active ? (game.flawless ? DRAGON_TOWER_COLUMNS : DRAGON_TOWER_EGGS_PER_ROW[game.row_number]) : 0;
     const fields = [
         { name: 'Wager', value: `${money(game.wager)} ${currencyName}`, inline: true },
         { name: 'Rows cleared', value: `${game.row_number}/${DRAGON_TOWER_ROWS}`, inline: true },
@@ -236,7 +236,7 @@ function dragonTowerPayload(game, userMention, currencyName, note = '') {
     return {
         embeds: [new Discord.EmbedBuilder().setColor(active ? 0xd29922 : game.status === 'lost' ? 0x9b1c31 : 0x2ea043)
             .setTitle('🐉 Dragon Tower · 4×8').setDescription(`${description}\n\n${dragonTowerGrid(game)}${note ? `\n\n*${note}*` : ''}`).addFields(fields)
-            .setFooter({ text: 'Rows 1–5: 3 eggs · Rows 6–8: 1 egg' }).setTimestamp()],
+            .setFooter({ text: game.flawless ? 'Flawless run active · every tile is safe through the top' : 'Rows 1–5: 3 eggs · Rows 6–8: 1 egg' }).setTimestamp()],
         components,
     };
 }
