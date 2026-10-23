@@ -17,6 +17,7 @@ const PRESTIGE_ITEMS = Object.freeze({
 const PRESTIGE_ORDER = Object.freeze(['prestige-25m', 'prestige-30m', 'prestige-50m', 'prestige-100m']);
 const PRESTIGE_RESET_ITEMS = Object.freeze(['luck-5', 'luck-10', 'luck-25']);
 const PRESTIGE_MASTER_KEY = 'prestige-master';
+const PRESTIGE_MASTER_COST = 50_000_000_000;
 const GLOBAL_LUCK_COST = 1000;
 const GLOBAL_LUCK_PERCENT = 0.75;
 const GLOBAL_LUCK_MAX_ACTIVE_PER_USER = 20;
@@ -200,18 +201,26 @@ EconomyService.prototype.buyLuckItem = function buyLuckItem(guildId, userId, ite
     });
 };
 
-EconomyService.prototype.claimPrestigeMaster = function claimPrestigeMaster(guildId, userId, now = Date.now()) {
+EconomyService.prototype.claimPrestigeMaster = function claimPrestigeMaster(guildId, userId, interactionId = null, now = Date.now()) {
     return this.transaction(() => {
-        this.ensureMember(guildId, userId, now);
+        const member = this.ensureMember(guildId, userId, now);
         const owned = new Set(this.db.prepare('SELECT item_key FROM luck_purchases WHERE guild_id=? AND user_id=?')
             .all(guildId, userId).map(row => row.item_key));
         const missing = PRESTIGE_ORDER.filter(key => !owned.has(key));
         if (missing.length) throw new Error(`Prestige Master requires all four Prestige tiers. Missing: ${missing.map(key => PRESTIGE_ITEMS[key].name).join(', ')}.`);
-        if (!owned.has(PRESTIGE_MASTER_KEY)) {
-            this.db.prepare('INSERT INTO luck_purchases(guild_id,user_id,item_key,luck_percent,cost,purchased_at) VALUES(?,?,?,?,?,?)')
-                .run(guildId, userId, PRESTIGE_MASTER_KEY, 0, 0, now);
+        if (owned.has(PRESTIGE_MASTER_KEY)) {
+            return { guildId, userId, itemKey: PRESTIGE_MASTER_KEY, cost: PRESTIGE_MASTER_COST, charged: 0, balance: member.balance, alreadyClaimed: true };
         }
-        return { guildId, userId, itemKey: PRESTIGE_MASTER_KEY, alreadyClaimed: owned.has(PRESTIGE_MASTER_KEY) };
+        if (member.balance < PRESTIGE_MASTER_COST) {
+            throw new Error(`You need ${money(PRESTIGE_MASTER_COST)} ${this.config.currencyName} to become a Prestige Master.`);
+        }
+        const balance = this.applyDelta(
+            guildId, userId, -PRESTIGE_MASTER_COST, 'prestige-master-purchase', PRESTIGE_MASTER_KEY,
+            interactionId || `prestige-master:${userId}`, now,
+        );
+        this.db.prepare('INSERT INTO luck_purchases(guild_id,user_id,item_key,luck_percent,cost,purchased_at) VALUES(?,?,?,?,?,?)')
+            .run(guildId, userId, PRESTIGE_MASTER_KEY, 0, PRESTIGE_MASTER_COST, now);
+        return { guildId, userId, itemKey: PRESTIGE_MASTER_KEY, cost: PRESTIGE_MASTER_COST, charged: PRESTIGE_MASTER_COST, balance, alreadyClaimed: false };
     });
 };
 
@@ -511,6 +520,7 @@ module.exports = {
     PRESTIGE_ITEMS,
     PRESTIGE_ORDER,
     PRESTIGE_MASTER_KEY,
+    PRESTIGE_MASTER_COST,
     GLOBAL_LUCK_COST,
     GLOBAL_LUCK_PERCENT,
     GLOBAL_LUCK_MAX_ACTIVE_PER_USER,

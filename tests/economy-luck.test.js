@@ -14,6 +14,7 @@ assert.strictEqual(luck.PERSONAL_LUCK_ITEMS['luck-5'].percent, 5);
 assert.strictEqual(luck.PERSONAL_LUCK_ITEMS['luck-10'].cost, 250000);
 assert.strictEqual(luck.PRESTIGE_ITEMS['prestige-25m'].modifier, 2.5);
 assert.strictEqual(luck.PRESTIGE_ITEMS['prestige-100m'].modifier, 10);
+assert.strictEqual(luck.PRESTIGE_MASTER_COST, 50_000_000_000);
 assert.strictEqual(luck.GLOBAL_LUCK_COST, 1000);
 assert.strictEqual(luck.GLOBAL_LUCK_PERCENT, 0.75);
 assert.strictEqual(luck.GLOBAL_LUCK_MAX_ACTIVE_PER_USER, 20);
@@ -55,8 +56,14 @@ try {
     const masterPayload = myLuckPayload(service, 'guild', 'prestige-user');
     assert.strictEqual(masterPayload.components.length, 1);
     assert.strictEqual(masterPayload.components[0].components[0].data.label, 'Prestige Master');
-    assert.strictEqual(service.claimPrestigeMaster('guild', 'prestige-user', 4700).alreadyClaimed, false);
-    assert.strictEqual(service.claimPrestigeMaster('guild', 'prestige-user', 4800).alreadyClaimed, true);
+    assert.match(masterPayload.embeds[0].data.description, /50,000,000,000/);
+    assert.throws(() => service.claimPrestigeMaster('guild', 'prestige-user', 'master-poor', 4700), /need 50,000,000,000/i);
+    service.admin('guild', 'add', 'prestige-user', 50_000_000_000, 'fund-master', 4750);
+    const master = service.claimPrestigeMaster('guild', 'prestige-user', 'master-buy', 4800);
+    assert.strictEqual(master.alreadyClaimed, false);
+    assert.strictEqual(master.charged, 50_000_000_000);
+    assert.strictEqual(service.audit('guild', 'prestige-user').some(row => row.type === 'prestige-master-purchase' && row.amount === -50_000_000_000), true);
+    assert.strictEqual(service.claimPrestigeMaster('guild', 'prestige-user', 'master-restore', 4900).alreadyClaimed, true);
 
     const gifted = service.applyOneTimePrestigeGrant('gift-guild', 'gift-user', 'all-upgrades-test', 4900);
     assert.strictEqual(gifted.applied, true);

@@ -19,6 +19,7 @@ const HEIST_ITEMS = Object.freeze({
 const GLOBAL_COST = 1000;
 const GLOBAL_PERCENT = 0.75;
 const GLOBAL_MAX_PER_USER = 20;
+const PRESTIGE_MASTER_COST = 50_000_000_000;
 const PRESTIGE_ITEMS = Object.freeze({
     'prestige-25m': Object.freeze({ key: 'prestige-25m', name: '25M Prestige Token', modifier: 2.5, cost: 25_000_000 }),
     'prestige-30m': Object.freeze({ key: 'prestige-30m', name: '30M Prestige Token', modifier: 3, cost: 30_000_000 }),
@@ -147,7 +148,7 @@ function myLuckPayload(economy, guildId, userId) {
     return {
         ephemeral: true,
         embeds: [new Discord.EmbedBuilder().setColor(0x2ea043).setTitle('🍀 Your Luck & Heist Inventory')
-            .setDescription(lines.join('\n') + `\n\n${community}\n\n**Prestige Collectibles**\n${prestigeLines}\n\n**Heist Inventory**\n🗺️ Hot Tip uses: **${Number(heist.inventory['hot-tip'] || 0)}**\n🤵 Active Goons: **${goons.length}/2**\n${goonLines}`)
+            .setDescription(lines.join('\n') + `\n\n${community}\n\n**Prestige Collectibles**\n${prestigeLines}${masterUnlocked ? `\n🏆 Prestige Master: **${money(PRESTIGE_MASTER_COST)} ${economy.config.currencyName}**${masterClaimed ? ' · owned' : ''}` : ''}\n\n**Heist Inventory**\n🗺️ Hot Tip uses: **${Number(heist.inventory['hot-tip'] || 0)}**\n🤵 Active Goons: **${goons.length}/2**\n${goonLines}`)
             .addFields(
                 { name: 'Personal', value: `+${fmtPercent(status.personalLuck)}%`, inline: true },
                 { name: 'Global', value: `+${fmtPercent(status.globalLuck)}%`, inline: true },

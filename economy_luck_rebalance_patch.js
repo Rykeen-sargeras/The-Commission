@@ -23,6 +23,7 @@ const APEX_REQUIREMENTS = Object.freeze(['luck-1', 'luck-5', 'luck-10']);
 const PRESTIGE_ORDER = Object.freeze(['prestige-25m', 'prestige-30m', 'prestige-50m', 'prestige-100m']);
 const PRESTIGE_RESET_ITEMS = Object.freeze(['luck-5', 'luck-10', 'luck-25']);
 const PRESTIGE_MASTER_ROLE_NAME = 'Prestige Master';
+const PRESTIGE_MASTER_COST = 50_000_000_000;
 
 const DAILY_COMMON_MIN = 1_000;
 const DAILY_COMMON_MAX = 50_000;
@@ -113,7 +114,7 @@ function storePayload(economy, guildId) {
             '**Daily Claim**\n' +
             'Daily payouts are fully random from **1,000 to 250,000 Blood Money**. The lower 1K–50K band is drawn 80% of the time; the 50,001–250K band is drawn 20% of the time. Every amount inside its selected band is randomly rolled.\n\n' +
             '**Prestige Collectibles**\n' +
-            '**25M: +2.5% · 30M: +3% · 50M: +5% · 100M: +10%** to duels and heists. Tiers unlock in order and each requires Apex Luck. Complete all four to claim the cosmetic **Prestige Master** role.\n\n' +
+            '**25M: +2.5% · 30M: +3% · 50M: +5% · 100M: +10%** to duels and heists. Tiers unlock in order and each requires Apex Luck. Complete all four, then pay **50B Blood Money** to claim the cosmetic **Prestige Master** role.\n\n' +
             '**Community Luck Pot**\nSpend **1,000 Blood Money** to add **+0.75% GLOBAL luck** for 24 hours. Each member may stack up to **20 active boosts**.'
         )
         .addFields(
@@ -269,8 +270,24 @@ function installLuckRebalancePatch() {
             if (!interaction.isButton?.()) return previousHandleButton(interaction);
             const id = interaction.customId;
             if (id === 'econ:luckpanel:prestige-master') {
+                const masterOwned = economy.luckShopStatus(interaction.guild.id, interaction.user.id).purchases
+                    .some(row => row.item_key === 'prestige-master');
+                await interaction.reply({
+                    ephemeral: true,
+                    embeds: [new Discord.EmbedBuilder().setColor(0xd29922).setTitle('Confirm Prestige Master')
+                        .setDescription(masterOwned
+                            ? `Restore your cosmetic **${PRESTIGE_MASTER_ROLE_NAME}** role for free?`
+                            : `Buy the permanent cosmetic **${PRESTIGE_MASTER_ROLE_NAME}** role for **${money(PRESTIGE_MASTER_COST)} ${economy.config.currencyName}**?\n\nThis role grants no permissions. The charge happens only once; restoring the role later is free.`)],
+                    components: [new Discord.ActionRowBuilder().addComponents(
+                        new Discord.ButtonBuilder().setCustomId('econ:luckpanel:prestige-master-confirm').setLabel(masterOwned ? 'Restore Role' : 'Confirm 50B').setEmoji('🏆').setStyle(Discord.ButtonStyle.Success),
+                        new Discord.ButtonBuilder().setCustomId('econ:luckpanel:cancel').setLabel('Cancel').setStyle(Discord.ButtonStyle.Secondary),
+                    )],
+                });
+                return true;
+            }
+            if (id === 'econ:luckpanel:prestige-master-confirm') {
                 try {
-                    const claim = economy.claimPrestigeMaster(interaction.guild.id, interaction.user.id);
+                    const claim = economy.claimPrestigeMaster(interaction.guild.id, interaction.user.id, interaction.id);
                     let role = interaction.guild.roles.cache.find(candidate =>
                         candidate.name === PRESTIGE_MASTER_ROLE_NAME
                         && !candidate.managed
@@ -289,12 +306,13 @@ function installLuckRebalancePatch() {
                         ? interaction.member
                         : await interaction.guild.members.fetch(interaction.user.id);
                     await member.roles.add(role, 'Completed all four economy Prestige tiers');
-                    await interaction.reply({
-                        content: `🏆 You are now a **${PRESTIGE_MASTER_ROLE_NAME}**. The role is cosmetic and grants no permissions.${claim.alreadyClaimed ? ' Your role was restored.' : ''}`,
-                        ephemeral: true,
+                    await interaction.update({
+                        content: `🏆 You are now a **${PRESTIGE_MASTER_ROLE_NAME}**. The role is cosmetic and grants no permissions.${claim.alreadyClaimed ? ' Your role was restored for free.' : ` **${money(claim.charged)} ${economy.config.currencyName}** was collected.`}\nBalance: **${money(claim.balance)} ${economy.config.currencyName}**.`,
+                        embeds: [],
+                        components: [],
                     });
                 } catch (error) {
-                    await interaction.reply({ content: `❌ ${error.message}`, ephemeral: true }).catch(() => {});
+                    await interaction.update({ content: `❌ ${error.message}`, embeds: [], components: [] }).catch(() => {});
                 }
                 return true;
             }
