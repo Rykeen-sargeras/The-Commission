@@ -4,7 +4,7 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const Discord = require('discord.js');
-const { economyCommandData, createEconomyIntegration, gambleMenuPayload, wagerModal } = require('../economy_discord');
+const { economyCommandData, createEconomyIntegration, gambleMenuPayload, wagerModal, isEconomyArchiveMessage } = require('../economy_discord');
 
 const menuGames = new Set(['slots', 'dice', 'higher-lower', 'dragon-tower', 'poker', 'blackjack', 'duel']);
 const retiredStandaloneGames = new Set(['slots', 'dice', 'higher-lower', 'dragon-tower', 'poker', 'blackjack']);
@@ -32,6 +32,18 @@ assert.deepStrictEqual(gameButtons.map(button => button.data.custom_id.replace('
 assert.strictEqual(gameButtons.find(button => button.data.custom_id.endsWith(':blackjack')).data.emoji.name, '🃏');
 assert.strictEqual(wagerModal('slots').components.length, 1);
 assert.strictEqual(wagerModal('duel').components.length, 2);
+assert.strictEqual(isEconomyArchiveMessage({
+    author: { id: 'bot' }, content: '',
+    embeds: [{ data: { title: '🩸 Blood Money Archive · 2026-09' } }], attachments: new Map(),
+}, 'bot'), true);
+assert.strictEqual(isEconomyArchiveMessage({
+    author: { id: 'bot' }, content: '',
+    embeds: [{ data: { title: 'Moderation audit' } }], attachments: new Map(),
+}, 'bot'), false);
+assert.strictEqual(isEconomyArchiveMessage({
+    author: { id: 'human' }, content: '',
+    embeds: [{ data: { title: '🩸 Blood Money Archive · 2026-09' } }], attachments: new Map(),
+}, 'bot'), false);
 
 function baseEconomy(overrides = {}) {
     return {

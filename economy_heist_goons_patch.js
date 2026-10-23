@@ -4,6 +4,7 @@ const Discord = require('discord.js');
 const economyModule = require('./economy');
 const discordEconomy = require('./economy_discord');
 const { createPanelUpserter } = require('./economy/persistent_panels');
+const { heistSeason } = require('./economy_heist_four_daily_patch');
 
 const HOT_TIP_KEY = 'hot-tip';
 const GOON_KEY = 'hired-goon';
@@ -200,7 +201,11 @@ function installHeistGoonsPatch() {
             const attackers = new Set(entries.map(entry => entry.user_id));
             const victims = this.db.prepare('SELECT user_id,balance FROM economy_members WHERE guild_id=? AND balance>0 ORDER BY balance DESC')
                 .all(round.guild_id).filter(member => !attackers.has(member.user_id));
-            if (!victims.length) return this.bossOutcome(round, entries, { id: 'fallback-boss', name: 'Fallback Boss', emoji: '👑' });
+            if (!victims.length) {
+                const bosses = heistSeason(now).bosses;
+                const boss = bosses[Math.floor(Math.min(0.999999, Math.max(0, this.random())) * bosses.length)];
+                return this.bossOutcome(round, entries, boss);
+            }
 
             const victim = victims[Math.floor(this.random() * victims.length)];
             const prestigeModifier = this.crewPrestigeModifier(round, entries);
@@ -273,6 +278,7 @@ function installHeistGoonsPatch() {
         function heistPanelPayload(state) {
             const round = state.round;
             const signup = state.phase === 'signup';
+            const season = heistSeason();
             const nextAt = signup ? round.signup_ends_at : state.nextAt;
             const participants = Number(round?.participantCount || round?.entries?.length || 0);
             const prestigeModifier = economy.crewPrestigeModifier?.(round, round?.entries || []) || 0;
@@ -281,22 +287,22 @@ function installHeistGoonsPatch() {
             return {
                 embeds: [new Discord.EmbedBuilder()
                     .setColor(signup ? 0x9b1c31 : 0x6f42c1)
-                    .setTitle(signup ? '🎭 Heist · Entry Open' : '🎭 Heist · Enter Anytime')
+                    .setTitle(`${season.emoji} ${season.name} · ${signup ? 'Entry Open' : 'Enter Anytime'}`)
                     .setDescription(signup
-                        ? `This heist closes <t:${Math.floor(nextAt / 1000)}:R>.`
-                        : `The next heist begins <t:${Math.floor(nextAt / 1000)}:R>. You can reserve your spot now.`)
+                        ? `${season.description} Entry closes <t:${Math.floor(nextAt / 1000)}:R>.`
+                        : `The next ${season.name} begins <t:${Math.floor(nextAt / 1000)}:R>. You can reserve your spot now.`)
                     .addFields(
                         { name: 'Entry', value: `100,000 ${economy.config.currencyName}`, inline: true },
                         { name: 'Schedule', value: '3 AM · 9 AM · 3 PM · 9 PM ET', inline: true },
                         { name: 'Base Reward', value: '150,000 per participant · 1,000,000 max', inline: true },
                         { name: 'Current success', value: `${chance.toFixed(1)}% · includes +${prestigeModifier}% crew Prestige`, inline: true },
-                        { name: 'Encounter', value: 'Boss Battle or PvP Battle', inline: true },
+                        { name: 'Encounter', value: season.encounter, inline: true },
                         { name: 'Join Anytime', value: signup ? 'Joins the current heist.' : 'Reserves the next heist and charges the 100K entry now.', inline: false },
                     )
                     .setFooter({ text: 'Persistent heist controls · results update on this card without channel spam' })
                     .setTimestamp()],
                 components: [new Discord.ActionRowBuilder().addComponents(
-                    new Discord.ButtonBuilder().setCustomId(`econ:heist:join:${joinRoundId}`).setLabel(signup ? 'Join Heist · 100K' : 'Enter Next Heist · 100K').setEmoji('🎭').setStyle(Discord.ButtonStyle.Danger),
+                    new Discord.ButtonBuilder().setCustomId(`econ:heist:join:${joinRoundId}`).setLabel(signup ? `Join ${season.name} · 100K` : `Enter Next ${season.name} · 100K`).setEmoji(season.emoji).setStyle(Discord.ButtonStyle.Danger),
                     new Discord.ButtonBuilder().setCustomId(`econ:heist:status:${joinRoundId}`).setLabel('My Entry').setStyle(Discord.ButtonStyle.Secondary),
                     new Discord.ButtonBuilder().setCustomId('econ:heist:solo').setLabel('Solo Heist · 1M').setEmoji('🥷').setStyle(Discord.ButtonStyle.Primary),
                 )],

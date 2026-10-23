@@ -218,6 +218,10 @@ class EconomyService {
                 guild_id TEXT NOT NULL, setting_key TEXT NOT NULL, setting_value TEXT NOT NULL,
                 PRIMARY KEY (guild_id, setting_key)
             );
+            CREATE TABLE IF NOT EXISTS economy_departed_members (
+                guild_id TEXT NOT NULL, user_id TEXT NOT NULL, departed_at INTEGER NOT NULL,
+                PRIMARY KEY (guild_id, user_id)
+            );
             CREATE TABLE IF NOT EXISTS rep_members (
                 guild_id TEXT NOT NULL, user_id TEXT NOT NULL,
                 points INTEGER NOT NULL DEFAULT 0 CHECK(points >= 0),
@@ -330,7 +334,9 @@ class EconomyService {
         const row = this.ensureRepMember(guildId, userId, now);
         const position = row.points > 0
             ? this.db.prepare(`SELECT COUNT(*)+1 AS position FROM rep_members
-                WHERE guild_id=? AND points>0 AND (points>? OR (points=? AND user_id<?))`).get(guildId, row.points, row.points, userId).position
+                WHERE guild_id=? AND points>0
+                AND NOT EXISTS (SELECT 1 FROM economy_departed_members d WHERE d.guild_id=rep_members.guild_id AND d.user_id=rep_members.user_id)
+                AND (points>? OR (points=? AND user_id<?))`).get(guildId, row.points, row.points, userId).position
             : null;
         return { ...row, position };
     }
@@ -372,9 +378,98 @@ class EconomyService {
 
     repLeaderboard(guildId, limit = 100) {
         return this.db.prepare(`SELECT user_id,points AS score,points,updated_at FROM rep_members
-            WHERE guild_id=? AND points>0 ORDER BY points DESC,updated_at ASC,user_id ASC LIMIT ?`)
+            WHERE guild_id=? AND points>0
+            AND NOT EXISTS (SELECT 1 FROM economy_departed_members d WHERE d.guild_id=rep_members.guild_id AND d.user_id=rep_members.user_id)
+            ORDER BY points DESC,updated_at ASC,user_id ASC LIMIT ?`)
             .all(guildId, Math.max(1, boundedInt(limit, 100, 1, 10000)))
             .map((row, index) => ({ ...row, position: index + 1 }));
+    }
+
+    syncLeaderboardMembership(guildId, activeUserIds, now = Date.now()) {
+        const active = new Set((activeUserIds || []).map(id => String(id || '').trim()).filter(Boolean));
+        return this.transaction(() => {
+            const tracked = new Set([
+                ...this.db.prepare('SELECT user_id FROM economy_members WHERE guild_id=?').all(guildId).map(row => row.user_id),
+                ...this.db.prepare('SELECT user_id FROM rep_members WHERE guild_id=?').all(guildId).map(row => row.user_id),
+            ]);
+            const mark = this.db.prepare(`INSERT INTO economy_departed_members(guild_id,user_id,departed_at) VALUES(?,?,?)
+                ON CONFLICT(guild_id,user_id) DO UPDATE SET departed_at=excluded.departed_at`);
+            const restore = this.db.prepare('DELETE FROM economy_departed_members WHERE guild_id=? AND user_id=?');
+            for (const userId of active) restore.run(guildId, userId);
+            let departed = 0;
+            for (const userId of tracked) {
+                if (active.has(userId)) continue;
+                mark.run(guildId, userId, now);
+                departed += 1;
+            }
+            return { active: active.size, tracked: tracked.size, departed };
+        });
+    }
+
+    setLeaderboardMembership(guildId, userId, present, now = Date.now()) {
+        if (present) {
+            this.db.prepare('DELETE FROM economy_departed_members WHERE guild_id=? AND user_id=?').run(guildId, userId);
+        } else {
+            this.db.prepare(`INSERT INTO economy_departed_members(guild_id,user_id,departed_at) VALUES(?,?,?)
+                ON CONFLICT(guild_id,user_id) DO UPDATE SET departed_at=excluded.departed_at`).run(guildId, userId, now);
+        }
+    }
+
+    resetAllEconomyStatistics(guildId, resetId, now = Date.now()) {
+        const normalizedResetId = String(resetId || '').trim();
+        if (!String(guildId || '').trim() || !normalizedResetId) throw new Error('A guild and statistics reset ID are required.');
+        const markerKey = `one_time_statistics_reset:${normalizedResetId}`;
+        return this.transaction(() => {
+            if (this.setting(guildId, markerKey)) return { applied: false, guildId, resetId: normalizedResetId };
+            const before = this.stats(guildId);
+            const day = dayKey(now, this.config);
+            const resetMembers = this.db.prepare(`UPDATE economy_members SET
+                lifetime_earned=0,lifetime_spent=0,lifetime_wagered=0,lifetime_won=0,lifetime_lost=0,
+                gambling_wins=0,gambling_losses=0,daily_key=?,daily_wagered=0,daily_gambling_limit=0,
+                daily_blackjack_wagered=0,daily_poker_wagered=0,daily_text_earned=0,daily_media_earned=0,
+                daily_media_posts=0,daily_voice_earned=0,daily_transfers_sent=0,last_message_reward=0,
+                last_message_at=0,last_media_reward=0,last_daily_claim=0,daily_streak=0,voice_minutes=0,updated_at=?
+                WHERE guild_id=?`).run(day, now, guildId).changes;
+            const resetRepMembers = this.db.prepare(`UPDATE rep_members SET points=0,last_message_at=0,
+                qualified_voice_minutes=0,updated_at=? WHERE guild_id=?`).run(now, guildId).changes;
+            const deletedTransactions = this.db.prepare('DELETE FROM economy_transactions WHERE guild_id=?').run(guildId).changes;
+            this.db.prepare('DELETE FROM economy_messages WHERE guild_id=?').run(guildId);
+            this.db.prepare('DELETE FROM economy_media WHERE guild_id=?').run(guildId);
+
+            for (const [table, activeStatus] of [
+                ['poker_games', 'active'], ['blackjack_games', 'active'], ['higher_lower_games', 'active'],
+                ['dragon_tower_games', 'active'], ['duels', 'pending'],
+            ]) {
+                this.db.prepare(`DELETE FROM ${table} WHERE guild_id=? AND status<>?`).run(guildId, activeStatus);
+            }
+            const completedRounds = this.db.prepare("SELECT round_id FROM heist_rounds WHERE guild_id=? AND status<>'signup'").all(guildId);
+            if (completedRounds.length) {
+                const placeholders = completedRounds.map(() => '?').join(',');
+                const ids = completedRounds.map(row => row.round_id);
+                if (this.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='special_heist_outcomes'").get()) {
+                    this.db.prepare(`DELETE FROM special_heist_outcomes WHERE round_id IN (${placeholders})`).run(...ids);
+                }
+                this.db.prepare(`DELETE FROM heist_entries WHERE round_id IN (${placeholders})`).run(...ids);
+                this.db.prepare(`DELETE FROM heist_rounds WHERE round_id IN (${placeholders})`).run(...ids);
+            }
+
+            this.db.prepare(`DELETE FROM economy_settings WHERE guild_id=? AND (
+                setting_key IN ('pending_weekly_archive','pending_monthly_archive','rep_pending_archive')
+                OR setting_key LIKE 'weekly_%_period' OR setting_key LIKE 'weekly_%_cutoff'
+                OR setting_key LIKE 'monthly_%_period' OR setting_key LIKE 'monthly_%_cutoff'
+            )`).run(guildId);
+            const periods = periodKeys(now, this.config);
+            this.setSetting(guildId, 'active_week', periods.week);
+            this.setSetting(guildId, 'active_month', periods.month);
+            this.setSetting(guildId, 'rep_active_month', repMonthKey(now, 'America/New_York'));
+            this.setSetting(guildId, markerKey, now);
+            this.repMonthByGuild.set(guildId, repMonthKey(now, 'America/New_York'));
+            return {
+                applied: true, guildId, resetId: normalizedResetId,
+                resetMembers: Number(resetMembers), resetRepMembers: Number(resetRepMembers),
+                deletedTransactions: Number(deletedTransactions), balancesPreserved: before.circulation,
+            };
+        });
     }
 
     assertUsable(row) {
@@ -520,7 +615,9 @@ class EconomyService {
                 COALESCE(SUM(CASE WHEN t.amount>0 AND t.type NOT IN ('transfer-in','admin-add','admin-set','admin-bulk-add','heist-refund') THEN t.amount ELSE 0 END),0) AS score
                 FROM economy_members m LEFT JOIN economy_transactions t
                 ON t.guild_id=m.guild_id AND t.user_id=m.user_id AND t.${column}=? AND t.created_at>=?
-                WHERE m.guild_id=? GROUP BY m.user_id ORDER BY score DESC,m.updated_at ASC LIMIT ?`)
+                WHERE m.guild_id=?
+                AND NOT EXISTS (SELECT 1 FROM economy_departed_members d WHERE d.guild_id=m.guild_id AND d.user_id=m.user_id)
+                GROUP BY m.user_id ORDER BY score DESC,m.updated_at ASC LIMIT ?`)
                 .all(key, cutoff, guildId, Math.max(limit * 2, limit))
                 .filter(row => !this.excludedLeaderboardUsers.has(row.user_id)).slice(0, limit)
                 .map(row => ({ ...row, rank: rankFor(row.balance), period: key }));
@@ -530,7 +627,9 @@ class EconomyService {
         };
         const column = columns[type] || columns.balance;
         return this.db.prepare(`SELECT user_id,balance,lifetime_earned,lifetime_won,voice_minutes,(${column}) AS score
-            FROM economy_members WHERE guild_id=? ORDER BY score DESC,updated_at ASC LIMIT ?`).all(guildId, Math.max(limit * 2, limit))
+            FROM economy_members m WHERE guild_id=?
+            AND NOT EXISTS (SELECT 1 FROM economy_departed_members d WHERE d.guild_id=m.guild_id AND d.user_id=m.user_id)
+            ORDER BY score DESC,updated_at ASC LIMIT ?`).all(guildId, Math.max(limit * 2, limit))
             .filter(row => !this.excludedLeaderboardUsers.has(row.user_id)).slice(0, limit)
             .map(row => ({ ...row, rank: rankFor(row.balance) }));
     }
@@ -855,6 +954,7 @@ class EconomyService {
             this.db.prepare('DELETE FROM economy_messages WHERE guild_id=?').run(guildId);
             this.db.prepare('DELETE FROM economy_transactions WHERE guild_id=?').run(guildId);
             this.db.prepare('DELETE FROM economy_members WHERE guild_id=?').run(guildId);
+            this.db.prepare('DELETE FROM economy_departed_members WHERE guild_id=?').run(guildId);
             this.db.prepare(`DELETE FROM economy_settings WHERE guild_id=?
                 AND setting_key NOT IN ('leaderboard_panel_message','heist_panel_message')
                 AND setting_key NOT LIKE 'rep_%'

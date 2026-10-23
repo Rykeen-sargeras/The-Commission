@@ -413,6 +413,27 @@ try {
     assert.strictEqual(service.publicMember('bulk-guild', bulkTwo).lifetime_earned, 0);
     assert(service.audit('bulk-guild', bulkOne).some(row => row.type === 'admin-bulk-add' && row.related === 'batch:bulk-test-batch'));
     assert.throws(() => service.previewBulkGrant('bulk-guild', [bulkOne], 0), /positive Blood Money amount/i);
+
+    const statisticsResetNow = Date.UTC(2026, 9, 23, 18);
+    service.admin('statistics-reset-guild', 'add', 'active-member', 12_345, 'stats-active-fund', statisticsResetNow);
+    service.admin('statistics-reset-guild', 'add', 'departed-member', 54_321, 'stats-departed-fund', statisticsResetNow);
+    service.rewardRepMessage('statistics-reset-guild', 'active-member', statisticsResetNow + 1);
+    service.rewardRepMessage('statistics-reset-guild', 'departed-member', statisticsResetNow + 1);
+    const membership = service.syncLeaderboardMembership('statistics-reset-guild', ['active-member'], statisticsResetNow + 2);
+    assert.strictEqual(membership.departed, 1);
+    assert.deepStrictEqual(service.leaderboard('statistics-reset-guild', 'balance').map(row => row.user_id), ['active-member']);
+    assert.deepStrictEqual(service.repLeaderboard('statistics-reset-guild').map(row => row.user_id), ['active-member']);
+    const statisticsReset = service.resetAllEconomyStatistics('statistics-reset-guild', 'clean-slate-test', statisticsResetNow + 3);
+    assert.strictEqual(statisticsReset.applied, true);
+    assert.strictEqual(statisticsReset.deletedTransactions, 2);
+    assert.strictEqual(service.publicMember('statistics-reset-guild', 'active-member').balance, 12_345);
+    assert.strictEqual(service.publicMember('statistics-reset-guild', 'active-member').lifetime_earned, 0);
+    assert.strictEqual(service.repMember('statistics-reset-guild', 'active-member').points, 0);
+    assert.strictEqual(service.audit('statistics-reset-guild', 'active-member').length, 0);
+    assert.strictEqual(service.resetAllEconomyStatistics('statistics-reset-guild', 'clean-slate-test', statisticsResetNow + 4).applied, false);
+    service.setLeaderboardMembership('statistics-reset-guild', 'departed-member', true, statisticsResetNow + 5);
+    assert(service.leaderboard('statistics-reset-guild', 'balance').some(row => row.user_id === 'departed-member'));
+
     service.setSetting('guild', 'leaderboard_panel_message', 'keep-leaderboard-panel');
     service.setSetting('guild', 'heist_panel_message', 'keep-heist-panel');
     service.setSetting('guild', 'rep_panel_message', 'keep-rep-panel');

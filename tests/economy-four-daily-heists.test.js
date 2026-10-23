@@ -13,6 +13,11 @@ assert.strictEqual(fourDaily.SOLO_HEIST_ENTRY_FEE, 1_000_000);
 assert.strictEqual(fourDaily.SOLO_HEIST_COOLDOWN_MS, 3 * 60 * 60 * 1000);
 assert.strictEqual(fourDaily.SOLO_HEIST_SUCCESS_CHANCE, 55);
 assert.strictEqual(fourDaily.SOLO_HEIST_PAYOUT_MULTIPLIER, 1.5);
+assert.strictEqual(fourDaily.heistSeason(Date.UTC(2026, 10, 15, 17)).id, 'thanksgiving');
+assert.strictEqual(fourDaily.heistSeason(Date.UTC(2026, 11, 15, 17)).id, 'christmas');
+assert.strictEqual(fourDaily.heistSeason(Date.UTC(2027, 0, 15, 17)).id, 'mobster');
+assert(fourDaily.heistSeason(Date.UTC(2026, 10, 15, 17)).bosses.every(boss => boss.season === 'thanksgiving'));
+assert(fourDaily.heistSeason(Date.UTC(2026, 11, 15, 17)).bosses.every(boss => boss.season === 'christmas'));
 
 fourDaily.installFourDailyHeists();
 goons.installHeistGoonsPatch();

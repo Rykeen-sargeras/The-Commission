@@ -3,7 +3,7 @@
 const Discord = require('discord.js');
 const economyModule = require('./economy');
 const discordEconomy = require('./economy_discord');
-const { HEIST_CHANNEL_ID, HEIST_TYPES } = require('./economy_special_events');
+const { HEIST_CHANNEL_ID } = require('./economy_special_events');
 
 const HEIST_ENTRY_FEE = 100_000;
 const HEIST_BASE_REWARD = 150_000;
@@ -24,6 +24,39 @@ const SOLO_HEIST_COOLDOWN_MS = 3 * 60 * 60 * 1000;
 const SOLO_HEIST_SUCCESS_CHANCE = 55;
 const SOLO_HEIST_PAYOUT_MULTIPLIER = 1.5;
 
+const HEIST_SEASONS = Object.freeze({
+    mobster: Object.freeze({
+        id: 'mobster', name: 'Mobster Heist', emoji: '🎩',
+        description: 'The Commission is lining up a classic mob score.',
+        encounter: 'Mobster Boss Battle or PvP Battle',
+        bosses: Object.freeze([
+            Object.freeze({ id: 'dockside-don', name: 'The Dockside Don', emoji: '🚬', season: 'mobster' }),
+            Object.freeze({ id: 'vault-king', name: 'The Vault King', emoji: '👑', season: 'mobster' }),
+            Object.freeze({ id: 'black-hand', name: 'The Black Hand', emoji: '🕴️', season: 'mobster' }),
+        ]),
+    }),
+    thanksgiving: Object.freeze({
+        id: 'thanksgiving', name: 'Thanksgiving Heist', emoji: '🦃',
+        description: 'The Commission is crashing a Thanksgiving score before the leftovers disappear.',
+        encounter: 'Thanksgiving Boss Battle or holiday PvP raid',
+        bosses: Object.freeze([
+            Object.freeze({ id: 'turkey-don', name: 'The Turkey Don', emoji: '🦃', season: 'thanksgiving' }),
+            Object.freeze({ id: 'gravy-boat-bandit', name: 'The Gravy Boat Bandit', emoji: '🥘', season: 'thanksgiving' }),
+            Object.freeze({ id: 'black-friday-kingpin', name: 'The Black Friday Kingpin', emoji: '🛒', season: 'thanksgiving' }),
+        ]),
+    }),
+    christmas: Object.freeze({
+        id: 'christmas', name: 'Christmas Heist', emoji: '🎄',
+        description: 'The Commission is raiding a holiday score before the sleigh leaves town.',
+        encounter: 'Christmas Boss Battle or holiday PvP raid',
+        bosses: Object.freeze([
+            Object.freeze({ id: 'krampus', name: 'Krampus', emoji: '👹', season: 'christmas' }),
+            Object.freeze({ id: 'grinch', name: 'The Grinch', emoji: '💚', season: 'christmas' }),
+            Object.freeze({ id: 'rogue-elf-crew', name: 'Santa’s Rogue Elf Crew', emoji: '🎅', season: 'christmas' }),
+        ]),
+    }),
+});
+
 const easternFormatter = new Intl.DateTimeFormat('en-US', {
     timeZone: EASTERN_TIME_ZONE,
     year: 'numeric', month: '2-digit', day: '2-digit',
@@ -37,6 +70,13 @@ function easternParts(ms) {
         if (part.type !== 'literal') values[part.type] = Number(part.value);
     }
     return values;
+}
+
+function heistSeason(now = Date.now()) {
+    const month = easternParts(now).month;
+    if (month === 11) return HEIST_SEASONS.thanksgiving;
+    if (month === 12) return HEIST_SEASONS.christmas;
+    return HEIST_SEASONS.mobster;
 }
 
 function calendarShift(parts, days) {
@@ -128,8 +168,8 @@ function capPayouts(outcome, cap = HEIST_MAX_REWARD) {
     return outcome;
 }
 
-function randomBoss(random = Math.random) {
-    const bosses = HEIST_TYPES.filter(type => type.id !== 'normal');
+function randomBoss(random = Math.random, now = Date.now()) {
+    const bosses = heistSeason(now).bosses;
     return bosses[Math.floor(Math.min(0.999999, Math.max(0, random())) * bosses.length)];
 }
 
@@ -303,7 +343,7 @@ function installFourDailyHeists() {
             const victims = this.db.prepare('SELECT user_id,balance FROM economy_members WHERE guild_id=? AND balance>0 ORDER BY balance DESC')
                 .all(round.guild_id)
                 .filter(member => !attackers.has(member.user_id));
-            if (!victims.length) return this.bossOutcome(round, entries, randomBoss(this.random));
+            if (!victims.length) return this.bossOutcome(round, entries, randomBoss(this.random, now));
 
             const victim = victims[Math.floor(this.random() * victims.length)];
             const chance = heistSuccessChance(entries.length);
@@ -364,7 +404,7 @@ function installFourDailyHeists() {
                 } else if (this.random() < 0.5) {
                     outcome = this.pvpOutcome(round, entries, now);
                 } else {
-                    outcome = this.bossOutcome(round, entries, randomBoss(this.random));
+                    outcome = this.bossOutcome(round, entries, randomBoss(this.random, now));
                 }
 
                 if (this.applyHeistStoreEffects) outcome = this.applyHeistStoreEffects(round, outcome, now);
@@ -573,11 +613,13 @@ module.exports = {
     HEIST_LOCAL_HOURS,
     HEIST_MAX_REWARD,
     HEIST_SUCCESS_PER_PLAYER,
+    HEIST_SEASONS,
     SOLO_HEIST_ENTRY_FEE,
     SOLO_HEIST_COOLDOWN_MS,
     SOLO_HEIST_SUCCESS_CHANCE,
     SOLO_HEIST_PAYOUT_MULTIPLIER,
     fourDailySchedule,
+    heistSeason,
     heistSuccessChance,
     installFourDailyHeists,
     scaledReward,

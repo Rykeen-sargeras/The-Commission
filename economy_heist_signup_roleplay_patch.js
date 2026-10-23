@@ -1,6 +1,7 @@
 'use strict';
 
 const economyModule = require('./economy');
+const { heistSeason } = require('./economy_heist_four_daily_patch');
 
 const ENTRY_FEE = 100_000;
 const EASTERN = 'America/New_York';
@@ -140,6 +141,30 @@ function installHeistSignupRoleplayPatch() {
         bossOutcome(round, entries, type) {
             const outcome = super.bossOutcome(round, entries, type);
             const boss = type?.name || 'the boss';
+            if (type?.season === 'thanksgiving') {
+                outcome.story = outcome.success ? [
+                    `🦃 **${boss}** barricades the holiday score behind a wall of overturned banquet tables.`,
+                    'The crew charges through flying gravy, shattered plates, and one extremely angry turkey.',
+                    `🥧 **Thanksgiving score secured.** ${boss} goes down and the Commission escapes with **${Number(outcome.rewardPool || 0).toLocaleString('en-US')} Blood Money** before dessert.`,
+                ] : [
+                    `🦃 **${boss}** ambushes the crew in the middle of the Thanksgiving score.`,
+                    'The job collapses into gravy-soaked chaos and the getaway van leaves empty-handed.',
+                    `🍂 **Holiday heist failed.** ${boss} keeps the feast and the entry pot.`,
+                ];
+                return outcome;
+            }
+            if (type?.season === 'christmas') {
+                outcome.story = outcome.success ? [
+                    `🎄 **${boss}** locks down the Christmas vault as alarms ring like sleigh bells.`,
+                    'The crew fights through tinsel, toy crates, and hired elves with terrible holiday spirit.',
+                    `🎁 **Christmas score secured.** ${boss} falls and the Commission escapes with **${Number(outcome.rewardPool || 0).toLocaleString('en-US')} Blood Money**.`,
+                ] : [
+                    `🎄 **${boss}** catches the crew raiding the Christmas vault.`,
+                    'Snow, smoke, and wrapping paper fill the room as the whole holiday job falls apart.',
+                    `❄️ **Christmas heist failed.** ${boss} keeps the presents and the entry pot.`,
+                ];
+                return outcome;
+            }
             const opener = pick([
                 `🚨 Sirens die in the distance. The vault doors buckle. **${boss}** steps through the smoke like they own the block.`,
                 `💥 The lights cut out. One emergency lamp flickers on, and there stands **${boss}**, grinning at the crew.`,
@@ -173,6 +198,33 @@ function installHeistSignupRoleplayPatch() {
         pvpOutcome(round, entries, now = Date.now()) {
             const outcome = super.pvpOutcome(round, entries, now);
             const victim = outcome.victimId ? `<@${outcome.victimId}>` : 'the target';
+            const season = heistSeason(now);
+            if (season.id === 'thanksgiving') {
+                outcome.story = outcome.success ? [
+                    `🦃 The Commission intercepts **${victim}** hauling the Thanksgiving score.`,
+                    'The parking lot turns into a Black Friday brawl with goons, shopping carts, and airborne stuffing.',
+                    `🥧 **Holiday haul secured.** The crew takes **${Number(outcome.stolenAmount || 0).toLocaleString('en-US')} Blood Money** and finishes with a **${Number(outcome.rewardPool || 0).toLocaleString('en-US')} Blood Money** reward.`,
+                ] : [
+                    `🦃 The crew corners **${victim}** during the Thanksgiving rush.`,
+                    'The target flips the ambush and sends everyone home with empty bags and cold leftovers.',
+                    '🍂 **Thanksgiving PvP raid failed.**',
+                ];
+                if (!outcome.success && Number(outcome.defenseAmount || 0) > 0) outcome.story.push(`🤕 Goon-related loss: **${Number(outcome.defenseAmount).toLocaleString('en-US')} Blood Money**.`);
+                return outcome;
+            }
+            if (season.id === 'christmas') {
+                outcome.story = outcome.success ? [
+                    `🎅 The Commission spots **${victim}** moving a sleigh full of Christmas Blood Money.`,
+                    'The holiday raid explodes into snow, sirens, and a deeply irresponsible number of candy canes.',
+                    `🎁 **Christmas haul secured.** The crew takes **${Number(outcome.stolenAmount || 0).toLocaleString('en-US')} Blood Money** and finishes with a **${Number(outcome.rewardPool || 0).toLocaleString('en-US')} Blood Money** reward.`,
+                ] : [
+                    `🎄 The crew tries to hijack **${victim}** on the Christmas run.`,
+                    'The target turns the trap around and the Commission retreats through the snow empty-handed.',
+                    '❄️ **Christmas PvP raid failed.**',
+                ];
+                if (!outcome.success && Number(outcome.defenseAmount || 0) > 0) outcome.story.push(`🤕 Goon-related loss: **${Number(outcome.defenseAmount).toLocaleString('en-US')} Blood Money**.`);
+                return outcome;
+            }
             const opener = pick([
                 `🕶️ Word hits the street: **${victim}** is moving Blood Money tonight. The Commission decides that sounds like a donation.`,
                 `🚗 A black sedan tails **${victim}** for three blocks. At the fourth light, the crew makes its move.`,

@@ -43,6 +43,20 @@ const ONE_TIME_PRESTIGE_GRANT = Object.freeze({
     userId: '1262823372270735466',
     grantId: 'all-luck-and-prestige-1262823372270735466-2026-10-23',
 });
+const ONE_TIME_STATISTICS_RESET = Object.freeze({
+    guildId: process.env.GOING_LIVE_GUILD_ID || '1532503754350264571',
+    resetId: 'clean-economy-statistics-and-audits-2026-10-23',
+    archiveCleanupKey: 'one_time_economy_archive_cleanup:2026-10-23',
+});
+
+function isEconomyArchiveMessage(message, botUserId) {
+    if (!message || !botUserId || message.author?.id !== botUserId) return false;
+    const titles = (message.embeds || []).map(embed => String(embed?.data?.title || embed?.title || ''));
+    if (titles.some(title => /Blood Money Archive|Weekly Blood Money Archive|REP Winners/i.test(title))) return true;
+    if (/^(?:⭐ Full REP leaderboard archive|🎁 Prize month result:)/.test(String(message.content || ''))) return true;
+    const attachments = message.attachments?.values ? [...message.attachments.values()] : [];
+    return attachments.some(attachment => /^(?:blood-money-(?:leaderboard|weekly)|rep-leaderboard)-/i.test(String(attachment.name || '')));
+}
 
 function createEconomyIntegration(client, economy, options = {}) {
     let voiceTimer = null;
@@ -618,9 +632,59 @@ function createEconomyIntegration(client, economy, options = {}) {
         return result;
     }
 
+    async function syncGuildLeaderboardMembership(guild) {
+        const members = await guild.members.fetch();
+        const activeUserIds = members.filter(member => !member.user.bot).map(member => member.id);
+        return economy.syncLeaderboardMembership(guild.id, activeUserIds);
+    }
+
+    async function removePreviousEconomyArchives(guild) {
+        if (economy.setting(guild.id, ONE_TIME_STATISTICS_RESET.archiveCleanupKey)) return { deleted: 0, applied: false };
+        const archiveId = economy.config.archiveChannelId || economy.config.auditChannelId || options.auditChannelId;
+        const channel = await guild.channels.fetch(archiveId).catch(() => null);
+        if (!channel?.isTextBased()) throw new Error(`Economy archive channel ${archiveId || '(not set)'} is unavailable.`);
+        let before;
+        let deleted = 0;
+        for (;;) {
+            const batch = await channel.messages.fetch({ limit: 100, ...(before ? { before } : {}) });
+            if (!batch.size) break;
+            for (const message of batch.values()) {
+                if (!isEconomyArchiveMessage(message, client.user?.id)) continue;
+                try {
+                    await message.delete();
+                    deleted += 1;
+                } catch (error) {
+                    if (Number(error?.code) !== 10008) throw error;
+                }
+            }
+            before = [...batch.values()].at(-1)?.id;
+            if (batch.size < 100 || !before) break;
+        }
+        economy.setSetting(guild.id, ONE_TIME_STATISTICS_RESET.archiveCleanupKey, Date.now());
+        return { deleted, applied: true };
+    }
+
+    async function runOneTimeStatisticsReset() {
+        const guild = client.guilds.cache.get(ONE_TIME_STATISTICS_RESET.guildId)
+            || await client.guilds.fetch(ONE_TIME_STATISTICS_RESET.guildId).catch(() => null);
+        if (!guild) throw new Error(`Guild ${ONE_TIME_STATISTICS_RESET.guildId} is unavailable.`);
+        const membership = await syncGuildLeaderboardMembership(guild);
+        const result = economy.resetAllEconomyStatistics(guild.id, ONE_TIME_STATISTICS_RESET.resetId);
+        const archiveCleanup = await removePreviousEconomyArchives(guild);
+        if (result.applied) {
+            console.log(`🧹 Economy statistics reset for ${result.resetMembers} account(s); ${result.deletedTransactions} transaction audit(s) removed and ${archiveCleanup.deleted} archive message(s) deleted.`);
+            await audit(guild, 'Economy statistics reset', `All lifetime, daily, gambling, voice, REP, and leaderboard statistics were reset. **${result.deletedTransactions}** economy transaction audits and **${archiveCleanup.deleted}** prior archive messages were removed. Current balances, purchases, inventory, Prestige, and active games were preserved. **${membership.departed}** departed account(s) are excluded from high scores.`);
+        }
+        return { ...result, membership, archiveCleanup };
+    }
+
     client.once('ready', async () => {
         await applyOneTimeDragonGrant().catch(error => console.error('One-time Dragon Tower grant error:', error));
         await applyOneTimePrestigeGrant().catch(error => console.error('One-time luck and Prestige grant error:', error));
+        for (const guild of client.guilds.cache.values()) {
+            await syncGuildLeaderboardMembership(guild).catch(error => console.error(`Economy membership sync error in ${guild.name}:`, error));
+        }
+        await runOneTimeStatisticsReset().catch(error => console.error('One-time economy statistics reset error:', error));
         await runWeeklyRollover().catch(error => console.error('Economy weekly rollover error:', error));
         await runMonthlyRollover().catch(error => console.error('Economy monthly rollover error:', error));
         await runRepRollover().catch(error => console.error('REP monthly rollover error:', error));
@@ -1210,10 +1274,10 @@ function createEconomyIntegration(client, economy, options = {}) {
         return { ...result, userIds: undefined, guildId: guild.id };
     }
 
-    return { handleButton, handleCommand, audit, rewardVoice, updateGamblePanel, updateHeistPanel, pushHeistPanel, applyOneTimeDragonGrant, applyOneTimePrestigeGrant, previewReset, executeReset, previewBulkGrant, executeBulkGrant, stop };
+    return { handleButton, handleCommand, audit, rewardVoice, updateGamblePanel, updateHeistPanel, pushHeistPanel, applyOneTimeDragonGrant, applyOneTimePrestigeGrant, runOneTimeStatisticsReset, previewReset, executeReset, previewBulkGrant, executeBulkGrant, stop };
 }
 
-module.exports = { economyCommandData, createEconomyIntegration, pokerComponents, canAdministerEconomy, gambleMenuPayload, wagerModal };
+module.exports = { economyCommandData, createEconomyIntegration, pokerComponents, canAdministerEconomy, gambleMenuPayload, wagerModal, isEconomyArchiveMessage };
 
 const { installLuckCommands } = require('./economy/luck');
 const { installLuckPanel } = require('./economy/luck_panel');
