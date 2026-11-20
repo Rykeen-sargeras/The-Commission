@@ -1,5 +1,11 @@
 'use strict';
 
+const COMMISSION_DORMANT_MODE = true;
+if (COMMISSION_DORMANT_MODE) {
+  console.log('💤 The Commission is in true dormant mode. No Discord worker, web server, timers, or background jobs will start.');
+  process.exit(0);
+}
+
 // Load Railway web-board routes and Discord bootstrap patches relative to this file.
 require('./going_live_preload');
 require('./youtube_clipper_preload');
